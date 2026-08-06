@@ -1,0 +1,1 @@
+"""Package infrastructure — adaptateurs jobs."""

@@ -1,0 +1,18 @@
+{
+  "name": "Formation Platform",
+  "short_name": "Formation",
+  "description": "Formation platform for video courses",
+  "start_url": "/",
+  "display": "standalone",
+  "background_color": "#ffffff",
+  "theme_color": "#005bea",
+  "orientation": "portrait-primary",
+  "icons": [
+    {
+      "src": "/icon.svg",
+      "sizes": "any",
+      "type": "image/svg+xml",
+      "purpose": "any maskable"
+    }
+  ]
+}

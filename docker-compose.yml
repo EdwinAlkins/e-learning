@@ -1,0 +1,81 @@
+name: e-learning
+
+services:
+  postgres:
+    image: postgres:18-alpine
+    environment:
+      POSTGRES_USER: ${POSTGRES_USER}
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD}
+      POSTGRES_DB: ${POSTGRES_DB}
+    ports:
+      - "${POSTGRES_PORT}:5432"
+    volumes:
+      # Postgres 18+ : monter /var/lib/postgresql (pas .../data)
+      - postgres_data:/var/lib/postgresql
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U ${POSTGRES_USER} -d ${POSTGRES_DB}"]
+      interval: 5s
+      timeout: 5s
+      retries: 10
+
+  qdrant:
+    image: qdrant/qdrant:v1.19.0
+    ports:
+      - "${QDRANT_PORT:-6333}:6333"
+    volumes:
+      - qdrant_data:/qdrant/storage
+    healthcheck:
+      test: ["CMD-SHELL", "bash -c 'exec 3<>/dev/tcp/127.0.0.1/6333'"]
+      interval: 5s
+      timeout: 5s
+      retries: 10
+
+  migrate:
+    build:
+      context: ./e-learning-api
+      dockerfile: docker/Dockerfile
+    command: ["uv", "run", "alembic", "upgrade", "head"]
+    environment:
+      APP_DATABASE_URL: ${APP_DATABASE_URL}
+    depends_on:
+      postgres:
+        condition: service_healthy
+
+  api:
+    build:
+      context: ./e-learning-api
+      dockerfile: docker/Dockerfile
+    ports:
+      - "${API_PORT}:8000"
+    env_file:
+      - .env
+    environment:
+      APP_DATABASE_URL: ${APP_DATABASE_URL}
+      APP_VIDEOS_PATH: /app/videos
+      APP_QDRANT_URL: ${APP_QDRANT_URL:-http://qdrant:6333}
+      APP_OPENAI_BASE_URL: ${APP_OPENAI_BASE_URL}
+      APP_OPENAI_MODEL: ${APP_OPENAI_MODEL}
+    volumes:
+      - "${VIDEOS_HOST_PATH}:/app/videos"
+    extra_hosts:
+      - "host.docker.internal:host-gateway"
+    depends_on:
+      migrate:
+        condition: service_completed_successfully
+      qdrant:
+        condition: service_started
+
+  front:
+    build:
+      context: ./e-learning-front
+      dockerfile: Dockerfile
+      args:
+        NEXT_PUBLIC_API_URL: ${NEXT_PUBLIC_API_URL}
+    ports:
+      - "${FRONT_PORT}:3000"
+    depends_on:
+      - api
+
+volumes:
+  postgres_data:
+  qdrant_data:

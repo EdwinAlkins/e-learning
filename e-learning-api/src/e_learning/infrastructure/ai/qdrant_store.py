@@ -1,0 +1,180 @@
+"""Adaptateur Qdrant pour le store vectoriel RAG."""
+
+from __future__ import annotations
+
+import logging
+from typing import Any
+
+from e_learning.application.shared.errors import RagError
+from e_learning.application.shared.rag import RagChunk, RagHit, VectorStorePort
+from e_learning.infrastructure.config import Settings
+
+logger = logging.getLogger("e_learning")
+
+
+class QdrantVectorStore(VectorStorePort):
+    def __init__(self, settings: Settings) -> None:
+        self._settings = settings
+        self._client: Any | None = None
+
+    def _get_client(self) -> Any:
+        if self._client is not None:
+            return self._client
+        try:
+            from qdrant_client import AsyncQdrantClient
+        except ImportError as exc:
+            raise RagError(
+                "Le paquet qdrant-client n'est pas installé (groupe de deps ai)."
+            ) from exc
+        self._client = AsyncQdrantClient(
+            url=self._settings.qdrant_url,
+            check_compatibility=False,
+        )
+        return self._client
+
+    async def ensure_collection(self) -> None:
+        from qdrant_client.http import models as qm
+
+        client = self._get_client()
+        name = self._settings.qdrant_collection
+        try:
+            exists = await client.collection_exists(name)
+            if exists:
+                return
+            await client.create_collection(
+                collection_name=name,
+                vectors_config=qm.VectorParams(
+                    size=self._settings.embedding_dims,
+                    distance=qm.Distance.COSINE,
+                ),
+            )
+            await client.create_payload_index(
+                collection_name=name,
+                field_name="formation_id",
+                field_schema=qm.PayloadSchemaType.KEYWORD,
+            )
+            await client.create_payload_index(
+                collection_name=name,
+                field_name="video_id",
+                field_schema=qm.PayloadSchemaType.KEYWORD,
+            )
+            logger.info("Collection Qdrant créée : %s", name)
+        except RagError:
+            raise
+        except Exception as exc:  # noqa: BLE001
+            raise RagError(f"Échec ensure_collection Qdrant : {exc}") from exc
+
+    async def upsert_chunks(self, chunks: list[RagChunk]) -> None:
+        if not chunks:
+            return
+        from qdrant_client.http import models as qm
+
+        await self.ensure_collection()
+        client = self._get_client()
+        points = [
+            qm.PointStruct(
+                id=chunk.id,
+                vector=chunk.vector,
+                payload={
+                    "formation_id": chunk.formation_id,
+                    "chapter_id": chunk.chapter_id,
+                    "video_id": chunk.video_id,
+                    "title": chunk.title,
+                    "source": chunk.source,
+                    "chunk_index": chunk.chunk_index,
+                    "text": chunk.text,
+                },
+            )
+            for chunk in chunks
+        ]
+        try:
+            await client.upsert(
+                collection_name=self._settings.qdrant_collection,
+                points=points,
+            )
+        except Exception as exc:  # noqa: BLE001
+            raise RagError(f"Échec upsert Qdrant : {exc}") from exc
+
+    async def delete_by_video(self, video_id: str) -> None:
+        from qdrant_client.http import models as qm
+
+        await self.ensure_collection()
+        client = self._get_client()
+        try:
+            await client.delete(
+                collection_name=self._settings.qdrant_collection,
+                points_selector=qm.FilterSelector(
+                    filter=qm.Filter(
+                        must=[
+                            qm.FieldCondition(
+                                key="video_id",
+                                match=qm.MatchValue(value=video_id),
+                            )
+                        ]
+                    )
+                ),
+            )
+        except Exception as exc:  # noqa: BLE001
+            raise RagError(f"Échec delete Qdrant : {exc}") from exc
+
+    async def search(self, formation_id: str, vector: list[float], *, top_k: int) -> list[RagHit]:
+        from qdrant_client.http import models as qm
+
+        await self.ensure_collection()
+        client = self._get_client()
+        try:
+            response = await client.query_points(
+                collection_name=self._settings.qdrant_collection,
+                query=vector,
+                limit=top_k,
+                query_filter=qm.Filter(
+                    must=[
+                        qm.FieldCondition(
+                            key="formation_id",
+                            match=qm.MatchValue(value=formation_id),
+                        )
+                    ]
+                ),
+                with_payload=True,
+            )
+        except Exception as exc:  # noqa: BLE001
+            raise RagError(f"Échec search Qdrant : {exc}") from exc
+
+        hits: list[RagHit] = []
+        for point in response.points:
+            payload = point.payload or {}
+            hits.append(
+                RagHit(
+                    formation_id=str(payload.get("formation_id", "")),
+                    chapter_id=str(payload.get("chapter_id", "")),
+                    video_id=str(payload.get("video_id", "")),
+                    title=str(payload.get("title", "")),
+                    source=str(payload.get("source", "")),
+                    chunk_index=int(payload.get("chunk_index", 0)),
+                    text=str(payload.get("text", "")),
+                    score=float(point.score or 0.0),
+                )
+            )
+        return hits
+
+    async def count_by_formation(self, formation_id: str) -> int:
+        from qdrant_client.http import models as qm
+
+        await self.ensure_collection()
+        client = self._get_client()
+        try:
+            result = await client.count(
+                collection_name=self._settings.qdrant_collection,
+                count_filter=qm.Filter(
+                    must=[
+                        qm.FieldCondition(
+                            key="formation_id",
+                            match=qm.MatchValue(value=formation_id),
+                        )
+                    ]
+                ),
+                exact=True,
+            )
+            return int(result.count)
+        except Exception as exc:  # noqa: BLE001
+            raise RagError(f"Échec count Qdrant : {exc}") from exc
