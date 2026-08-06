@@ -1,0 +1,49 @@
+name: e-learning-api
+
+services:
+  postgres:
+    image: postgres:17-alpine
+    environment:
+      POSTGRES_USER: elearning
+      POSTGRES_PASSWORD: elearning
+      POSTGRES_DB: elearning
+    ports:
+      - "5432:5432"
+    volumes:
+      - postgres_data:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U elearning -d elearning"]
+      interval: 5s
+      timeout: 5s
+      retries: 10
+
+  migrate:
+    build:
+      context: .
+      dockerfile: docker/Dockerfile
+    command: ["uv", "run", "alembic", "upgrade", "head"]
+    environment:
+      APP_DATABASE_URL: postgresql+asyncpg://elearning:elearning@postgres:5432/elearning
+    depends_on:
+      postgres:
+        condition: service_healthy
+
+  api:
+    build:
+      context: .
+      dockerfile: docker/Dockerfile
+    ports:
+      - "8000:8000"
+    environment:
+      APP_DATABASE_URL: postgresql+asyncpg://elearning:elearning@postgres:5432/elearning
+      APP_VIDEOS_PATH: /app/videos
+      APP_DEBUG: "false"
+      APP_INIT_DB: "false"
+    volumes:
+      - "${APP_VIDEOS_PATH:-./videos}:/app/videos"
+    depends_on:
+      migrate:
+        condition: service_completed_successfully
+
+volumes:
+  postgres_data:

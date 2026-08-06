@@ -1,0 +1,67 @@
+# Git / VCS
+.git
+.gitignore
+.gitattributes
+
+# Python
+__pycache__
+**/__pycache__
+*.py[cod]
+*$py.class
+*.so
+.Python
+*.egg-info
+dist
+build
+.venv
+venv
+env
+uv.lock
+
+# Qualité / IDE
+.vscode
+.idea
+.cursor
+.claude
+.ruff_cache
+.mypy_cache
+.pytest_cache
+.coverage
+htmlcov
+*.swp
+*.swo
+*~
+
+# Docs (README requis par hatchling)
+*.md
+!README.md
+docs/
+API.md
+CLAUDE.md
+LICENSE
+
+# Tests (hors image runtime)
+tests/
+check-deps.py
+
+# Env locaux (injectés via compose / runtime)
+.env
+.env.local
+.env.*.local
+
+# Données montées en volume
+*.db
+*.sqlite
+*.sqlite3
+videos/
+database.db
+
+# Cache / artefacts locaux
+.cache
+*.cache
+catalog_cache.json
+poc/
+transcription.txt
+.DS_Store
+Thumbs.db
+*.log

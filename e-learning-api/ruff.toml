@@ -1,0 +1,10 @@
+# Aligné sur pyproject.toml (template hexa). Préférer la config [tool.ruff] du pyproject.
+target-version = "py314"
+line-length = 100
+
+[lint]
+select = ["E", "F", "I", "UP", "B", "SIM"]
+ignore = ["B008"]
+
+[lint.per-file-ignores]
+"tests/**/*.py" = ["S101"]
