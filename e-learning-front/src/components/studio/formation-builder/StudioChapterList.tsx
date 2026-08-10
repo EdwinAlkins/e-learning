@@ -7,7 +7,7 @@ import { useFormationBuilderContext } from './FormationBuilderContext';
 import StudioChapterAccordion from './StudioChapterAccordion';
 
 export default function StudioChapterList() {
-  const { formation, deleteTarget, deleting, setChapterDialog } =
+  const { formation, deleteTarget, deleting, busyChapterId, setChapterDialog } =
     useFormationBuilderContext();
 
   if (!formation) return null;
@@ -17,7 +17,7 @@ export default function StudioChapterList() {
   return (
     <>
       <Box sx={{ mt: 2 }}>
-        {sortedChapters.map((chapter) => {
+        {sortedChapters.map((chapter, chapterIndex) => {
           const isDeletingChapter =
             deleting &&
             deleteTarget?.type === 'chapter' &&
@@ -27,7 +27,10 @@ export default function StudioChapterList() {
             <StudioChapterAccordion
               key={chapter.id}
               chapter={chapter}
+              chapterIndex={chapterIndex}
+              chapterCount={sortedChapters.length}
               isDeletingChapter={isDeletingChapter}
+              isBusy={busyChapterId === chapter.id}
             />
           );
         })}

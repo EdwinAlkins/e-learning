@@ -6,7 +6,7 @@ import mimetypes
 from pathlib import Path
 from typing import Annotated
 
-from fastapi import APIRouter, BackgroundTasks, Depends, Request, status
+from fastapi import APIRouter, Depends, Request, status
 from fastapi.responses import FileResponse, Response
 from starlette.responses import StreamingResponse
 
@@ -20,11 +20,6 @@ from e_learning.application.content.use_cases.start_summary_generation import (
 )
 from e_learning.application.content.use_cases.start_transcription import StartTranscription
 from e_learning.application.content.use_cases.update_summary import UpdateSummary
-from e_learning.presentation.api.background import (
-    run_media_conversion,
-    run_summary_generation,
-    run_transcription,
-)
 from e_learning.presentation.api.dependencies import (
     get_get_summary,
     get_get_transcription,
@@ -137,14 +132,9 @@ async def update_summary(
 )
 async def generate_summary(
     video_id: str,
-    request: Request,
-    background_tasks: BackgroundTasks,
     use_case: Annotated[StartSummaryGeneration, Depends(get_start_summary_generation)],
 ) -> VideoResponse:
     dto = await use_case.execute(video_id)
-    if dto.summary_status == "processing":
-        job_id = next((j.id for j in dto.active_jobs if j.kind == "summary"), None)
-        background_tasks.add_task(run_summary_generation, request.app, video_id, job_id)
     return VideoResponse.from_dto(dto)
 
 
@@ -164,12 +154,9 @@ async def get_transcription(
 )
 async def start_media_conversion(
     video_id: str,
-    request: Request,
-    background_tasks: BackgroundTasks,
     use_case: Annotated[StartMediaConversion, Depends(get_start_media_conversion)],
 ) -> VideoResponse:
-    dto, job = await use_case.execute(video_id)
-    background_tasks.add_task(run_media_conversion, request.app, job)
+    dto, _job = await use_case.execute(video_id)
     return VideoResponse.from_dto(dto)
 
 
@@ -180,12 +167,7 @@ async def start_media_conversion(
 )
 async def start_transcription(
     video_id: str,
-    request: Request,
-    background_tasks: BackgroundTasks,
     use_case: Annotated[StartTranscription, Depends(get_start_transcription)],
 ) -> VideoResponse:
     dto = await use_case.execute(video_id)
-    if dto.transcription_status == "processing":
-        job_id = next((j.id for j in dto.active_jobs if j.kind == "transcription"), None)
-        background_tasks.add_task(run_transcription, request.app, video_id, job_id)
     return VideoResponse.from_dto(dto)

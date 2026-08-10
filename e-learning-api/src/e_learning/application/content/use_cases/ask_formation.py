@@ -41,7 +41,7 @@ class AskFormation:
         if count == 0:
             raise RagEmptyIndexError(
                 "Aucun contenu indexé pour cette formation. "
-                "Transcrivez des vidéos puis lancez l'indexation RAG."
+                "Transcrivez des vidéos ou ajoutez des documents, puis lancez l'indexation RAG."
             )
 
         [query_vector] = await self._embeddings.embed([question])
@@ -53,10 +53,11 @@ class AskFormation:
 
         context_parts: list[str] = []
         citations: list[RagCitationDTO] = []
-        seen_keys: set[tuple[str, str]] = set()
+        seen_keys: set[tuple[str, str, str]] = set()
         for hit in hits:
-            context_parts.append(f"[{hit.title} — {hit.source}]\n{hit.text}")
-            key = (hit.video_id, hit.source)
+            label = hit.source
+            context_parts.append(f"[{hit.title} — {label}]\n{hit.text}")
+            key = (hit.video_id or "", hit.document_id or "", hit.source)
             if key in seen_keys:
                 continue
             seen_keys.add(key)
@@ -64,6 +65,7 @@ class AskFormation:
             citations.append(
                 RagCitationDTO(
                     video_id=hit.video_id,
+                    document_id=hit.document_id,
                     title=hit.title,
                     source=hit.source,
                     excerpt=excerpt,

@@ -4,7 +4,9 @@ from __future__ import annotations
 
 from e_learning.application.catalog.dto import VideoDTO
 from e_learning.application.jobs.create_job import create_queued_job
+from e_learning.application.jobs.enqueue import publish_compute_job
 from e_learning.application.shared.media import MediaFilePort
+from e_learning.application.shared.messaging import JobPublisherPort
 from e_learning.domain.catalog.entities import Video
 from e_learning.domain.catalog.exceptions import (
     AiJobConflict,
@@ -22,10 +24,12 @@ class StartSummaryGeneration:
         videos: VideoRepository,
         media_files: MediaFilePort,
         jobs: JobRepository,
+        publisher: JobPublisherPort,
     ) -> None:
         self._videos = videos
         self._media_files = media_files
         self._jobs = jobs
+        self._publisher = publisher
 
     async def execute(self, video_id: str) -> VideoDTO:
         video = await self._videos.get(VideoId.from_string(video_id))
@@ -54,8 +58,17 @@ class StartSummaryGeneration:
         if video.summary_status == Video.AI_PROCESSING:
             raise AiJobConflict(video_id, "summary", video.summary_status)
 
-        if video.transcription_status != Video.AI_READY and not has_txt:
+        # Toujours exiger le fichier .txt (pas seulement le statut DB) :
+        # un ready fantôme arrive si le sidecar est resté en ``*.src.txt``
+        # après conversion.
+        if not has_txt:
+            if video.transcription_status == Video.AI_READY:
+                video.set_transcription_status(Video.AI_NONE)
+                await self._videos.save(video)
             raise TranscriptionNotReady(video_id)
+
+        if video.transcription_status != Video.AI_READY:
+            video.set_transcription_status(Video.AI_READY)
 
         video.set_summary_status(Video.AI_PROCESSING)
         await self._videos.save(video)
@@ -65,4 +78,5 @@ class StartSummaryGeneration:
             video_id=str(video.id),
             message="Résumé en file d'attente",
         )
+        await publish_compute_job(self._publisher, job)
         return VideoDTO.from_entity(video, active_jobs=(job,))

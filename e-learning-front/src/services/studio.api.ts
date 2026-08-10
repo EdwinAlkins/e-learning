@@ -54,6 +54,9 @@ export const studioApi = {
   reorderVideos: (chapterId: string, orderedVideoIds: string[]): Promise<Chapter> =>
     apiService.putChapterVideoOrder(chapterId, orderedVideoIds),
 
+  reorderChapters: (formationId: string, orderedChapterIds: string[]): Promise<Formation> =>
+    apiService.putFormationChapterOrder(formationId, orderedChapterIds),
+
   fetchFormationById: (formationId: string): Promise<Formation> =>
     apiService.getFormation(formationId),
 

@@ -67,10 +67,11 @@ Les jobs terminés (`succeeded` / `failed`) ne figurent plus dans `active_jobs` 
 - `POST /formations/{id}/chapters` body `{"name"}`
 - `PATCH /chapters/{id}` body `{"name"}`
 - `DELETE /chapters/{id}`
-- `POST /chapters/{id}/videos` multipart `title` + `file` — si conversion nécessaire : `processing_status=processing` + job `media_conversion` (BackgroundTasks)
+- `POST /chapters/{id}/videos` multipart `title` + `file` — si conversion nécessaire : `processing_status=processing` + job `media_conversion` (queue RabbitMQ)
 - `PATCH /videos/{id}` JSON `{"title"}` **ou** multipart `title?` + `file?` (remplacement)
 - `DELETE /videos/{id}`
 - `PUT /chapters/{id}/videos/order` body `{"video_ids": [...]}` — met à jour `position` en base
+- `PUT /formations/{id}/chapters/order` body `{"chapter_ids": [...]}` — réordonne les chapitres (`position` DB, slugs FS inchangés)
 - `PATCH /chapters/{source}/{target}/{video_id}` body optionnel `position` / `after_video_id`
 
 ### Videos

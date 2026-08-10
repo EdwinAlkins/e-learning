@@ -15,6 +15,8 @@ class JobDTO:
     status: str
     progress: int
     message: str
+    video_id: str | None = None
+    formation_id: str | None = None
 
     @classmethod
     def from_entity(cls, job: Job) -> JobDTO:
@@ -24,6 +26,8 @@ class JobDTO:
             status=job.status,
             progress=job.progress,
             message=job.message,
+            video_id=str(job.video_id) if job.video_id else None,
+            formation_id=str(job.formation_id) if job.formation_id else None,
         )
 
 
@@ -174,6 +178,12 @@ class RenameVideoCommand:
 class ReorderVideosCommand:
     chapter_id: str
     video_ids: list[str]
+
+
+@dataclass(frozen=True, slots=True)
+class ReorderChaptersCommand:
+    formation_id: str
+    chapter_ids: list[str]
 
 
 @dataclass(frozen=True, slots=True)

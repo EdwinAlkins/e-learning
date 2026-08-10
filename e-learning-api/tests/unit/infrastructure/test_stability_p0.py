@@ -29,6 +29,7 @@ from tests.unit.application._fakes import (
     FakeFormationRepository,
     FakeJobRepository,
     FakeVideoRepository,
+    RecordingPublisher,
 )
 from tests.unit.application.test_use_cases import FakeCatalogStorage
 
@@ -91,7 +92,7 @@ async def test_create_video_avoids_filename_collision(tmp_path: Path) -> None:
     )
     await chapters.save(chapter)
 
-    first = await CreateVideo(formations, chapters, videos, storage, FakeJobRepository()).execute(
+    first = await CreateVideo(formations, chapters, videos, storage, FakeJobRepository(), RecordingPublisher()).execute(
         CreateVideoCommand(
             chapter_id=str(chapter.id),
             title="Intro",
@@ -99,7 +100,7 @@ async def test_create_video_avoids_filename_collision(tmp_path: Path) -> None:
             filename="intro.mp4",
         )
     )
-    second = await CreateVideo(formations, chapters, videos, storage, FakeJobRepository()).execute(
+    second = await CreateVideo(formations, chapters, videos, storage, FakeJobRepository(), RecordingPublisher()).execute(
         CreateVideoCommand(
             chapter_id=str(chapter.id),
             title="Intro",

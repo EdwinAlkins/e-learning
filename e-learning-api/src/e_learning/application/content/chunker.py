@@ -7,9 +7,23 @@ import uuid
 _RAG_NAMESPACE = uuid.UUID("a1b2c3d4-e5f6-7890-abcd-ef1234567890")
 
 
-def chunk_point_id(video_id: str, source: str, chunk_index: int) -> str:
-    """Identifiant stable (UUID5) pour upsert idempotent dans le store vectoriel."""
-    return str(uuid.uuid5(_RAG_NAMESPACE, f"{video_id}:{source}:{chunk_index}"))
+def chunk_point_id(
+    owner_id: str,
+    source: str,
+    chunk_index: int,
+    *,
+    kind: str = "video",
+) -> str:
+    """Identifiant stable (UUID5) pour upsert idempotent dans le store vectoriel.
+
+    - ``kind="video"`` : clé historique ``{video_id}:{source}:{index}``
+    - ``kind="document"`` : clé ``doc:{document_id}:{source}:{index}``
+    """
+    if kind == "document":
+        key = f"doc:{owner_id}:{source}:{chunk_index}"
+    else:
+        key = f"{owner_id}:{source}:{chunk_index}"
+    return str(uuid.uuid5(_RAG_NAMESPACE, key))
 
 
 def chunk_text(text: str, *, chunk_size: int, overlap: int) -> list[str]:

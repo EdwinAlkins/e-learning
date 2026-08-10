@@ -10,6 +10,8 @@ from e_learning.application.catalog.media_kind import (
     target_extension,
 )
 from e_learning.application.jobs.create_job import create_queued_job
+from e_learning.application.jobs.enqueue import publish_compute_job
+from e_learning.application.shared.messaging import JobPublisherPort
 from e_learning.application.shared.storage import CatalogStoragePort
 from e_learning.domain.catalog.entities import Video
 from e_learning.domain.catalog.exceptions import AiJobConflict, MediaNotReady
@@ -52,10 +54,12 @@ class StartMediaConversion:
         videos: VideoRepository,
         storage: CatalogStoragePort,
         jobs: JobRepository,
+        publisher: JobPublisherPort,
     ) -> None:
         self._videos = videos
         self._storage = storage
         self._jobs = jobs
+        self._publisher = publisher
 
     async def execute(self, video_id: str) -> tuple[VideoDTO, MediaConversionJob]:
         video = await self._videos.get(VideoId.from_string(video_id))
@@ -83,6 +87,7 @@ class StartMediaConversion:
                 kind=job.kind,
                 job_id=job_dto.id,
             )
+            await publish_compute_job(self._publisher, job_dto)
             return VideoDTO.from_entity(video, active_jobs=(job_dto,)), job
 
         if video.processing_status != Video.STATUS_READY:
@@ -116,4 +121,5 @@ class StartMediaConversion:
             kind=video.kind,
             job_id=job_dto.id,
         )
+        await publish_compute_job(self._publisher, job_dto)
         return VideoDTO.from_entity(video, active_jobs=(job_dto,)), job

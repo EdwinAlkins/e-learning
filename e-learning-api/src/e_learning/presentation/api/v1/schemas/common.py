@@ -157,6 +157,10 @@ class ReorderVideosRequest(BaseModel):
     video_ids: list[str]
 
 
+class ReorderChaptersRequest(BaseModel):
+    chapter_ids: list[str]
+
+
 class MoveVideoRequest(BaseModel):
     position: int | None = None
     after_video_id: str | None = None
@@ -253,10 +257,11 @@ class AskFormationRequest(BaseModel):
 
 
 class RagCitationResponse(BaseModel):
-    video_id: str
     title: str
     source: str
     excerpt: str
+    video_id: str | None = None
+    document_id: str | None = None
 
 
 class AskFormationResponse(BaseModel):

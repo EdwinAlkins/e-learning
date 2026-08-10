@@ -46,6 +46,11 @@ class IndexVideoCommand:
 
 
 @dataclass(frozen=True, slots=True)
+class IndexDocumentCommand:
+    document_id: str
+
+
+@dataclass(frozen=True, slots=True)
 class IndexFormationCommand:
     formation_id: str
 
@@ -58,10 +63,11 @@ class AskFormationCommand:
 
 @dataclass(frozen=True, slots=True)
 class RagCitationDTO:
-    video_id: str
     title: str
     source: str
     excerpt: str
+    video_id: str | None = None
+    document_id: str | None = None
 
 
 @dataclass(frozen=True, slots=True)
@@ -74,3 +80,4 @@ class AskFormationResult:
 class IndexFormationResult:
     indexed_videos: int
     indexed_chunks: int
+    indexed_documents: int = 0

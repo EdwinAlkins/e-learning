@@ -67,8 +67,28 @@ class CompleteMediaConversion:
             )
             await self._videos.save(video)
 
-            if job.source_relative_path != job.target_relative_path and source.exists():
-                source.unlink(missing_ok=True)
+            if job.source_relative_path != job.target_relative_path:
+                # Les sidecars suivent with_suffix(média) : pendant le staging
+                # ``clip.src.mkv`` → ``clip.src.txt`` ; après conversion il faut
+                # les ramener sur ``clip.mp4`` → ``clip.txt`` / ``clip.md``.
+                for suffix in (".md", ".txt"):
+                    old_side = source.with_suffix(suffix)
+                    new_side = target.with_suffix(suffix)
+                    if not old_side.is_file():
+                        continue
+                    if old_side.resolve() == new_side.resolve():
+                        continue
+                    new_side.parent.mkdir(parents=True, exist_ok=True)
+                    if new_side.exists():
+                        new_side.unlink()
+                    old_side.rename(new_side)
+                    logger.info(
+                        "Sidecar déplacé après conversion : %s → %s",
+                        old_side.name,
+                        new_side.name,
+                    )
+                if source.exists():
+                    source.unlink(missing_ok=True)
         except Exception:
             logger.exception("Conversion média échouée pour %s", job.video_id)
             video.mark_failed()

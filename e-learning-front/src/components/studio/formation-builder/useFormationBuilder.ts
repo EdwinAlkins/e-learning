@@ -3,7 +3,7 @@
 import { useEffect, useRef, useState } from 'react';
 import { studioUploadKeys, useStudioStore } from '../../../stores/studio.store';
 import type { Chapter, Formation, Video } from '../../../types';
-import { sortVideosByNumber } from '../../../utils/formation';
+import { sortChaptersByNumber, sortVideosByNumber } from '../../../utils/formation';
 import { POLLING_INTERVAL_MS } from '../../../constants';
 import { setVisibilityInterval } from '../../../utils/visibility-interval';
 import type {
@@ -14,6 +14,14 @@ import type {
   MoveDialogState,
   VideoDialogState,
 } from './types';
+import type { ChapterSubmitData } from '../ChapterDialog';
+
+function moveIdToOrder(ids: string[], id: string, order1Based: number): string[] {
+  const without = ids.filter((item) => item !== id);
+  const targetIndex = Math.max(0, Math.min(order1Based - 1, without.length));
+  without.splice(targetIndex, 0, id);
+  return without;
+}
 
 export function useFormationBuilder(formationId: string) {
   const {
@@ -36,6 +44,7 @@ export function useFormationBuilder(formationId: string) {
     startMediaConversion,
     generateVideoSummary,
     reorderVideos,
+    reorderChapters,
     moveVideo,
     getUploadProgress,
   } = useStudioStore();
@@ -46,6 +55,7 @@ export function useFormationBuilder(formationId: string) {
   const [nameError, setNameError] = useState<string | null>(null);
   const [jobNotice, setJobNotice] = useState<string | null>(null);
   const [busyVideoId, setBusyVideoId] = useState<string | null>(null);
+  const [busyChapterId, setBusyChapterId] = useState<string | null>(null);
   const [draggedVideo, setDraggedVideo] = useState<DraggedVideo | null>(null);
   const [chapterDialog, setChapterDialog] = useState<ChapterDialogState>({
     open: false,
@@ -159,13 +169,32 @@ export function useFormationBuilder(formationId: string) {
     }
   };
 
-  const handleChapterSubmit = async (name: string) => {
+  const handleChapterSubmit = async (data: ChapterSubmitData) => {
     if (!formation) return;
 
     if (chapterDialog.mode === 'create') {
-      await createChapter(formation.id, name);
-    } else if (chapterDialog.chapter) {
-      await patchChapter(formation.id, chapterDialog.chapter.id, { name });
+      await createChapter(formation.id, data.name);
+      return;
+    }
+
+    if (!chapterDialog.chapter) return;
+
+    const chapter = chapterDialog.chapter;
+    if (data.name !== chapter.name) {
+      await patchChapter(formation.id, chapter.id, { name: data.name });
+    }
+
+    if (data.order != null) {
+      const sorted = sortChaptersByNumber(formation.chapters);
+      const currentOrder = sorted.findIndex((item) => item.id === chapter.id) + 1;
+      if (data.order !== currentOrder) {
+        const orderedIds = moveIdToOrder(
+          sorted.map((item) => item.id),
+          chapter.id,
+          data.order
+        );
+        await reorderChapters(formation.id, orderedIds);
+      }
     }
   };
 
@@ -255,6 +284,38 @@ export function useFormationBuilder(formationId: string) {
     const orderedIds = sorted.map((item) => item.id);
     [orderedIds[index], orderedIds[index + 1]] = [orderedIds[index + 1], orderedIds[index]];
     await reorderInChapter(chapter, orderedIds);
+  };
+
+  const handleMoveChapterUp = async (chapter: Chapter) => {
+    if (!formation) return;
+    const sorted = sortChaptersByNumber(formation.chapters);
+    const index = sorted.findIndex((item) => item.id === chapter.id);
+    if (index <= 0) return;
+
+    const orderedIds = sorted.map((item) => item.id);
+    [orderedIds[index - 1], orderedIds[index]] = [orderedIds[index], orderedIds[index - 1]];
+    setBusyChapterId(chapter.id);
+    try {
+      await reorderChapters(formation.id, orderedIds);
+    } finally {
+      setBusyChapterId(null);
+    }
+  };
+
+  const handleMoveChapterDown = async (chapter: Chapter) => {
+    if (!formation) return;
+    const sorted = sortChaptersByNumber(formation.chapters);
+    const index = sorted.findIndex((item) => item.id === chapter.id);
+    if (index === -1 || index >= sorted.length - 1) return;
+
+    const orderedIds = sorted.map((item) => item.id);
+    [orderedIds[index], orderedIds[index + 1]] = [orderedIds[index + 1], orderedIds[index]];
+    setBusyChapterId(chapter.id);
+    try {
+      await reorderChapters(formation.id, orderedIds);
+    } finally {
+      setBusyChapterId(null);
+    }
   };
 
   const handleDropOnVideo = async (
@@ -374,6 +435,7 @@ export function useFormationBuilder(formationId: string) {
     savingName,
     nameError,
     busyVideoId,
+    busyChapterId,
     draggedVideo,
     setDraggedVideo,
     chapterDialog,
@@ -396,6 +458,8 @@ export function useFormationBuilder(formationId: string) {
     handleDelete,
     handleMoveUp,
     handleMoveDown,
+    handleMoveChapterUp,
+    handleMoveChapterDown,
     handleDropOnVideo,
     handleMoveSubmit,
     handleStartTranscription,

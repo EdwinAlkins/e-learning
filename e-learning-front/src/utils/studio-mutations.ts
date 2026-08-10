@@ -1,5 +1,5 @@
 import type { Chapter, Formation, Video } from '../types';
-import { orderVideosByIds } from './formation';
+import { orderChaptersByIds, orderVideosByIds } from './formation';
 
 export const mapFormations = (
   formations: Formation[],
@@ -131,6 +131,16 @@ export const setChapterVideoOrder = (
         videos: orderVideosByIds(chapter.videos, orderedVideoIds),
       };
     }),
+  }));
+
+export const setFormationChapterOrder = (
+  formations: Formation[],
+  formationId: string,
+  orderedChapterIds: string[]
+): Formation[] =>
+  mapFormations(formations, formationId, (formation) => ({
+    ...formation,
+    chapters: orderChaptersByIds(formation.chapters, orderedChapterIds),
   }));
 
 export const replaceFormationInList = (

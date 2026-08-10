@@ -20,6 +20,7 @@ from e_learning.infrastructure.ai.qdrant_store import QdrantVectorStore
 from e_learning.infrastructure.config import Settings, get_settings
 from e_learning.infrastructure.logging import configure_logging
 from e_learning.infrastructure.media.ffmpeg_convert import FfmpegConvertAdapter
+from e_learning.infrastructure.messaging.rabbitmq import RabbitMQMessageAdapter
 from e_learning.infrastructure.persistence.catalog.repository import (
     SqlAlchemyChapterRepository,
     SqlAlchemyDocumentRepository,
@@ -32,10 +33,6 @@ from e_learning.infrastructure.persistence.database import (
     init_db,
 )
 from e_learning.infrastructure.storage.filesystem_catalog import FilesystemCatalogStorage
-from e_learning.presentation.api.background import (
-    _DEFAULT_FFMPEG_CONCURRENCY,
-    resume_pending_background_jobs,
-)
 from e_learning.presentation.api.error_handlers import register_error_handlers
 from e_learning.presentation.api.v1.routers import auth, docs, formations, notes, progress, videos
 
@@ -60,12 +57,18 @@ def create_app(settings: Settings | None = None) -> FastAPI:
     embeddings = OpenAIEmbeddingAdapter(settings)
     vector_store = QdrantVectorStore(settings)
     chat = OpenAIChatAdapter(settings)
+    job_publisher = RabbitMQMessageAdapter(
+        settings.rabbitmq_url.get_secret_value(),
+        exchange_name=settings.rabbitmq_exchange,
+    )
 
     @asynccontextmanager
     async def lifespan(app: FastAPI) -> AsyncIterator[None]:
         if settings.init_db:
             logger.info("Initialisation du schéma (create_all).")
             await init_db(engine)
+
+        await job_publisher.connect()
 
         task: asyncio.Task[None] | None = None
         if settings.reconcile_on_startup:
@@ -94,15 +97,12 @@ def create_app(settings: Settings | None = None) -> FastAPI:
                 "(APP_RECONCILE_ON_STARTUP=false) — utiliser e-learning-cli reconcile."
             )
 
-        # Reprendre conversions média + jobs IA stuck (BackgroundTasks perdues au restart)
-        resume_task = asyncio.create_task(resume_pending_background_jobs(app))
-
         try:
             yield
         finally:
             if task is not None:
                 task.cancel()
-            resume_task.cancel()
+            await job_publisher.close()
             await engine.dispose()
 
     docs_url = "/api-docs" if settings.debug else None
@@ -133,7 +133,7 @@ def create_app(settings: Settings | None = None) -> FastAPI:
     app.state.embeddings = embeddings
     app.state.vector_store = vector_store
     app.state.chat = chat
-    app.state.media_conversion_semaphore = asyncio.Semaphore(_DEFAULT_FFMPEG_CONCURRENCY)
+    app.state.job_publisher = job_publisher
 
     register_error_handlers(app)
     app.include_router(auth.router)
@@ -154,6 +154,7 @@ def create_app(settings: Settings | None = None) -> FastAPI:
 
     @app.get("/ready", tags=["health"])
     async def readiness() -> dict[str, str]:
+        # Readiness sans RabbitMQ : le publish est fire-and-forget ; le worker porte le broker.
         async with session_factory() as session:
             await session.execute(text("SELECT 1"))
         return {"status": "ready"}

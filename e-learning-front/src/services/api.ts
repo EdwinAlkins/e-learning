@@ -324,6 +324,17 @@ export const apiService = {
     return normalizeApiChapter(response.data);
   },
 
+  /** PUT /formations/{formation_id}/chapters/order — réordonnancement des chapitres. */
+  putFormationChapterOrder: async (
+    formationId: string,
+    chapterIds: string[]
+  ): Promise<Formation> => {
+    const response = await api.put<Formation>(`/formations/${formationId}/chapters/order`, {
+      chapter_ids: chapterIds,
+    });
+    return normalizeApiFormation(response.data);
+  },
+
   getChapterDocuments: async (chapterId: string): Promise<Document[]> => {
     const response = await api.get<Document[]>(`/docs/chapters/${chapterId}`);
     return response.data.map(normalizeApiDocument);

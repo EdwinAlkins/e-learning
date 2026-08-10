@@ -8,16 +8,21 @@ from e_learning.application.content.use_cases.ask_formation import AskFormation
 from e_learning.application.content.use_cases.generate_summary import GenerateSummary
 from e_learning.application.content.use_cases.get_summary import GetSummary
 from e_learning.application.content.use_cases.get_transcription import GetTranscription
+from e_learning.application.content.use_cases.index_document_content import IndexDocumentContent
 from e_learning.application.content.use_cases.index_formation import IndexFormation
 from e_learning.application.content.use_cases.index_video_content import IndexVideoContent
+from e_learning.application.content.use_cases.start_formation_index import StartFormationIndex
 from e_learning.application.content.use_cases.start_summary_generation import (
     StartSummaryGeneration,
 )
 from e_learning.application.content.use_cases.start_transcription import StartTranscription
 from e_learning.application.content.use_cases.transcribe_video import TranscribeVideo
 from e_learning.application.content.use_cases.update_summary import UpdateSummary
+from e_learning.infrastructure.ai.document_text import FilesystemDocumentTextExtractor
+from e_learning.presentation.api.dependencies.messaging import JobPublisherDep
 from e_learning.presentation.api.dependencies.repositories import (
     ChapterRepositoryDep,
+    DocumentRepositoryDep,
     FormationRepositoryDep,
     JobRepositoryDep,
     VideoRepositoryDep,
@@ -57,15 +62,29 @@ def get_transcribe_video(
 
 
 def get_start_transcription(
-    videos: VideoRepositoryDep, media_files: MediaFilesDep, jobs: JobRepositoryDep
+    videos: VideoRepositoryDep,
+    media_files: MediaFilesDep,
+    jobs: JobRepositoryDep,
+    publisher: JobPublisherDep,
 ) -> StartTranscription:
-    return StartTranscription(videos, media_files, jobs)
+    return StartTranscription(videos, media_files, jobs, publisher)
 
 
 def get_start_summary_generation(
-    videos: VideoRepositoryDep, media_files: MediaFilesDep, jobs: JobRepositoryDep
+    videos: VideoRepositoryDep,
+    media_files: MediaFilesDep,
+    jobs: JobRepositoryDep,
+    publisher: JobPublisherDep,
 ) -> StartSummaryGeneration:
-    return StartSummaryGeneration(videos, media_files, jobs)
+    return StartSummaryGeneration(videos, media_files, jobs, publisher)
+
+
+def get_start_formation_index(
+    formations: FormationRepositoryDep,
+    jobs: JobRepositoryDep,
+    publisher: JobPublisherDep,
+) -> StartFormationIndex:
+    return StartFormationIndex(formations, jobs, publisher)
 
 
 def get_get_transcription(
@@ -96,19 +115,49 @@ def get_index_video_content(
     )
 
 
+def get_index_document_content(
+    request: Request,
+    documents: DocumentRepositoryDep,
+    chapters: ChapterRepositoryDep,
+    formations: FormationRepositoryDep,
+    storage: CatalogStorageDep,
+    embeddings: EmbeddingPortDep,
+    vectors: VectorStoreDep,
+) -> IndexDocumentContent:
+    settings = request.app.state.settings
+    return IndexDocumentContent(
+        documents,
+        chapters,
+        formations,
+        storage,
+        FilesystemDocumentTextExtractor(),
+        embeddings,
+        vectors,
+        chunk_size=settings.rag_chunk_size,
+        chunk_overlap=settings.rag_chunk_overlap,
+    )
+
+
 def get_index_formation(
     request: Request,
     formations: FormationRepositoryDep,
     videos: VideoRepositoryDep,
     chapters: ChapterRepositoryDep,
+    documents: DocumentRepositoryDep,
     media_files: MediaFilesDep,
+    storage: CatalogStorageDep,
     embeddings: EmbeddingPortDep,
     vectors: VectorStoreDep,
 ) -> IndexFormation:
     index_video = get_index_video_content(
         request, videos, chapters, formations, media_files, embeddings, vectors
     )
-    return IndexFormation(formations, videos, index_video)
+    index_document = get_index_document_content(
+        request, documents, chapters, formations, storage, embeddings, vectors
+    )
+    return IndexFormation(
+        formations, videos, chapters, documents, index_video, index_document
+    )
 
 
 def get_ask_formation(

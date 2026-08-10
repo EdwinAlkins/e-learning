@@ -56,6 +56,14 @@ export default function FormationBuilderDialogs() {
         open={chapterDialog.open}
         mode={chapterDialog.mode}
         initialName={chapterDialog.chapter?.name ?? ''}
+        initialOrder={
+          chapterDialog.mode === 'edit' && chapterDialog.chapter
+            ? chapters.findIndex((item) => item.id === chapterDialog.chapter!.id) + 1
+            : undefined
+        }
+        chapterCount={
+          chapterDialog.mode === 'edit' ? chapters.length : undefined
+        }
         onClose={() => setChapterDialog({ open: false, mode: 'create' })}
         onSubmit={handleChapterSubmit}
       />

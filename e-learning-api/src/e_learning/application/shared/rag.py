@@ -11,24 +11,26 @@ class RagChunk:
     id: str
     formation_id: str
     chapter_id: str
-    video_id: str
     title: str
-    source: str  # transcription | summary
+    source: str  # transcription | summary | document
     chunk_index: int
     text: str
     vector: list[float]
+    video_id: str | None = None
+    document_id: str | None = None
 
 
 @dataclass(frozen=True, slots=True)
 class RagHit:
     formation_id: str
     chapter_id: str
-    video_id: str
     title: str
     source: str
     chunk_index: int
     text: str
     score: float
+    video_id: str | None = None
+    document_id: str | None = None
 
 
 class EmbeddingPort(ABC):
@@ -45,6 +47,9 @@ class VectorStorePort(ABC):
 
     @abstractmethod
     async def delete_by_video(self, video_id: str) -> None: ...
+
+    @abstractmethod
+    async def delete_by_document(self, document_id: str) -> None: ...
 
     @abstractmethod
     async def search(

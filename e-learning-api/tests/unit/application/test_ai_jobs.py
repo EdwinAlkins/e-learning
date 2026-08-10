@@ -28,7 +28,7 @@ from e_learning.domain.catalog.value_objects import (
     RelativePath,
     VideoTitle,
 )
-from tests.unit.application._fakes import FakeJobRepository, FakeVideoRepository
+from tests.unit.application._fakes import FakeJobRepository, FakeVideoRepository, RecordingPublisher
 from tests.unit.application.test_use_cases import FakeCatalogStorage
 
 
@@ -104,7 +104,7 @@ async def test_start_transcription_sets_processing(tmp_path: Path) -> None:
     media = FakeMediaFiles(tmp_path)
     video = await _seed_ready_video(videos)
 
-    dto = await StartTranscription(videos, media, FakeJobRepository()).execute(str(video.id))
+    dto = await StartTranscription(videos, media, FakeJobRepository(), RecordingPublisher()).execute(str(video.id))
 
     assert dto.transcription_status == Video.AI_PROCESSING
     stored = await videos.get(video.id)
@@ -117,7 +117,7 @@ async def test_start_transcription_skips_when_txt_exists(tmp_path: Path) -> None
     video = await _seed_ready_video(videos)
     media.write_text(media.transcription_path(str(video.relative_path)), "déjà là")
 
-    dto = await StartTranscription(videos, media, FakeJobRepository()).execute(str(video.id))
+    dto = await StartTranscription(videos, media, FakeJobRepository(), RecordingPublisher()).execute(str(video.id))
 
     assert dto.transcription_status == Video.AI_READY
     assert (await videos.get(video.id)).transcription_status == Video.AI_READY
@@ -129,7 +129,7 @@ async def test_start_transcription_conflict_when_already_processing(tmp_path: Pa
     video = await _seed_ready_video(videos, transcription_status=Video.AI_PROCESSING)
 
     with pytest.raises(AiJobConflict):
-        await StartTranscription(videos, media, FakeJobRepository()).execute(str(video.id))
+        await StartTranscription(videos, media, FakeJobRepository(), RecordingPublisher()).execute(str(video.id))
 
 
 async def test_start_transcription_requires_media_ready(tmp_path: Path) -> None:
@@ -138,7 +138,7 @@ async def test_start_transcription_requires_media_ready(tmp_path: Path) -> None:
     video = await _seed_ready_video(videos, processing_status=Video.STATUS_PROCESSING)
 
     with pytest.raises(MediaNotReady):
-        await StartTranscription(videos, media, FakeJobRepository()).execute(str(video.id))
+        await StartTranscription(videos, media, FakeJobRepository(), RecordingPublisher()).execute(str(video.id))
 
 
 async def test_start_summary_without_transcription_raises(tmp_path: Path) -> None:
@@ -147,7 +147,7 @@ async def test_start_summary_without_transcription_raises(tmp_path: Path) -> Non
     video = await _seed_ready_video(videos)
 
     with pytest.raises(TranscriptionNotReady):
-        await StartSummaryGeneration(videos, media, FakeJobRepository()).execute(str(video.id))
+        await StartSummaryGeneration(videos, media, FakeJobRepository(), RecordingPublisher()).execute(str(video.id))
 
 
 async def test_start_summary_sets_processing_when_transcription_ready(tmp_path: Path) -> None:
@@ -156,7 +156,7 @@ async def test_start_summary_sets_processing_when_transcription_ready(tmp_path: 
     video = await _seed_ready_video(videos, transcription_status=Video.AI_READY)
     media.write_text(media.transcription_path(str(video.relative_path)), "texte")
 
-    dto = await StartSummaryGeneration(videos, media, FakeJobRepository()).execute(str(video.id))
+    dto = await StartSummaryGeneration(videos, media, FakeJobRepository(), RecordingPublisher()).execute(str(video.id))
 
     assert dto.summary_status == Video.AI_PROCESSING
 
@@ -216,7 +216,7 @@ async def test_start_summary_syncs_when_md_exists_without_llm(tmp_path: Path) ->
     media.write_text(media.transcription_path(str(video.relative_path)), "tx")
     media.write_text(media.summary_path(str(video.relative_path)), "# Résumé")
 
-    dto = await StartSummaryGeneration(videos, media, FakeJobRepository()).execute(str(video.id))
+    dto = await StartSummaryGeneration(videos, media, FakeJobRepository(), RecordingPublisher()).execute(str(video.id))
 
     assert dto.summary_status == Video.AI_READY
     assert dto.transcription_status == Video.AI_READY
@@ -234,7 +234,19 @@ async def test_start_summary_heals_processing_when_md_exists(tmp_path: Path) -> 
     media.write_text(media.transcription_path(str(video.relative_path)), "tx")
     media.write_text(media.summary_path(str(video.relative_path)), "# Résumé")
 
-    dto = await StartSummaryGeneration(videos, media, FakeJobRepository()).execute(str(video.id))
+    dto = await StartSummaryGeneration(videos, media, FakeJobRepository(), RecordingPublisher()).execute(str(video.id))
 
     assert dto.summary_status == Video.AI_READY
     assert (await videos.get(video.id)).summary_status == Video.AI_READY
+
+
+async def test_start_summary_rejects_ready_without_txt_file(tmp_path: Path) -> None:
+    """Statut ready fantôme (sidecar perdu / resté en *.src.txt) → TranscriptionNotReady."""
+    videos = FakeVideoRepository()
+    media = FakeMediaFiles(tmp_path)
+    video = await _seed_ready_video(videos, transcription_status=Video.AI_READY)
+
+    with pytest.raises(TranscriptionNotReady):
+        await StartSummaryGeneration(videos, media, FakeJobRepository(), RecordingPublisher()).execute(str(video.id))
+
+    assert (await videos.get(video.id)).transcription_status == Video.AI_NONE

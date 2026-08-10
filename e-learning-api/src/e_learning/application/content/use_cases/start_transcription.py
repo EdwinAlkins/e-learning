@@ -4,7 +4,9 @@ from __future__ import annotations
 
 from e_learning.application.catalog.dto import VideoDTO
 from e_learning.application.jobs.create_job import create_queued_job
+from e_learning.application.jobs.enqueue import publish_compute_job
 from e_learning.application.shared.media import MediaFilePort
+from e_learning.application.shared.messaging import JobPublisherPort
 from e_learning.domain.catalog.entities import Video
 from e_learning.domain.catalog.exceptions import AiJobConflict, MediaNotReady
 from e_learning.domain.catalog.job import Job
@@ -18,10 +20,12 @@ class StartTranscription:
         videos: VideoRepository,
         media_files: MediaFilePort,
         jobs: JobRepository,
+        publisher: JobPublisherPort,
     ) -> None:
         self._videos = videos
         self._media_files = media_files
         self._jobs = jobs
+        self._publisher = publisher
 
     async def execute(self, video_id: str) -> VideoDTO:
         video = await self._videos.get(VideoId.from_string(video_id))
@@ -52,4 +56,5 @@ class StartTranscription:
             video_id=str(video.id),
             message="Transcription en file d'attente",
         )
+        await publish_compute_job(self._publisher, job)
         return VideoDTO.from_entity(video, active_jobs=(job,))
