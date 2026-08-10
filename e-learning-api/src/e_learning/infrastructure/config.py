@@ -60,6 +60,10 @@ class Settings(BaseSettings):
     rag_top_k: int = 6
     rag_chunk_size: int = 800
     rag_chunk_overlap: int = 120
+    # Queue jobs de calcul (RabbitMQ)
+    rabbitmq_url: SecretStr = SecretStr("amqp://guest:guest@localhost:5672/")
+    rabbitmq_exchange: str = "elearning_jobs"
+    worker_prefetch: int = 3
 
 
 @lru_cache(maxsize=1)

@@ -193,6 +193,18 @@ class SqlAlchemyChapterRepository(ChapterRepository):
             raise ChapterNotFound(str(chapter_id))
         await self._session.delete(model)
 
+    async def save_ordered(self, chapters: list[Chapter]) -> None:
+        """Persiste un nouvel ordre (UNIQUE position différé jusqu'au COMMIT)."""
+        if not chapters:
+            return
+        with self._session.no_autoflush:
+            for chapter in chapters:
+                model = await self._session.get(ChapterModel, chapter.id.value)
+                if model is None:
+                    raise ChapterNotFound(str(chapter.id))
+                mappers.apply_chapter(model, chapter)
+            await self._session.flush()
+
 
 class SqlAlchemyVideoRepository(VideoRepository):
     def __init__(self, session: AsyncSession) -> None:

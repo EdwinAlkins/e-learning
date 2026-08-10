@@ -27,6 +27,7 @@ from tests.unit.application._fakes import (
     FakeFormationRepository,
     FakeJobRepository,
     FakeVideoRepository,
+    RecordingPublisher,
 )
 from tests.unit.application.test_use_cases import FakeCatalogStorage
 
@@ -90,7 +91,7 @@ async def test_create_video_rejects_bad_extension(tmp_path: Path) -> None:
     await chapters.save(chapter)
 
     with pytest.raises(UnsupportedFileExtension):
-        await CreateVideo(formations, chapters, videos, storage, jobs).execute(
+        await CreateVideo(formations, chapters, videos, storage, jobs, RecordingPublisher()).execute(
             CreateVideoCommand(
                 chapter_id=str(chapter.id),
                 title="Bad",

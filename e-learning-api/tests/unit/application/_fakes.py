@@ -2,6 +2,8 @@
 
 from __future__ import annotations
 
+from e_learning.application.jobs.dto import ComputeJobMessage
+from e_learning.application.shared.messaging import JobPublisherPort
 from e_learning.domain.catalog.entities import Chapter, Document, Formation, Video
 from e_learning.domain.catalog.exceptions import (
     ChapterNotFound,
@@ -34,6 +36,16 @@ from e_learning.domain.user.entities import User
 from e_learning.domain.user.exceptions import UserNotFound
 from e_learning.domain.user.repository import UserRepository
 from e_learning.domain.user.value_objects import UserId
+
+
+class RecordingPublisher(JobPublisherPort):
+    """Enregistre les publications sans broker."""
+
+    def __init__(self) -> None:
+        self.published: list[ComputeJobMessage] = []
+
+    async def publish(self, message: ComputeJobMessage) -> None:
+        self.published.append(message)
 
 
 class FakeUserRepository(UserRepository):
@@ -119,6 +131,10 @@ class FakeChapterRepository(ChapterRepository):
 
     async def delete(self, chapter_id: ChapterId) -> None:
         self.items.pop(str(chapter_id), None)
+
+    async def save_ordered(self, chapters: list[Chapter]) -> None:
+        for chapter in chapters:
+            await self.save(chapter)
 
 
 class FakeVideoRepository(VideoRepository):

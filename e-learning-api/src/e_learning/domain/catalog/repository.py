@@ -67,6 +67,10 @@ class ChapterRepository(ABC):
     @abstractmethod
     async def delete(self, chapter_id: ChapterId) -> None: ...
 
+    @abstractmethod
+    async def save_ordered(self, chapters: list[Chapter]) -> None:
+        """Persiste un nouvel ordre (contrainte UNIQUE position différée en PG)."""
+
 
 class VideoRepository(ABC):
     @abstractmethod

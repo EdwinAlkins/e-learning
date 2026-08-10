@@ -21,7 +21,7 @@ from e_learning.domain.catalog.value_objects import (
     VideoTitle,
 )
 from e_learning.presentation.api.dependencies.session import SessionDep
-from tests.unit.application._fakes import FakeJobRepository, FakeVideoRepository
+from tests.unit.application._fakes import FakeJobRepository, FakeVideoRepository, RecordingPublisher
 from tests.unit.application.test_ai_jobs import FakeMediaFiles
 
 
@@ -85,7 +85,7 @@ async def test_start_transcription_creates_active_job(tmp_path: Path) -> None:
     media = FakeMediaFiles(tmp_path)
     video = await _seed_ready_video(videos)
 
-    dto = await StartTranscription(videos, media, jobs).execute(str(video.id))
+    dto = await StartTranscription(videos, media, jobs, RecordingPublisher()).execute(str(video.id))
 
     assert dto.transcription_status == Video.AI_PROCESSING
     assert len(dto.active_jobs) == 1
@@ -100,7 +100,7 @@ async def test_start_summary_creates_active_job(tmp_path: Path) -> None:
     video = await _seed_ready_video(videos, transcription_status=Video.AI_READY)
     media.write_text(media.transcription_path(str(video.relative_path)), "tx")
 
-    dto = await StartSummaryGeneration(videos, media, jobs).execute(str(video.id))
+    dto = await StartSummaryGeneration(videos, media, jobs, RecordingPublisher()).execute(str(video.id))
 
     assert dto.summary_status == Video.AI_PROCESSING
     assert dto.active_jobs[0].kind == Job.KIND_SUMMARY

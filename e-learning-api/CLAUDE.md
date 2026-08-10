@@ -20,6 +20,11 @@ uv run hypercorn e_learning.main:app --reload
 # ou
 uv run e-learning-api
 
+# Worker (jobs RabbitMQ : conversion, transcription, résumé, RAG)
+uv run e-learning-worker
+# ou
+uv run python -m e_learning.presentation.worker
+
 # CLI
 uv run e-learning-cli reconcile              # régénère le catalogue FS ↔ DB
 uv run e-learning-cli list-videos            # liste les UUID vidéos
@@ -51,18 +56,18 @@ Règle de dépendance (import-linter) :
 Package `src/e_learning/` :
 
 - **domain/** — entités, VO (UUIDv7), exceptions sémantiques, ports repository
-- **application/** — use cases + DTO dataclasses + ports techniques (storage, media, summary…)
-- **infrastructure/** — SQLAlchemy async, FS catalogue, Whisper/LLM, ffmpeg, config `APP_*`
-- **presentation/** — API FastAPI (composition root DI) + CLI Click
+- **application/** — use cases + DTO dataclasses + ports techniques (storage, media, summary, messaging…)
+- **infrastructure/** — SQLAlchemy async, FS catalogue, Whisper/LLM, ffmpeg, RabbitMQ, config `APP_*`
+- **presentation/** — API FastAPI (composition root DI) + CLI Click + **worker** (consumer RabbitMQ)
 
 ### Bounded contexts
 
 | Contexte | Agrégats / rôle |
 |----------|-----------------|
 | `user` | Utilisateur anonyme (`UserId` UUIDv7) |
-| `catalog` | Formation, Chapter, Video, Document — `position` en base, slugs FS stables |
+| `catalog` | Formation, Chapter, Video, Document, Job — `position` en base, slugs FS stables |
 | `learning` | Note, Progress (FK vers user + video) |
-| `content` | Transcription / résumé / conversion (CLI + endpoints summary) |
+| `content` | Transcription / résumé / conversion / RAG |
 
 ### Auth
 
@@ -76,6 +81,12 @@ OpenAPI UI : `/api-docs` (debug only).
 - `relative_path` unique = clé de réconciliation FS↔DB
 - `ReconcileCatalog` au démarrage **uniquement** si `APP_RECONCILE_ON_STARTUP=true` (sinon via CLI)
 
+### Jobs de calcul
+
+Les jobs lourds (conversion, transcription, résumé, index RAG) sont publiés sur RabbitMQ
+(`JobPublisherPort`) après commit HTTP, et exécutés par le process `e-learning-worker`
+(prefetch paramétrable via `APP_WORKER_PREFETCH`, défaut 3).
+
 ## Configuration (`APP_` prefix)
 
 | Variable | Défaut | Rôle |
@@ -86,13 +97,17 @@ OpenAPI UI : `/api-docs` (debug only).
 | `APP_INIT_DB` | `false` | `create_all` au boot |
 | `APP_RECONCILE_ON_STARTUP` | `false` | reconcile FS↔DB au boot (sinon `e-learning-cli reconcile`) |
 | `APP_SUMMARY_STRATEGY` | `openapi` | `openapi` \| `gemini` |
+| `APP_RABBITMQ_URL` | `amqp://guest:guest@localhost:5672/` | Broker jobs |
+| `APP_RABBITMQ_EXCHANGE` | `elearning_jobs` | Exchange DIRECT |
+| `APP_WORKER_PREFETCH` | `3` | Concurrence max par process worker |
 
 ## Docker
 
 ```bash
-docker compose up -d postgres
+docker compose up -d postgres rabbitmq
 uv run alembic upgrade head
-uv run hypercorn e_learning.main:app --reload
+uv run e-learning-api
+uv run e-learning-worker
 
 # stack complète
 docker compose up --build

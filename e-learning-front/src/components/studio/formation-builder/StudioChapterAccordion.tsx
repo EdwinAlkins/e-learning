@@ -15,6 +15,8 @@ import {
 } from '@mui/material';
 import {
   Add as AddIcon,
+  ArrowDownward as ArrowDownwardIcon,
+  ArrowUpward as ArrowUpwardIcon,
   Delete as DeleteIcon,
   Description as DescriptionIcon,
   Edit as EditIcon,
@@ -33,12 +35,18 @@ import StudioVideoItem from './StudioVideoItem';
 
 interface StudioChapterAccordionProps {
   chapter: Chapter;
+  chapterIndex: number;
+  chapterCount: number;
   isDeletingChapter: boolean;
+  isBusy: boolean;
 }
 
 export default function StudioChapterAccordion({
   chapter,
+  chapterIndex,
+  chapterCount,
   isDeletingChapter,
+  isBusy,
 }: StudioChapterAccordionProps) {
   const {
     deleteTarget,
@@ -48,13 +56,18 @@ export default function StudioChapterAccordion({
     setDeleteTarget,
     setVideoDialog,
     setDocumentDialog,
+    handleMoveChapterUp,
+    handleMoveChapterDown,
   } = useFormationBuilderContext();
 
   const sortedVideos = sortVideosByNumber(chapter.videos);
   const documents = [...(chapter.documents ?? [])].sort((a, b) => a.position - b.position);
 
   return (
-    <Accordion defaultExpanded sx={{ mb: 1, opacity: isDeletingChapter ? 0.5 : 1 }}>
+    <Accordion
+      defaultExpanded
+      sx={{ mb: 1, opacity: isDeletingChapter || isBusy ? 0.5 : 1 }}
+    >
       <AccordionSummary expandIcon={<ExpandMoreIcon />}>
         <Box sx={{ display: 'flex', alignItems: 'center', width: '100%', gap: 1 }}>
           <Typography variant="h6" sx={{ flexGrow: 1 }}>
@@ -65,7 +78,30 @@ export default function StudioChapterAccordion({
           </Typography>
           <IconButton
             size="small"
+            aria-label="Monter le chapitre"
+            disabled={isBusy || chapterIndex === 0}
+            onClick={(event) => {
+              event.stopPropagation();
+              void handleMoveChapterUp(chapter);
+            }}
+          >
+            <ArrowUpwardIcon fontSize="small" />
+          </IconButton>
+          <IconButton
+            size="small"
+            aria-label="Descendre le chapitre"
+            disabled={isBusy || chapterIndex === chapterCount - 1}
+            onClick={(event) => {
+              event.stopPropagation();
+              void handleMoveChapterDown(chapter);
+            }}
+          >
+            <ArrowDownwardIcon fontSize="small" />
+          </IconButton>
+          <IconButton
+            size="small"
             aria-label="Modifier le chapitre"
+            disabled={isBusy}
             onClick={(event) => {
               event.stopPropagation();
               setChapterDialog({ open: true, mode: 'edit', chapter });
@@ -76,6 +112,7 @@ export default function StudioChapterAccordion({
           <IconButton
             size="small"
             aria-label="Supprimer le chapitre"
+            disabled={isBusy}
             onClick={(event) => {
               event.stopPropagation();
               setDeleteTarget({ type: 'chapter', chapter });

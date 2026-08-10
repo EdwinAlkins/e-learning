@@ -8,6 +8,8 @@ from typing import Annotated
 from fastapi import Depends, Request
 from sqlalchemy.ext.asyncio import AsyncSession, async_sessionmaker
 
+from e_learning.infrastructure.messaging.deferred import DeferredJobPublisher
+
 
 async def get_session(request: Request) -> AsyncIterator[AsyncSession]:
     """Fournit une session par requête HTTP.
@@ -15,21 +17,21 @@ async def get_session(request: Request) -> AsyncIterator[AsyncSession]:
     Commit unique en fin de scope (succès). Les routers ne doivent **pas**
     appeler ``session.commit()``.
 
-    **``scope="function"`` est obligatoire** avec les BackgroundTasks : le scope
-    ``request`` (défaut) ferme le yield *après* l'envoi de la réponse et donc
-    *après* les tâches de fond. La session requête, encore dirty avec
-    ``processing``, recommitterait alors par-dessus le ``ready`` du job → UI
-    coincée en « Génération… » jusqu'au restart (recover stuck).
-
-    Avec ``function``, le commit a lieu dès la fin du path operation, **avant**
-    les BackgroundTasks, qui ouvrent leur propre session.
+    Après commit, flush des publications RabbitMQ différées (``DeferredJobPublisher``)
+    pour que le worker ne voie le job qu'une fois persistant.
     """
     session_factory: async_sessionmaker[AsyncSession] = request.app.state.session_factory
     async with session_factory() as session:
         try:
             yield session
             await session.commit()
+            deferred = getattr(request.state, "deferred_publisher", None)
+            if isinstance(deferred, DeferredJobPublisher):
+                await deferred.flush()
         except Exception:
+            deferred = getattr(request.state, "deferred_publisher", None)
+            if isinstance(deferred, DeferredJobPublisher):
+                deferred.clear()
             await session.rollback()
             raise
 

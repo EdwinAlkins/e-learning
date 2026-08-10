@@ -4,7 +4,7 @@ from __future__ import annotations
 
 from typing import Annotated
 
-from fastapi import APIRouter, BackgroundTasks, Depends, File, Form, Request, UploadFile, status
+from fastapi import APIRouter, Depends, File, Form, Request, UploadFile, status
 from fastapi.exceptions import RequestValidationError
 
 from e_learning.application.catalog.dto import (
@@ -16,6 +16,7 @@ from e_learning.application.catalog.dto import (
     RenameChapterCommand,
     RenameFormationCommand,
     RenameVideoCommand,
+    ReorderChaptersCommand,
     ReorderVideosCommand,
 )
 from e_learning.application.catalog.use_cases.create_chapter import CreateChapter
@@ -31,11 +32,11 @@ from e_learning.application.catalog.use_cases.move_video import MoveVideo
 from e_learning.application.catalog.use_cases.rename_chapter import RenameChapter
 from e_learning.application.catalog.use_cases.rename_formation import RenameFormation
 from e_learning.application.catalog.use_cases.rename_video import RenameVideo
+from e_learning.application.catalog.use_cases.reorder_chapters import ReorderChapters
 from e_learning.application.catalog.use_cases.reorder_videos import ReorderVideos
 from e_learning.application.content.dto import AskFormationCommand
 from e_learning.application.content.use_cases.ask_formation import AskFormation
-from e_learning.application.content.use_cases.index_formation import IndexFormation
-from e_learning.presentation.api.background import run_index_formation, run_media_conversion
+from e_learning.application.content.use_cases.start_formation_index import StartFormationIndex
 from e_learning.presentation.api.dependencies import (
     get_ask_formation,
     get_create_chapter,
@@ -46,15 +47,15 @@ from e_learning.presentation.api.dependencies import (
     get_delete_formation,
     get_delete_video,
     get_get_formation,
-    get_index_formation,
     get_list_formations,
     get_move_video,
     get_rename_chapter,
     get_rename_formation,
     get_rename_video,
+    get_reorder_chapters,
     get_reorder_videos,
+    get_start_formation_index,
 )
-from e_learning.presentation.api.dependencies.repositories import JobRepositoryDep
 from e_learning.presentation.api.uploads import read_upload_limited
 from e_learning.presentation.api.v1.schemas.common import (
     AskFormationRequest,
@@ -67,6 +68,7 @@ from e_learning.presentation.api.v1.schemas.common import (
     MoveVideoRequest,
     NameRequest,
     RagCitationResponse,
+    ReorderChaptersRequest,
     ReorderVideosRequest,
     VideoResponse,
     VideoTitleRequest,
@@ -106,6 +108,7 @@ async def ask_formation(
         citations=[
             RagCitationResponse(
                 video_id=c.video_id,
+                document_id=c.document_id,
                 title=c.title,
                 source=c.source,
                 excerpt=c.excerpt,
@@ -122,23 +125,9 @@ async def ask_formation(
 )
 async def index_formation(
     formation_id: str,
-    request: Request,
-    background_tasks: BackgroundTasks,
-    use_case: Annotated[GetFormation, Depends(get_get_formation)],
-    jobs: JobRepositoryDep,
-    _index: Annotated[IndexFormation, Depends(get_index_formation)],
+    use_case: Annotated[StartFormationIndex, Depends(get_start_formation_index)],
 ) -> IndexFormationAcceptedResponse:
     await use_case.execute(formation_id)
-    from e_learning.application.jobs.create_job import create_queued_job
-    from e_learning.domain.catalog.job import Job
-
-    job = await create_queued_job(
-        jobs,
-        kind=Job.KIND_RAG_INDEX_FORMATION,
-        formation_id=formation_id,
-        message="Indexation formation en file d'attente",
-    )
-    background_tasks.add_task(run_index_formation, request.app, formation_id, job.id)
     return IndexFormationAcceptedResponse()
 
 
@@ -211,7 +200,6 @@ async def delete_chapter(
 async def create_video(
     chapter_id: str,
     request: Request,
-    background_tasks: BackgroundTasks,
     use_case: Annotated[CreateVideo, Depends(get_create_video)],
     title: Annotated[str, Form()],
     file: Annotated[UploadFile, File()],
@@ -226,8 +214,6 @@ async def create_video(
             filename=file.filename or "video",
         )
     )
-    if result.conversion is not None:
-        background_tasks.add_task(run_media_conversion, request.app, result.conversion)
     return VideoResponse.from_dto(result.video)
 
 
@@ -262,7 +248,6 @@ async def create_document(
 async def update_video(
     video_id: str,
     request: Request,
-    background_tasks: BackgroundTasks,
     use_case: Annotated[RenameVideo, Depends(get_rename_video)],
 ) -> VideoResponse:
     """Met à jour le titre et/ou remplace le fichier vidéo.
@@ -305,8 +290,6 @@ async def update_video(
             filename=filename,
         )
     )
-    if result.conversion is not None:
-        background_tasks.add_task(run_media_conversion, request.app, result.conversion)
     return VideoResponse.from_dto(result.video)
 
 
@@ -328,6 +311,21 @@ async def reorder_videos(
         ReorderVideosCommand(chapter_id=chapter_id, video_ids=payload.video_ids)
     )
     return ChapterResponse.from_dto(dto)
+
+
+@formations_router.put(
+    "/{formation_id}/chapters/order",
+    response_model=FormationResponse,
+)
+async def reorder_chapters(
+    formation_id: str,
+    payload: ReorderChaptersRequest,
+    use_case: Annotated[ReorderChapters, Depends(get_reorder_chapters)],
+) -> FormationResponse:
+    dto = await use_case.execute(
+        ReorderChaptersCommand(formation_id=formation_id, chapter_ids=payload.chapter_ids)
+    )
+    return FormationResponse.from_dto(dto)
 
 
 @studio_router.patch(

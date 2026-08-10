@@ -10,7 +10,7 @@ import type {
 } from '../types';
 import { studioApi } from '../services/studio.api';
 import { useCatalogStore } from './catalog.store';
-import { sortVideosByNumber } from '../utils/formation';
+import { sortChaptersByNumber, sortVideosByNumber } from '../utils/formation';
 import {
   addChapterToFormation,
   addVideoToChapter,
@@ -19,6 +19,7 @@ import {
   removeVideoFromFormation,
   replaceFormationInList,
   setChapterVideoOrder,
+  setFormationChapterOrder,
   updateChapterInFormation,
   updateVideoInFormation,
   upsertFormationInList,
@@ -94,6 +95,7 @@ interface StudioState {
     chapterId: string,
     orderedVideoIds: string[]
   ) => Promise<Chapter>;
+  reorderChapters: (formationId: string, orderedChapterIds: string[]) => Promise<Formation>;
   moveVideo: (
     formationId: string,
     fromChapterId: string,
@@ -339,6 +341,39 @@ export const useStudioStore = create<StudioState>((set, get) => ({
       const formation = get().formations.find((item) => item.id === formationId);
       if (formation) syncCatalogFormation(formation);
       return updatedChapter;
+    } catch (error) {
+      set({ formations: previous });
+      useCatalogStore.setState({ formations: previousCatalog });
+      throw error;
+    }
+  },
+
+  reorderChapters: async (formationId, orderedChapterIds) => {
+    const previous = get().formations;
+    const previousCatalog = useCatalogStore.getState().formations;
+    const formation = previous.find((item) => item.id === formationId);
+    if (!formation) {
+      throw new Error('Formation introuvable');
+    }
+
+    const currentChapterIds = sortChaptersByNumber(formation.chapters).map(
+      (chapter) => chapter.id
+    );
+
+    set({
+      formations: setFormationChapterOrder(previous, formationId, orderedChapterIds),
+    });
+
+    try {
+      const isUnchanged = currentChapterIds.every(
+        (id, index) => id === orderedChapterIds[index]
+      );
+      const updated = isUnchanged
+        ? formation
+        : await studioApi.reorderChapters(formationId, orderedChapterIds);
+
+      applyFormationRefresh(set, get, formationId, updated);
+      return updated;
     } catch (error) {
       set({ formations: previous });
       useCatalogStore.setState({ formations: previousCatalog });

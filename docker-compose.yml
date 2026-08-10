@@ -18,6 +18,22 @@ services:
       timeout: 5s
       retries: 10
 
+  rabbitmq:
+    image: rabbitmq:4-management-alpine
+    ports:
+      - "${RABBITMQ_PORT:-5672}:5672"
+      - "${RABBITMQ_MANAGEMENT_PORT:-15672}:15672"
+    environment:
+      RABBITMQ_DEFAULT_USER: ${RABBITMQ_USER:-guest}
+      RABBITMQ_DEFAULT_PASS: ${RABBITMQ_PASSWORD:-guest}
+    volumes:
+      - rabbitmq_data:/var/lib/rabbitmq
+    healthcheck:
+      test: ["CMD", "rabbitmq-diagnostics", "ping"]
+      interval: 5s
+      timeout: 5s
+      retries: 10
+
   qdrant:
     image: qdrant/qdrant:v1.19.0
     ports:
@@ -55,6 +71,8 @@ services:
       APP_QDRANT_URL: ${APP_QDRANT_URL:-http://qdrant:6333}
       APP_OPENAI_BASE_URL: ${APP_OPENAI_BASE_URL}
       APP_OPENAI_MODEL: ${APP_OPENAI_MODEL}
+      APP_RABBITMQ_URL: ${APP_RABBITMQ_URL:-amqp://guest:guest@rabbitmq:5672/}
+      APP_RABBITMQ_EXCHANGE: ${APP_RABBITMQ_EXCHANGE:-elearning_jobs}
     volumes:
       - "${VIDEOS_HOST_PATH}:/app/videos"
     extra_hosts:
@@ -64,6 +82,36 @@ services:
         condition: service_completed_successfully
       qdrant:
         condition: service_started
+      rabbitmq:
+        condition: service_healthy
+
+  worker:
+    build:
+      context: ./e-learning-api
+      dockerfile: docker/Dockerfile
+    command: ["uv", "run", "e-learning-worker"]
+    env_file:
+      - .env
+    environment:
+      APP_DATABASE_URL: ${APP_DATABASE_URL}
+      APP_VIDEOS_PATH: /app/videos
+      APP_QDRANT_URL: ${APP_QDRANT_URL:-http://qdrant:6333}
+      APP_OPENAI_BASE_URL: ${APP_OPENAI_BASE_URL}
+      APP_OPENAI_MODEL: ${APP_OPENAI_MODEL}
+      APP_RABBITMQ_URL: ${APP_RABBITMQ_URL:-amqp://guest:guest@rabbitmq:5672/}
+      APP_RABBITMQ_EXCHANGE: ${APP_RABBITMQ_EXCHANGE:-elearning_jobs}
+      APP_WORKER_PREFETCH: ${APP_WORKER_PREFETCH:-3}
+    volumes:
+      - "${VIDEOS_HOST_PATH}:/app/videos"
+    extra_hosts:
+      - "host.docker.internal:host-gateway"
+    depends_on:
+      migrate:
+        condition: service_completed_successfully
+      qdrant:
+        condition: service_started
+      rabbitmq:
+        condition: service_healthy
 
   front:
     build:
@@ -79,3 +127,4 @@ services:
 volumes:
   postgres_data:
   qdrant_data:
+  rabbitmq_data:

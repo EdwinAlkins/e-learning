@@ -80,15 +80,16 @@ class IndexVideoContent:
             source_counters[source] = idx + 1
             chunks.append(
                 RagChunk(
-                    id=chunk_point_id(str(video.id), source, idx),
+                    id=chunk_point_id(str(video.id), source, idx, kind="video"),
                     formation_id=str(chapter.formation_id),
                     chapter_id=str(chapter.id),
-                    video_id=str(video.id),
                     title=str(video.title),
                     source=source,
                     chunk_index=idx,
                     text=text,
                     vector=vector,
+                    video_id=str(video.id),
+                    document_id=None,
                 )
             )
         await reporter.set(75, f"Indexation {total} chunk(s)…")

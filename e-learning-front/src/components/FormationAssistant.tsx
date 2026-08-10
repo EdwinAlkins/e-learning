@@ -23,6 +23,7 @@ import {
 } from '@mui/icons-material';
 import { apiService } from '../services/api';
 import type { RagCitation } from '../types';
+import MarkdownRenderer from './MarkdownRenderer';
 
 interface ChatMessage {
   role: 'user' | 'assistant';
@@ -111,7 +112,7 @@ export default function FormationAssistant({
         </Button>
       </Box>
       <Typography variant="body2" color="text.secondary" sx={{ mb: 2 }}>
-        Posez une question sur le contenu transcrit de cette formation.
+        Posez une question sur le contenu transcrit et les documents de cette formation.
       </Typography>
 
       {error ? (
@@ -139,31 +140,84 @@ export default function FormationAssistant({
                 borderRadius: 2,
               }}
             >
-              <Typography variant="body2" sx={{ whiteSpace: 'pre-wrap' }}>
-                {message.content}
-              </Typography>
+              {message.role === 'assistant' ? (
+                <Box
+                  sx={{
+                    '& .w-md-editor-preview': { padding: '0 !important' },
+                    '& .wmde-markdown': {
+                      fontSize: '0.875rem',
+                      lineHeight: 1.5,
+                    },
+                    '& .wmde-markdown > :first-of-type': { mt: 0 },
+                    '& .wmde-markdown > :last-child': { mb: 0 },
+                    '& .wmde-markdown p, & .wmde-markdown li': {
+                      fontSize: '0.875rem',
+                    },
+                    '& .wmde-markdown ul, & .wmde-markdown ol': {
+                      my: 0.75,
+                      pl: 2.5,
+                    },
+                    '& .wmde-markdown h1, & .wmde-markdown h2, & .wmde-markdown h3, & .wmde-markdown h4':
+                      {
+                        fontSize: '1rem',
+                        fontWeight: 600,
+                        mt: 1,
+                        mb: 0.5,
+                      },
+                  }}
+                >
+                  <MarkdownRenderer source={message.content} />
+                </Box>
+              ) : (
+                <Typography variant="body2" sx={{ whiteSpace: 'pre-wrap' }}>
+                  {message.content}
+                </Typography>
+              )}
               {message.citations && message.citations.length > 0 ? (
                 <Box sx={{ mt: 1 }}>
                   <Divider sx={{ mb: 1, borderColor: 'divider' }} />
                   <Typography variant="caption" display="block" sx={{ mb: 0.5, opacity: 0.85 }}>
                     Sources
                   </Typography>
-                  {message.citations.map((citation) => (
-                    <Box key={`${citation.video_id}-${citation.source}`} sx={{ mb: 0.5 }}>
-                      <Link
-                        component="button"
-                        type="button"
-                        variant="caption"
-                        onClick={() => router.push(`/player/${citation.video_id}`)}
-                        sx={{ textAlign: 'left' }}
-                      >
-                        {citation.title} ({citation.source})
-                      </Link>
-                      <Typography variant="caption" display="block" color="text.secondary">
-                        {citation.excerpt}
-                      </Typography>
-                    </Box>
-                  ))}
+                  {message.citations.map((citation) => {
+                    const citationKey = `${citation.document_id ?? ''}-${citation.video_id ?? ''}-${citation.source}`;
+                    const openCitation = () => {
+                      if (citation.document_id) {
+                        window.open(
+                          apiService.documentFileUrl(citation.document_id),
+                          '_blank',
+                          'noopener,noreferrer'
+                        );
+                        return;
+                      }
+                      if (citation.video_id) {
+                        router.push(`/player/${citation.video_id}`);
+                      }
+                    };
+                    const canOpen = Boolean(citation.document_id || citation.video_id);
+                    return (
+                      <Box key={citationKey} sx={{ mb: 0.5 }}>
+                        {canOpen ? (
+                          <Link
+                            component="button"
+                            type="button"
+                            variant="caption"
+                            onClick={openCitation}
+                            sx={{ textAlign: 'left' }}
+                          >
+                            {citation.title} ({citation.source})
+                          </Link>
+                        ) : (
+                          <Typography variant="caption" display="block">
+                            {citation.title} ({citation.source})
+                          </Typography>
+                        )}
+                        <Typography variant="caption" display="block" color="text.secondary">
+                          {citation.excerpt}
+                        </Typography>
+                      </Box>
+                    );
+                  })}
                 </Box>
               ) : null}
             </Box>

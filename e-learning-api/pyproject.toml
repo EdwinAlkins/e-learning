@@ -6,12 +6,14 @@ readme = "README.md"
 requires-python = ">=3.14"
 dependencies = [
     "aiofiles>=25.1.0",
+    "aio-pika>=9.5.0",
     "alembic>=1.19.0",
     "asyncpg>=0.31",
     "click>=8.4.2",
     "fastapi>=0.140.0",
     "ffmpeg-python>=0.2.0",
     "hypercorn>=0.18.0",
+    "orjson>=3.10.0",
     "prometheus-fastapi-instrumentator>=8.1.0",
     "pydantic>=2.13.4",
     "pydantic-settings>=2.14.2",
@@ -23,6 +25,8 @@ dependencies = [
 ai = [
     "openai>=2.53.0",
     "openai-whisper>=20250625",
+    "pypdf>=6.0.0",
+    "python-docx>=1.2.0",
     "qdrant-client>=1.19.0,<1.20",
 ]
 dev = [
@@ -46,6 +50,7 @@ packages = ["src/e_learning"]
 [project.scripts]
 e-learning-cli = "e_learning.presentation.cli.app:main"
 e-learning-api = "e_learning.main:run"
+e-learning-worker = "e_learning.presentation.worker:run"
 
 [tool.ruff]
 line-length = 100

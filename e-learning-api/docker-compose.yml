@@ -17,6 +17,17 @@ services:
       timeout: 5s
       retries: 10
 
+  rabbitmq:
+    image: rabbitmq:4-management-alpine
+    ports:
+      - "5672:5672"
+      - "15672:15672"
+    healthcheck:
+      test: ["CMD", "rabbitmq-diagnostics", "ping"]
+      interval: 5s
+      timeout: 5s
+      retries: 10
+
   migrate:
     build:
       context: .
@@ -39,11 +50,34 @@ services:
       APP_VIDEOS_PATH: /app/videos
       APP_DEBUG: "false"
       APP_INIT_DB: "false"
+      APP_RABBITMQ_URL: amqp://guest:guest@rabbitmq:5672/
+      APP_RABBITMQ_EXCHANGE: elearning_jobs
     volumes:
       - "${APP_VIDEOS_PATH:-./videos}:/app/videos"
     depends_on:
       migrate:
         condition: service_completed_successfully
+      rabbitmq:
+        condition: service_healthy
+
+  worker:
+    build:
+      context: .
+      dockerfile: docker/Dockerfile
+    command: ["uv", "run", "e-learning-worker"]
+    environment:
+      APP_DATABASE_URL: postgresql+asyncpg://elearning:elearning@postgres:5432/elearning
+      APP_VIDEOS_PATH: /app/videos
+      APP_RABBITMQ_URL: amqp://guest:guest@rabbitmq:5672/
+      APP_RABBITMQ_EXCHANGE: elearning_jobs
+      APP_WORKER_PREFETCH: "3"
+    volumes:
+      - "${APP_VIDEOS_PATH:-./videos}:/app/videos"
+    depends_on:
+      migrate:
+        condition: service_completed_successfully
+      rabbitmq:
+        condition: service_healthy
 
 volumes:
   postgres_data:

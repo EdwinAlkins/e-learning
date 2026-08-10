@@ -6,12 +6,14 @@ from pathlib import Path
 
 from e_learning.application.catalog.dto import (
     CreateDocumentCommand,
+    ReorderChaptersCommand,
     ReorderVideosCommand,
     UpdateDocumentCommand,
 )
 from e_learning.application.catalog.use_cases.create_document import CreateDocument
 from e_learning.application.catalog.use_cases.delete_document import DeleteDocument
 from e_learning.application.catalog.use_cases.reconcile_catalog import ReconcileCatalog
+from e_learning.application.catalog.use_cases.reorder_chapters import ReorderChapters
 from e_learning.application.catalog.use_cases.reorder_videos import ReorderVideos
 from e_learning.application.catalog.use_cases.update_document import UpdateDocument
 from e_learning.application.learning.dto import CreateNoteCommand
@@ -38,6 +40,7 @@ from tests.unit.application._fakes import (
     FakeChapterRepository,
     FakeDocumentRepository,
     FakeFormationRepository,
+    FakeJobRepository,
     FakeNoteRepository,
     FakeUserRepository,
     FakeVideoRepository,
@@ -171,6 +174,39 @@ async def test_reorder_videos() -> None:
     assert [v.id for v in dto.videos] == [str(v2.id), str(v1.id)]
     assert videos.items[str(v2.id)].position.value == 0
     assert videos.items[str(v1.id)].position.value == 1
+
+
+async def test_reorder_chapters() -> None:
+    formations = FakeFormationRepository()
+    chapters = FakeChapterRepository()
+    videos = FakeVideoRepository()
+    documents = FakeDocumentRepository()
+    jobs = FakeJobRepository()
+
+    formation = Formation.create(name=FormationName("Formation Test"))
+    await formations.save(formation)
+    c1 = Chapter.create(
+        formation_id=formation.id,
+        name=ChapterName("Chapitre 1"),
+        position=Position(0),
+    )
+    c2 = Chapter.create(
+        formation_id=formation.id,
+        name=ChapterName("Chapitre 2"),
+        position=Position(1),
+    )
+    await chapters.save(c1)
+    await chapters.save(c2)
+
+    dto = await ReorderChapters(formations, chapters, videos, documents, jobs).execute(
+        ReorderChaptersCommand(
+            formation_id=str(formation.id),
+            chapter_ids=[str(c2.id), str(c1.id)],
+        )
+    )
+    assert [c.id for c in dto.chapters] == [str(c2.id), str(c1.id)]
+    assert chapters.items[str(c2.id)].position.value == 0
+    assert chapters.items[str(c1.id)].position.value == 1
 
 
 async def test_create_update_delete_document(tmp_path: Path) -> None:

@@ -28,6 +28,14 @@ export const orderVideosByIds = (videos: Video[], orderedIds: string[]): Video[]
   });
 };
 
+export const orderChaptersByIds = (chapters: Chapter[], orderedIds: string[]): Chapter[] => {
+  const byId = new Map(chapters.map((chapter) => [chapter.id, chapter]));
+  return orderedIds.map((id, index) => ({
+    ...byId.get(id)!,
+    position: index,
+  }));
+};
+
 export const getNextVideoSortOrder = (videos: Video[]): number =>
   videos.reduce((max, video) => Math.max(max, video.position ?? video.sortOrder ?? 0), 0) + 1;
 

@@ -107,7 +107,8 @@ export interface FormationProgress {
 }
 
 export interface RagCitation {
-  video_id: string;
+  video_id?: string | null;
+  document_id?: string | null;
   title: string;
   source: string;
   excerpt: string;

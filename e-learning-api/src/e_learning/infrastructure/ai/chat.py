@@ -25,8 +25,8 @@ class OpenAIChatAdapter(ChatPort):
             "Tu es un assistant pédagogique pour une formation e-learning. "
             "Réponds uniquement à partir du contexte fourni. "
             "Si le contexte ne permet pas de répondre, dis-le clairement. "
-            "Cite les titres de vidéos pertinents. Réponds en français, "
-            "de façon concise et structurée."
+            "Cite les titres de vidéos et de documents pertinents. "
+            "Réponds en français, de façon concise et structurée."
         )
         user = f"Contexte :\n{context}\n\nQuestion :\n{question}"
         try:

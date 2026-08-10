@@ -10,14 +10,18 @@ from e_learning.application.catalog.use_cases.create_video import CreateVideo
 from e_learning.domain.catalog.entities import Chapter, Formation, Video
 from e_learning.domain.catalog.value_objects import (
     ChapterName,
+    DurationSeconds,
     FormationName,
     Position,
+    RelativePath,
+    VideoTitle,
 )
 from tests.unit.application._fakes import (
     FakeChapterRepository,
     FakeFormationRepository,
     FakeJobRepository,
     FakeVideoRepository,
+    RecordingPublisher,
 )
 from tests.unit.application.test_use_cases import FakeCatalogStorage
 
@@ -72,7 +76,7 @@ async def test_create_mp4_skips_conversion(tmp_path: Path) -> None:
     )
     await chapters.save(chapter)
 
-    result = await CreateVideo(formations, chapters, videos, storage, FakeJobRepository()).execute(
+    result = await CreateVideo(formations, chapters, videos, storage, FakeJobRepository(), RecordingPublisher()).execute(
         CreateVideoCommand(
             chapter_id=str(chapter.id),
             title="Intro",
@@ -101,7 +105,7 @@ async def test_create_audio_wav_enqueues_conversion(tmp_path: Path) -> None:
     )
     await chapters.save(chapter)
 
-    result = await CreateVideo(formations, chapters, videos, storage, FakeJobRepository()).execute(
+    result = await CreateVideo(formations, chapters, videos, storage, FakeJobRepository(), RecordingPublisher()).execute(
         CreateVideoCommand(
             chapter_id=str(chapter.id),
             title="Podcast",
@@ -114,3 +118,85 @@ async def test_create_audio_wav_enqueues_conversion(tmp_path: Path) -> None:
     assert result.video.processing_status == "processing"
     assert ".src.wav" in result.video.relative_path
     assert result.conversion.target_relative_path.endswith(".mp3")
+
+
+async def test_complete_conversion_migrates_src_sidecars(tmp_path: Path) -> None:
+    """Après conversion, ``clip.src.txt`` / ``.md`` deviennent ``clip.txt`` / ``.md``."""
+    from e_learning.application.catalog.dto import MediaConversionJob
+    from e_learning.application.catalog.use_cases.complete_media_conversion import (
+        CompleteMediaConversion,
+    )
+    from e_learning.application.shared.media import MediaConvertPort
+
+    class _FakeConverter(MediaConvertPort):
+        def needs_video_transcode(self, path: Path) -> bool:
+            return True
+
+        def needs_audio_transcode(self, path: Path) -> bool:
+            return True
+
+        def convert_to_mp4(
+            self,
+            source: Path,
+            destination: Path,
+            *,
+            on_progress=None,
+        ) -> None:
+            destination.write_bytes(b"converted-mp4")
+
+        def convert_to_mp3(
+            self,
+            source: Path,
+            destination: Path,
+            *,
+            on_progress=None,
+        ) -> None:
+            destination.write_bytes(b"converted-mp3")
+
+    videos = FakeVideoRepository()
+    storage = FakeCatalogStorage(tmp_path)
+
+    chapter_dir = tmp_path / "f" / "c"
+    chapter_dir.mkdir(parents=True)
+    source_rel = "f/c/clip.src.mkv"
+    target_rel = "f/c/clip.mp4"
+    (chapter_dir / "clip.src.mkv").write_bytes(b"src-media")
+    (chapter_dir / "clip.src.txt").write_text("transcription", encoding="utf-8")
+    (chapter_dir / "clip.src.md").write_text("# résumé", encoding="utf-8")
+
+    formation = Formation.create(name=FormationName("Formation Test"))
+    chapter = Chapter.create(
+        formation_id=formation.id,
+        name=ChapterName("Chapitre 1"),
+        position=Position(0),
+    )
+    video = Video.create(
+        chapter_id=chapter.id,
+        title=VideoTitle("Clip"),
+        filename="clip.src.mkv",
+        relative_path=RelativePath(source_rel),
+        position=Position(0),
+        duration=DurationSeconds(1),
+        processing_status=Video.STATUS_PROCESSING,
+        transcription_status=Video.AI_READY,
+    )
+    await videos.save(video)
+
+    await CompleteMediaConversion(videos, storage, _FakeConverter()).execute(
+        MediaConversionJob(
+            video_id=str(video.id),
+            source_relative_path=source_rel,
+            target_relative_path=target_rel,
+            kind=Video.KIND_VIDEO,
+        )
+    )
+
+    updated = await videos.get(video.id)
+    assert str(updated.relative_path) == target_rel
+    assert updated.processing_status == Video.STATUS_READY
+    assert (chapter_dir / "clip.mp4").is_file()
+    assert (chapter_dir / "clip.txt").read_text(encoding="utf-8") == "transcription"
+    assert (chapter_dir / "clip.md").read_text(encoding="utf-8") == "# résumé"
+    assert not (chapter_dir / "clip.src.mkv").exists()
+    assert not (chapter_dir / "clip.src.txt").exists()
+    assert not (chapter_dir / "clip.src.md").exists()

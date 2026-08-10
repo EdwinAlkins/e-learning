@@ -20,9 +20,11 @@ from e_learning.application.catalog.use_cases.reconcile_catalog import Reconcile
 from e_learning.application.catalog.use_cases.rename_chapter import RenameChapter
 from e_learning.application.catalog.use_cases.rename_formation import RenameFormation
 from e_learning.application.catalog.use_cases.rename_video import RenameVideo
+from e_learning.application.catalog.use_cases.reorder_chapters import ReorderChapters
 from e_learning.application.catalog.use_cases.reorder_videos import ReorderVideos
 from e_learning.application.catalog.use_cases.start_media_conversion import StartMediaConversion
 from e_learning.application.catalog.use_cases.update_document import UpdateDocument
+from e_learning.presentation.api.dependencies.messaging import JobPublisherDep
 from e_learning.presentation.api.dependencies.repositories import (
     ChapterRepositoryDep,
     DocumentRepositoryDep,
@@ -30,7 +32,7 @@ from e_learning.presentation.api.dependencies.repositories import (
     JobRepositoryDep,
     VideoRepositoryDep,
 )
-from e_learning.presentation.api.dependencies.storage import CatalogStorageDep
+from e_learning.presentation.api.dependencies.storage import CatalogStorageDep, VectorStoreDep
 
 
 def get_list_formations(
@@ -108,8 +110,9 @@ def get_create_video(
     videos: VideoRepositoryDep,
     storage: CatalogStorageDep,
     jobs: JobRepositoryDep,
+    publisher: JobPublisherDep,
 ) -> CreateVideo:
-    return CreateVideo(formations, chapters, videos, storage, jobs)
+    return CreateVideo(formations, chapters, videos, storage, jobs, publisher)
 
 
 def get_rename_video(
@@ -118,8 +121,9 @@ def get_rename_video(
     videos: VideoRepositoryDep,
     storage: CatalogStorageDep,
     jobs: JobRepositoryDep,
+    publisher: JobPublisherDep,
 ) -> RenameVideo:
-    return RenameVideo(formations, chapters, videos, storage, jobs)
+    return RenameVideo(formations, chapters, videos, storage, jobs, publisher)
 
 
 def get_delete_video(videos: VideoRepositoryDep, storage: CatalogStorageDep) -> DeleteVideo:
@@ -132,6 +136,16 @@ def get_reorder_videos(
     documents: DocumentRepositoryDep,
 ) -> ReorderVideos:
     return ReorderVideos(chapters, videos, documents)
+
+
+def get_reorder_chapters(
+    formations: FormationRepositoryDep,
+    chapters: ChapterRepositoryDep,
+    videos: VideoRepositoryDep,
+    documents: DocumentRepositoryDep,
+    jobs: JobRepositoryDep,
+) -> ReorderChapters:
+    return ReorderChapters(formations, chapters, videos, documents, jobs)
 
 
 def get_move_video(
@@ -168,9 +182,11 @@ def get_update_document(
 
 
 def get_delete_document(
-    documents: DocumentRepositoryDep, storage: CatalogStorageDep
+    documents: DocumentRepositoryDep,
+    storage: CatalogStorageDep,
+    vectors: VectorStoreDep,
 ) -> DeleteDocument:
-    return DeleteDocument(documents, storage)
+    return DeleteDocument(documents, storage, vectors)
 
 
 def get_get_video_path(videos: VideoRepositoryDep, storage: CatalogStorageDep) -> GetVideoPath:
@@ -194,6 +210,9 @@ def get_reconcile_catalog(
 
 
 def get_start_media_conversion(
-    videos: VideoRepositoryDep, storage: CatalogStorageDep, jobs: JobRepositoryDep
+    videos: VideoRepositoryDep,
+    storage: CatalogStorageDep,
+    jobs: JobRepositoryDep,
+    publisher: JobPublisherDep,
 ) -> StartMediaConversion:
-    return StartMediaConversion(videos, storage, jobs)
+    return StartMediaConversion(videos, storage, jobs, publisher)

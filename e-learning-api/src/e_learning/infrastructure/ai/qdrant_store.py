@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+import contextlib
 import logging
 from typing import Any
 
@@ -10,6 +11,13 @@ from e_learning.application.shared.rag import RagChunk, RagHit, VectorStorePort
 from e_learning.infrastructure.config import Settings
 
 logger = logging.getLogger("e_learning")
+
+
+def _optional_str(value: object) -> str | None:
+    if value is None:
+        return None
+    text = str(value).strip()
+    return text or None
 
 
 class QdrantVectorStore(VectorStorePort):
@@ -39,26 +47,23 @@ class QdrantVectorStore(VectorStorePort):
         name = self._settings.qdrant_collection
         try:
             exists = await client.collection_exists(name)
-            if exists:
-                return
-            await client.create_collection(
-                collection_name=name,
-                vectors_config=qm.VectorParams(
-                    size=self._settings.embedding_dims,
-                    distance=qm.Distance.COSINE,
-                ),
-            )
-            await client.create_payload_index(
-                collection_name=name,
-                field_name="formation_id",
-                field_schema=qm.PayloadSchemaType.KEYWORD,
-            )
-            await client.create_payload_index(
-                collection_name=name,
-                field_name="video_id",
-                field_schema=qm.PayloadSchemaType.KEYWORD,
-            )
-            logger.info("Collection Qdrant créée : %s", name)
+            if not exists:
+                await client.create_collection(
+                    collection_name=name,
+                    vectors_config=qm.VectorParams(
+                        size=self._settings.embedding_dims,
+                        distance=qm.Distance.COSINE,
+                    ),
+                )
+                logger.info("Collection Qdrant créée : %s", name)
+            for field_name in ("formation_id", "video_id", "document_id"):
+                with contextlib.suppress(Exception):
+                    # Index déjà présent sur collection existante
+                    await client.create_payload_index(
+                        collection_name=name,
+                        field_name=field_name,
+                        field_schema=qm.PayloadSchemaType.KEYWORD,
+                    )
         except RagError:
             raise
         except Exception as exc:  # noqa: BLE001
@@ -79,6 +84,7 @@ class QdrantVectorStore(VectorStorePort):
                     "formation_id": chunk.formation_id,
                     "chapter_id": chunk.chapter_id,
                     "video_id": chunk.video_id,
+                    "document_id": chunk.document_id,
                     "title": chunk.title,
                     "source": chunk.source,
                     "chunk_index": chunk.chunk_index,
@@ -96,6 +102,12 @@ class QdrantVectorStore(VectorStorePort):
             raise RagError(f"Échec upsert Qdrant : {exc}") from exc
 
     async def delete_by_video(self, video_id: str) -> None:
+        await self._delete_by_keyword("video_id", video_id)
+
+    async def delete_by_document(self, document_id: str) -> None:
+        await self._delete_by_keyword("document_id", document_id)
+
+    async def _delete_by_keyword(self, field: str, value: str) -> None:
         from qdrant_client.http import models as qm
 
         await self.ensure_collection()
@@ -107,15 +119,15 @@ class QdrantVectorStore(VectorStorePort):
                     filter=qm.Filter(
                         must=[
                             qm.FieldCondition(
-                                key="video_id",
-                                match=qm.MatchValue(value=video_id),
+                                key=field,
+                                match=qm.MatchValue(value=value),
                             )
                         ]
                     )
                 ),
             )
         except Exception as exc:  # noqa: BLE001
-            raise RagError(f"Échec delete Qdrant : {exc}") from exc
+            raise RagError(f"Échec delete Qdrant ({field}) : {exc}") from exc
 
     async def search(self, formation_id: str, vector: list[float], *, top_k: int) -> list[RagHit]:
         from qdrant_client.http import models as qm
@@ -147,12 +159,13 @@ class QdrantVectorStore(VectorStorePort):
                 RagHit(
                     formation_id=str(payload.get("formation_id", "")),
                     chapter_id=str(payload.get("chapter_id", "")),
-                    video_id=str(payload.get("video_id", "")),
                     title=str(payload.get("title", "")),
                     source=str(payload.get("source", "")),
                     chunk_index=int(payload.get("chunk_index", 0)),
                     text=str(payload.get("text", "")),
                     score=float(point.score or 0.0),
+                    video_id=_optional_str(payload.get("video_id")),
+                    document_id=_optional_str(payload.get("document_id")),
                 )
             )
         return hits
