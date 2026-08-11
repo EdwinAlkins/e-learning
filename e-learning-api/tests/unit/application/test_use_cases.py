@@ -6,6 +6,8 @@ from pathlib import Path
 
 from e_learning.application.catalog.dto import (
     CreateDocumentCommand,
+    RenameChapterCommand,
+    RenameFormationCommand,
     ReorderChaptersCommand,
     ReorderVideosCommand,
     UpdateDocumentCommand,
@@ -13,6 +15,8 @@ from e_learning.application.catalog.dto import (
 from e_learning.application.catalog.use_cases.create_document import CreateDocument
 from e_learning.application.catalog.use_cases.delete_document import DeleteDocument
 from e_learning.application.catalog.use_cases.reconcile_catalog import ReconcileCatalog
+from e_learning.application.catalog.use_cases.rename_chapter import RenameChapter
+from e_learning.application.catalog.use_cases.rename_formation import RenameFormation
 from e_learning.application.catalog.use_cases.reorder_chapters import ReorderChapters
 from e_learning.application.catalog.use_cases.reorder_videos import ReorderVideos
 from e_learning.application.catalog.use_cases.update_document import UpdateDocument
@@ -26,14 +30,16 @@ from e_learning.application.shared.storage import (
     ScannedVideo,
 )
 from e_learning.application.user.use_cases.generate_user import GenerateUser
-from e_learning.domain.catalog.entities import Chapter, Formation, Video
+from e_learning.domain.catalog.entities import Chapter, Document, Formation, Video
 from e_learning.domain.catalog.value_objects import (
     ChapterName,
+    DocumentTitle,
     DurationSeconds,
     FormationId,
     FormationName,
     Position,
     RelativePath,
+    Slug,
     VideoTitle,
 )
 from tests.unit.application._fakes import (
@@ -420,3 +426,98 @@ async def test_reconcile_sets_ai_status_from_sidecars(tmp_path: Path) -> None:
     video = await videos.get(video.id)
     assert video.transcription_status == Video.AI_READY
     assert video.summary_status == Video.AI_READY
+
+
+async def test_rename_formation_rewrites_relative_paths(tmp_path: Path) -> None:
+    formations = FakeFormationRepository()
+    chapters = FakeChapterRepository()
+    videos = FakeVideoRepository()
+    documents = FakeDocumentRepository()
+    jobs = FakeJobRepository()
+    storage = FakeCatalogStorage(tmp_path)
+
+    formation = Formation.create(
+        name=FormationName("Old Name Long"),
+        slug=Slug("Old Name Long"),
+    )
+    await formations.save(formation)
+    chapter = Chapter.create(
+        formation_id=formation.id,
+        name=ChapterName("Chapitre"),
+        position=Position(0),
+        slug=Slug("chapitre"),
+    )
+    await chapters.save(chapter)
+    video = Video.create(
+        chapter_id=chapter.id,
+        title=VideoTitle("Intro"),
+        filename="intro.mp4",
+        relative_path=RelativePath("Old Name Long/chapitre/intro.mp4"),
+        position=Position(0),
+        duration=DurationSeconds(10),
+    )
+    await videos.save(video)
+    document = Document.create(
+        chapter_id=chapter.id,
+        title=DocumentTitle("Notes"),
+        filename="notes.pdf",
+        relative_path=RelativePath("Old Name Long/chapitre/notes.pdf"),
+        position=Position(0),
+    )
+    await documents.save(document)
+
+    await RenameFormation(
+        formations, chapters, videos, documents, storage, jobs
+    ).execute(RenameFormationCommand(formation_id=str(formation.id), name="New Short"))
+
+    formation = await formations.get(formation.id)
+    assert str(formation.slug) == "new-short"
+    video = await videos.get(video.id)
+    assert str(video.relative_path) == "new-short/chapitre/intro.mp4"
+    document = await documents.get(document.id)
+    assert str(document.relative_path) == "new-short/chapitre/notes.pdf"
+
+
+async def test_rename_chapter_rewrites_relative_paths(tmp_path: Path) -> None:
+    formations = FakeFormationRepository()
+    chapters = FakeChapterRepository()
+    videos = FakeVideoRepository()
+    documents = FakeDocumentRepository()
+    storage = FakeCatalogStorage(tmp_path)
+
+    formation = Formation.create(name=FormationName("Formation"), slug=Slug("formation"))
+    await formations.save(formation)
+    chapter = Chapter.create(
+        formation_id=formation.id,
+        name=ChapterName("Ancien"),
+        position=Position(1),
+        slug=Slug("1-ancien"),
+    )
+    await chapters.save(chapter)
+    video = Video.create(
+        chapter_id=chapter.id,
+        title=VideoTitle("Leçon"),
+        filename="lesson.mp4",
+        relative_path=RelativePath("formation/1-ancien/lesson.mp4"),
+        position=Position(0),
+        duration=DurationSeconds(10),
+    )
+    await videos.save(video)
+    document = Document.create(
+        chapter_id=chapter.id,
+        title=DocumentTitle("Doc"),
+        filename="doc.pdf",
+        relative_path=RelativePath("formation/1-ancien/doc.pdf"),
+        position=Position(0),
+    )
+    await documents.save(document)
+
+    dto = await RenameChapter(formations, chapters, videos, documents, storage).execute(
+        RenameChapterCommand(chapter_id=str(chapter.id), name="Nouveau")
+    )
+
+    assert dto.slug == "1-nouveau"
+    video = await videos.get(video.id)
+    assert str(video.relative_path) == "formation/1-nouveau/lesson.mp4"
+    document = await documents.get(document.id)
+    assert str(document.relative_path) == "formation/1-nouveau/doc.pdf"

@@ -216,6 +216,10 @@ class Video:
             self.filename = filename
         self.updated_at = _now()
 
+    def update_relative_path(self, relative_path: RelativePath) -> None:
+        self.relative_path = relative_path
+        self.updated_at = _now()
+
     def move_to(self, position: Position) -> None:
         self.position = position
         self.updated_at = _now()
@@ -322,6 +326,10 @@ class Document:
 
     def rename(self, title: DocumentTitle) -> None:
         self.title = title
+        self.updated_at = _now()
+
+    def update_relative_path(self, relative_path: RelativePath) -> None:
+        self.relative_path = relative_path
         self.updated_at = _now()
 
     def attach_video(self, video_id: VideoId | None) -> None:
