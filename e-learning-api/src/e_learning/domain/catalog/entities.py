@@ -332,6 +332,21 @@ class Document:
         self.relative_path = relative_path
         self.updated_at = _now()
 
+    def relocate(
+        self,
+        *,
+        chapter_id: ChapterId,
+        position: Position,
+        relative_path: RelativePath,
+        filename: str | None = None,
+    ) -> None:
+        self.chapter_id = chapter_id
+        self.position = position
+        self.relative_path = relative_path
+        if filename is not None:
+            self.filename = filename
+        self.updated_at = _now()
+
     def attach_video(self, video_id: VideoId | None) -> None:
         self.video_id = video_id
         self.updated_at = _now()

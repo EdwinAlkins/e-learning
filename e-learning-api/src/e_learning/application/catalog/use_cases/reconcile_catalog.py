@@ -48,8 +48,12 @@ class ReconcileCatalog:
         chapters_by_key = {
             (str(c.formation_id), str(c.slug)): c for c in await self._chapters.list_all()
         }
-        videos_by_path = {str(v.relative_path): v for v in await self._videos.list_all()}
-        docs_by_path = {str(d.relative_path): d for d in await self._documents.list_all()}
+        all_videos = await self._videos.list_all()
+        videos_by_path = {str(v.relative_path): v for v in all_videos}
+        videos_by_chapter_filename = {(str(v.chapter_id), v.filename): v for v in all_videos}
+        all_docs = await self._documents.list_all()
+        docs_by_path = {str(d.relative_path): d for d in all_docs}
+        docs_by_chapter_filename = {(str(d.chapter_id), d.filename): d for d in all_docs}
 
         formations_to_upsert: list[Formation] = []
         chapters_to_upsert: list[Chapter] = []
@@ -96,6 +100,11 @@ class ReconcileCatalog:
                     tx_ready = abs_path.with_suffix(".txt").is_file()
                     sum_ready = abs_path.with_suffix(".md").is_file()
                     existing = videos_by_path.get(s_video.relative_path)
+                    if existing is None:
+                        # Path obsolète après rename FS : même fichier dans le chapitre.
+                        existing = videos_by_chapter_filename.get(
+                            (str(chapter.id), s_video.filename)
+                        )
                     # Sidecars FS = source de vérité. Un job « processing » sans fichier
                     # est conservé ; dès qu'un .txt/.md existe → ready (même si processing/failed).
                     if tx_ready:
@@ -127,15 +136,21 @@ class ReconcileCatalog:
                             summary_status=sum_status,
                         )
                         videos_by_path[s_video.relative_path] = video
+                        videos_by_chapter_filename[(str(chapter.id), s_video.filename)] = video
                         videos_to_upsert.append(video)
                         chapter_videos.append(video)
                     else:
                         changed = False
-                        if existing.chapter_id != chapter.id:
+                        old_path = str(existing.relative_path)
+                        old_chapter_key = (str(existing.chapter_id), existing.filename)
+                        if (
+                            existing.chapter_id != chapter.id
+                            or old_path != s_video.relative_path
+                        ):
                             existing.relocate(
                                 chapter_id=chapter.id,
                                 position=Position(video_index),
-                                relative_path=existing.relative_path,
+                                relative_path=RelativePath(s_video.relative_path),
                             )
                             changed = True
                         elif existing.position.value != video_index:
@@ -154,6 +169,14 @@ class ReconcileCatalog:
                         if existing.summary_status != sum_status:
                             existing.set_summary_status(sum_status)
                             changed = True
+                        if old_path != s_video.relative_path:
+                            videos_by_path.pop(old_path, None)
+                            videos_by_path[s_video.relative_path] = existing
+                        if old_chapter_key != (str(chapter.id), s_video.filename):
+                            videos_by_chapter_filename.pop(old_chapter_key, None)
+                            videos_by_chapter_filename[
+                                (str(chapter.id), s_video.filename)
+                            ] = existing
                         if changed:
                             videos_to_upsert.append(existing)
                         chapter_videos.append(existing)
@@ -168,6 +191,10 @@ class ReconcileCatalog:
                     target_video_id = matched.id if matched else None
                     existing_doc = docs_by_path.get(s_doc.relative_path)
                     if existing_doc is None:
+                        existing_doc = docs_by_chapter_filename.get(
+                            (str(chapter.id), s_doc.filename)
+                        )
+                    if existing_doc is None:
                         document = Document.create(
                             chapter_id=chapter.id,
                             title=DocumentTitle(s_doc.title),
@@ -178,10 +205,36 @@ class ReconcileCatalog:
                             video_id=target_video_id,
                         )
                         docs_by_path[s_doc.relative_path] = document
+                        docs_by_chapter_filename[(str(chapter.id), s_doc.filename)] = document
                         docs_to_upsert.append(document)
-                    elif existing_doc.video_id != target_video_id:
-                        existing_doc.attach_video(target_video_id)
-                        docs_to_upsert.append(existing_doc)
+                    else:
+                        changed = False
+                        old_path = str(existing_doc.relative_path)
+                        old_chapter_key = (str(existing_doc.chapter_id), existing_doc.filename)
+                        if (
+                            existing_doc.chapter_id != chapter.id
+                            or old_path != s_doc.relative_path
+                        ):
+                            existing_doc.relocate(
+                                chapter_id=chapter.id,
+                                position=Position(doc_index),
+                                relative_path=RelativePath(s_doc.relative_path),
+                                filename=s_doc.filename,
+                            )
+                            changed = True
+                        if existing_doc.video_id != target_video_id:
+                            existing_doc.attach_video(target_video_id)
+                            changed = True
+                        if old_path != s_doc.relative_path:
+                            docs_by_path.pop(old_path, None)
+                            docs_by_path[s_doc.relative_path] = existing_doc
+                        if old_chapter_key != (str(chapter.id), s_doc.filename):
+                            docs_by_chapter_filename.pop(old_chapter_key, None)
+                            docs_by_chapter_filename[
+                                (str(chapter.id), s_doc.filename)
+                            ] = existing_doc
+                        if changed:
+                            docs_to_upsert.append(existing_doc)
 
         await self._formations.upsert_many(formations_to_upsert)
         await self._chapters.upsert_many(chapters_to_upsert)

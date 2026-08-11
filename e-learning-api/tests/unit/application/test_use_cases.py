@@ -428,6 +428,83 @@ async def test_reconcile_sets_ai_status_from_sidecars(tmp_path: Path) -> None:
     assert video.summary_status == Video.AI_READY
 
 
+async def test_reconcile_heals_stale_relative_path(tmp_path: Path) -> None:
+    """Après rename FS, le path DB obsolète est réaligné sans doublon filename."""
+    formations = FakeFormationRepository()
+    chapters = FakeChapterRepository()
+    videos = FakeVideoRepository()
+    documents = FakeDocumentRepository()
+
+    formation = Formation.create(name=FormationName("formaton"), slug=Slug("formaton"))
+    await formations.save(formation)
+    chapter = Chapter.create(
+        formation_id=formation.id,
+        name=ChapterName("vsd65fsd"),
+        position=Position(0),
+        slug=Slug("0-1.-vsd65fsd"),
+    )
+    await chapters.save(chapter)
+    video = Video.create(
+        chapter_id=chapter.id,
+        title=VideoTitle("vide"),
+        filename="vide.mp4",
+        relative_path=RelativePath("formaton/2-sssss/vide.mp4"),
+        position=Position(0),
+        duration=DurationSeconds(5),
+    )
+    await videos.save(video)
+    document = Document.create(
+        chapter_id=chapter.id,
+        title=DocumentTitle("notes"),
+        filename="notes.pdf",
+        relative_path=RelativePath("formaton/2-sssss/notes.pdf"),
+        position=Position(0),
+    )
+    await documents.save(document)
+
+    new_video_rel = "formaton/0-1.-vsd65fsd/vide.mp4"
+    new_doc_rel = "formaton/0-1.-vsd65fsd/notes.pdf"
+    (tmp_path / new_video_rel).parent.mkdir(parents=True, exist_ok=True)
+    (tmp_path / new_video_rel).write_bytes(b"mp4")
+    (tmp_path / new_doc_rel).write_bytes(b"%PDF")
+
+    scanned = [
+        ScannedFormation(
+            slug="formaton",
+            chapters=[
+                ScannedChapter(
+                    slug="0-1.-vsd65fsd",
+                    videos=[
+                        ScannedVideo(
+                            filename="vide.mp4",
+                            relative_path=new_video_rel,
+                            title="vide",
+                            duration_seconds=5.0,
+                        )
+                    ],
+                    documents=[
+                        ScannedDocument(
+                            filename="notes.pdf",
+                            relative_path=new_doc_rel,
+                            title="notes",
+                            mime_type="application/pdf",
+                        )
+                    ],
+                )
+            ],
+        )
+    ]
+    storage = FakeCatalogStorage(tmp_path, scanned=scanned)
+    await ReconcileCatalog(formations, chapters, videos, documents, storage).execute()
+
+    assert len(videos.items) == 1
+    healed = await videos.get(video.id)
+    assert str(healed.relative_path) == new_video_rel
+    assert len(documents.items) == 1
+    healed_doc = await documents.get(document.id)
+    assert str(healed_doc.relative_path) == new_doc_rel
+
+
 async def test_rename_formation_rewrites_relative_paths(tmp_path: Path) -> None:
     formations = FakeFormationRepository()
     chapters = FakeChapterRepository()
