@@ -19,9 +19,10 @@ class OpenAIEmbeddingAdapter(EmbeddingPort):
         except ImportError as exc:
             raise RagError("Le paquet openai n'est pas installé (groupe de deps ai).") from exc
 
+        base_url = self._settings.resolved_embedding_base_url()
         client = AsyncOpenAI(
-            base_url=self._settings.openai_base_url,
-            api_key=self._settings.openai_api_key.get_secret_value(),
+            base_url=base_url,
+            api_key=self._settings.resolved_embedding_api_key(),
         )
         try:
             response = await client.embeddings.create(
@@ -30,11 +31,10 @@ class OpenAIEmbeddingAdapter(EmbeddingPort):
             )
         except Exception as exc:  # noqa: BLE001
             raise RagError(
-                f"Échec embeddings ({self._settings.embedding_model} "
-                f"via {self._settings.openai_base_url}) : {exc}. "
+                f"Échec embeddings ({self._settings.embedding_model} via {base_url}) : {exc}. "
                 "Vérifiez que le serveur d'embeddings écoute "
-                "(LM Studio / Ollama) et que APP_OPENAI_BASE_URL est joignable "
-                "depuis le conteneur api."
+                "(LM Studio / Ollama) et que APP_EMBEDDING_BASE_URL "
+                "(ou APP_OPENAI_BASE_URL en repli) est joignable depuis le conteneur."
             ) from exc
 
         by_index = {item.index: item.embedding for item in response.data}

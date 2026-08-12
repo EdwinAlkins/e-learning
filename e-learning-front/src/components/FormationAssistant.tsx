@@ -84,7 +84,7 @@ export default function FormationAssistant({
           role: 'assistant',
           content:
             "Indexation démarrée en arrière-plan. Assurez-vous que le serveur d'embeddings "
-            + '(APP_OPENAI_BASE_URL, ex. LM Studio sur :1234) est démarré avec un modèle '
+            + '(APP_EMBEDDING_BASE_URL, ex. LM Studio sur :1234) est démarré avec un modèle '
             + "d'embeddings chargé, puis réessayez une question dans quelques secondes.",
         },
       ]);
