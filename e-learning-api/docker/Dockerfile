@@ -30,6 +30,9 @@ RUN apt-get update && apt-get install -y \
 WORKDIR /app
 COPY --from=builder /opt/venv /opt/venv
 ENV PATH="/opt/venv/bin:$PATH"
+# Cache Hugging Face / sentence-transformers (monté en volume Docker)
+ENV HF_HOME=/cache/huggingface
+RUN mkdir -p /cache/huggingface
 COPY alembic ./alembic
 COPY alembic.ini ./
 COPY src ./src

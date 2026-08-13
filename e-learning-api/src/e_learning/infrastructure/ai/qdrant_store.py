@@ -20,6 +20,26 @@ def _optional_str(value: object) -> str | None:
     return text or None
 
 
+def _collection_vector_size(info: Any) -> int | None:
+    """Lit la taille des vecteurs d'une collection (API qdrant-client variable)."""
+    params = getattr(info, "config", None)
+    params = getattr(params, "params", None) if params is not None else None
+    vectors = getattr(params, "vectors", None) if params is not None else None
+    if vectors is None:
+        return None
+    size = getattr(vectors, "size", None)
+    if size is not None:
+        return int(size)
+    if isinstance(vectors, dict):
+        for cfg in vectors.values():
+            nested = getattr(cfg, "size", None)
+            if nested is not None:
+                return int(nested)
+            if isinstance(cfg, dict) and "size" in cfg:
+                return int(cfg["size"])
+    return None
+
+
 class QdrantVectorStore(VectorStorePort):
     def __init__(self, settings: Settings) -> None:
         self._settings = settings
@@ -45,17 +65,35 @@ class QdrantVectorStore(VectorStorePort):
 
         client = self._get_client()
         name = self._settings.qdrant_collection
+        expected_dims = self._settings.embedding_dims
         try:
             exists = await client.collection_exists(name)
+            if exists:
+                info = await client.get_collection(name)
+                current_dims = _collection_vector_size(info)
+                if current_dims is not None and current_dims != expected_dims:
+                    logger.warning(
+                        "Collection Qdrant %s : dims %s ≠ APP_EMBEDDING_DIMS=%s — "
+                        "recréation (réindexer le corpus RAG).",
+                        name,
+                        current_dims,
+                        expected_dims,
+                    )
+                    await client.delete_collection(name)
+                    exists = False
             if not exists:
                 await client.create_collection(
                     collection_name=name,
                     vectors_config=qm.VectorParams(
-                        size=self._settings.embedding_dims,
+                        size=expected_dims,
                         distance=qm.Distance.COSINE,
                     ),
                 )
-                logger.info("Collection Qdrant créée : %s", name)
+                logger.info(
+                    "Collection Qdrant créée : %s (dims=%s)",
+                    name,
+                    expected_dims,
+                )
             for field_name in ("formation_id", "video_id", "document_id"):
                 with contextlib.suppress(Exception):
                     # Index déjà présent sur collection existante

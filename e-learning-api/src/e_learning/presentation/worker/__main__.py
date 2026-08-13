@@ -12,7 +12,7 @@ import orjson
 
 from e_learning.application.jobs.dto import ComputeJobMessage
 from e_learning.domain.catalog.exceptions import JobNotFound
-from e_learning.infrastructure.ai.embeddings import OpenAIEmbeddingAdapter
+from e_learning.infrastructure.ai.embeddings import build_embedding_adapter
 from e_learning.infrastructure.ai.media_files import FilesystemMediaFiles
 from e_learning.infrastructure.ai.qdrant_store import QdrantVectorStore
 from e_learning.infrastructure.config import get_settings
@@ -152,7 +152,8 @@ async def main() -> None:
     catalog_storage = FilesystemCatalogStorage(settings.videos_path)
     media_files = FilesystemMediaFiles(settings.videos_path)
     media_converter = FfmpegConvertAdapter()
-    embeddings = OpenAIEmbeddingAdapter(settings)
+    embeddings = build_embedding_adapter(settings)
+    await embeddings.warmup()
     vector_store = QdrantVectorStore(settings)
     publisher = RabbitMQMessageAdapter(
         settings.rabbitmq_url.get_secret_value(),
