@@ -16,7 +16,7 @@ from e_learning.application.content.use_cases.index_formation import IndexFormat
 from e_learning.application.content.use_cases.index_video_content import IndexVideoContent
 from e_learning.domain.catalog.entities import Video
 from e_learning.infrastructure.ai.document_text import FilesystemDocumentTextExtractor
-from e_learning.infrastructure.ai.embeddings import OpenAIEmbeddingAdapter
+from e_learning.infrastructure.ai.embeddings import build_embedding_adapter
 from e_learning.infrastructure.ai.media_files import FilesystemMediaFiles
 from e_learning.infrastructure.ai.qdrant_store import QdrantVectorStore
 from e_learning.infrastructure.config import get_settings
@@ -44,7 +44,8 @@ async def _index_rag(formation_id: str | None, video_id: str | None) -> None:
     settings = get_settings()
     media_files = FilesystemMediaFiles(settings.videos_path)
     storage = FilesystemCatalogStorage(settings.videos_path)
-    embeddings = OpenAIEmbeddingAdapter(settings)
+    embeddings = build_embedding_adapter(settings)
+    await embeddings.warmup()
     vectors = QdrantVectorStore(settings)
     extractor = FilesystemDocumentTextExtractor()
 

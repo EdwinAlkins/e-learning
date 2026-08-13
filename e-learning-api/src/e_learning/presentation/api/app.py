@@ -14,7 +14,7 @@ from sqlalchemy import text
 
 from e_learning.application.catalog.use_cases.reconcile_catalog import ReconcileCatalog
 from e_learning.infrastructure.ai.chat import OpenAIChatAdapter
-from e_learning.infrastructure.ai.embeddings import OpenAIEmbeddingAdapter
+from e_learning.infrastructure.ai.embeddings import build_embedding_adapter
 from e_learning.infrastructure.ai.media_files import FilesystemMediaFiles
 from e_learning.infrastructure.ai.qdrant_store import QdrantVectorStore
 from e_learning.infrastructure.config import Settings, get_settings
@@ -54,7 +54,7 @@ def create_app(settings: Settings | None = None) -> FastAPI:
     catalog_storage = FilesystemCatalogStorage(settings.videos_path)
     media_files = FilesystemMediaFiles(settings.videos_path)
     media_converter = FfmpegConvertAdapter()
-    embeddings = OpenAIEmbeddingAdapter(settings)
+    embeddings = build_embedding_adapter(settings)
     vector_store = QdrantVectorStore(settings)
     chat = OpenAIChatAdapter(settings)
     job_publisher = RabbitMQMessageAdapter(
@@ -68,6 +68,7 @@ def create_app(settings: Settings | None = None) -> FastAPI:
             logger.info("Initialisation du schéma (create_all).")
             await init_db(engine)
 
+        await embeddings.warmup()
         await job_publisher.connect()
 
         task: asyncio.Task[None] | None = None

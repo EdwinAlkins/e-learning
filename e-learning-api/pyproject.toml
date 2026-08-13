@@ -28,6 +28,7 @@ ai = [
     "pypdf>=6.0.0",
     "python-docx>=1.2.0",
     "qdrant-client>=1.19.0,<1.20",
+    "sentence-transformers>=5.0.0",
 ]
 dev = [
     "db2md[postgres]>=0.1.0",

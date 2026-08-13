@@ -77,6 +77,7 @@ services:
       APP_RABBITMQ_EXCHANGE: ${APP_RABBITMQ_EXCHANGE:-elearning_jobs}
     volumes:
       - "${VIDEOS_HOST_PATH}:/app/videos"
+      - huggingface_cache:/cache/huggingface
     extra_hosts:
       - "host.docker.internal:host-gateway"
     depends_on:
@@ -107,6 +108,7 @@ services:
       APP_WORKER_PREFETCH: ${APP_WORKER_PREFETCH:-3}
     volumes:
       - "${VIDEOS_HOST_PATH}:/app/videos"
+      - huggingface_cache:/cache/huggingface
     extra_hosts:
       - "host.docker.internal:host-gateway"
     depends_on:
@@ -132,3 +134,4 @@ volumes:
   postgres_data:
   qdrant_data:
   rabbitmq_data:
+  huggingface_cache:

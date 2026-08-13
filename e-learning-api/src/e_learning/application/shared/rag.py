@@ -37,6 +37,10 @@ class EmbeddingPort(ABC):
     @abstractmethod
     async def embed(self, texts: list[str]) -> list[list[float]]: ...
 
+    async def warmup(self) -> None:
+        """Précharge le modèle / client si besoin (no-op par défaut)."""
+        return None
+
 
 class VectorStorePort(ABC):
     @abstractmethod

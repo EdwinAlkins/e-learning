@@ -53,14 +53,14 @@ class Settings(BaseSettings):
     openai_model: str = "openapi/gpt-oss-20b"
     summary_strategy: SummaryStrategyName = SummaryStrategyName.OPENAPI
     max_upload_size: int = 500 * 1024 * 1024
-    # RAG (Qdrant + embeddings OpenAI-compatible, autre endpoint possible)
+    # RAG (Qdrant + embeddings)
     qdrant_url: str = "http://localhost:6333"
     qdrant_collection: str = "elearning_chunks"
-    # Vide / None → repli sur APP_OPENAI_* (rétrocompat).
+    # Vide → embeddings locaux (sentence-transformers). Sinon API OpenAI-compatible.
     embedding_base_url: str = ""
     embedding_api_key: SecretStr | None = None
-    embedding_model: str = "text-embedding-nomic-embed-text-v1.5"
-    embedding_dims: int = 768
+    embedding_model: str = "sentence-transformers/paraphrase-multilingual-MiniLM-L12-v2"
+    embedding_dims: int = 384
     rag_top_k: int = 6
     rag_chunk_size: int = 800
     rag_chunk_overlap: int = 120
@@ -69,8 +69,15 @@ class Settings(BaseSettings):
     rabbitmq_exchange: str = "elearning_jobs"
     worker_prefetch: int = 3
 
+    def use_local_embeddings(self) -> bool:
+        """True si aucune URL d'embeddings distante n'est configurée."""
+        return not self.embedding_base_url.strip()
+
     def resolved_embedding_base_url(self) -> str:
-        return self.embedding_base_url.strip() or self.openai_base_url
+        url = self.embedding_base_url.strip()
+        if not url:
+            raise ValueError("APP_EMBEDDING_BASE_URL est vide : utiliser les embeddings locaux.")
+        return url
 
     def resolved_embedding_api_key(self) -> str:
         if self.embedding_api_key is not None:
