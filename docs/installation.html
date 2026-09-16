@@ -1,0 +1,251 @@
+<!doctype html>
+<html lang="fr">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Installation &mdash; E-Learning</title>
+<meta name="description" content="Installer E-Learning avec Docker Compose, importer des vidéos existantes, lancer hors Docker et exposer l'instance derrière un proxy.">
+<link rel="canonical" href="https://edwinalkins.github.io/e-learning/installation.html">
+<meta property="og:type" content="article">
+<meta property="og:url" content="https://edwinalkins.github.io/e-learning/installation.html">
+<meta property="og:title" content="Installation &mdash; E-Learning">
+<meta property="og:description" content="Installer E-Learning avec Docker Compose, importer des vidéos existantes, lancer hors Docker et exposer l'instance derrière un proxy.">
+<meta property="og:image" content="https://edwinalkins.github.io/e-learning/assets/media/poster.png">
+<meta property="og:locale" content="fr_FR">
+<link rel="stylesheet" href="./assets/style.css">
+<link rel="icon" href="./assets/logo.png" type="image/png">
+</head>
+<body>
+<a class="skip" href="#content">Aller au contenu</a>
+
+<div class="topbar">
+  <a class="brand" href="./index.html"><img src="./assets/logo.png" alt="">E-Learning <span>documentation</span></a>
+  <nav aria-label="Liens principaux"><a class="optional" href="./index.html">Accueil</a><a href="https://github.com/EdwinAlkins/e-learning">Code source</a></nav>
+</div>
+
+<div class="shell">
+<nav class="sidenav" aria-label="Sections de la documentation"><h2>La plateforme</h2><ul><li><a href="./overview.html">Présentation</a></li><li><a href="./installation.html" aria-current="page">Installation</a></li><li><a href="./configuration.html">Configuration</a></li></ul><h2>Utiliser</h2><ul><li><a href="./learning.html">Côté apprenant</a></li><li><a href="./studio.html">Studio et catalogue</a></li><li><a href="./ai.html">Transcription et IA</a></li><li><a href="./mobile.html">Application mobile</a></li></ul><h2>Sous le capot</h2><ul><li><a href="./architecture.html">Architecture</a></li><li><a href="./api.html">API HTTP</a></li><li><a href="./operations.html">Exploitation</a></li><li><a href="./development.html">Développement</a></li></ul></nav>
+<main id="content">
+<header>
+  <h1>Installation</h1>
+  <p class="lede">La pile complète tient dans un <code>docker compose</code>. Comptez quelques minutes, plus le premier téléchargement des modèles.</p>
+</header>
+
+<h2 id="prerequis">Prérequis<a class="anchor" href="#prerequis" aria-label="Lien vers cette section">#</a></h2>
+<ul>
+  <li><a href="https://docs.docker.com/get-docker/">Docker</a> et Docker Compose.</li>
+  <li>Git avec <a href="https://git-lfs.com">Git LFS</a> : images, vidéo de
+      démonstration et polices sont stockées ainsi.</li>
+  <li>Un accès Internet au premier démarrage : images Docker, et modèle
+      d'embeddings téléchargé depuis Hugging Face (mis en cache ensuite).</li>
+  <li>Hors Docker uniquement : Node 22+, Python 3.14+, <a href="https://docs.astral.sh/uv/">uv</a> et ffmpeg.</li>
+</ul>
+
+<p><strong>Aucun modèle de langage n'est requis pour démarrer.</strong> Catalogue,
+lecteur, progression, notes, documents et studio fonctionnent sans. Un point
+d'accès compatible OpenAI (LM Studio, Ollama, vLLM, ou un fournisseur distant)
+active ensuite résumés et assistant ; voir <a href="./ai.html#modeles">Brancher un modèle</a>.</p>
+
+<h3 id="ressources">Ressources<a class="anchor" href="#ressources" aria-label="Lien vers cette section">#</a></h3>
+
+<p>Ordres de grandeur mesurés sur une instance Docker avec le modèle
+d'embeddings par défaut, sans LLM local :</p>
+
+<div class="table-wrap">
+<table>
+  <thead><tr><th>Poste</th><th>Mesure</th><th>À savoir</th></tr></thead>
+  <tbody>
+    <tr><td>Mémoire au repos</td><td>≈ 2,3&nbsp;Go</td><td>API et worker chargent chacun le modèle d'embeddings (≈ 1,1&nbsp;Go) ; les autres services restent sous 50&nbsp;Mo</td></tr>
+    <tr><td>Mémoire en transcription</td><td>+ ≈ 1&nbsp;Go par job</td><td>Modèle Whisper <code>base</code> ; davantage pour <code>small</code> ou <code>medium</code>. Limitez <code>APP_WORKER_PREFETCH</code> sur une petite machine</td></tr>
+    <tr><td>Image de l'API</td><td>≈ 7&nbsp;Go</td><td>PyTorch, Whisper, <code>sentence-transformers</code> ; partagée par <code>api</code>, <code>worker</code> et <code>migrate</code></td></tr>
+    <tr><td>Autres images</td><td>≈ 900&nbsp;Mo</td><td>Front, PostgreSQL, RabbitMQ, Qdrant</td></tr>
+    <tr><td>GPU</td><td>non requis</td><td>Tout fonctionne sur processeur ; la transcription est simplement plus lente</td></tr>
+  </tbody>
+</table>
+</div>
+
+<p>Une machine avec 8&nbsp;Go de mémoire fait tourner la pile et une transcription
+à la fois. Un LLM local (LM Studio, Ollama) s'ajoute à ce budget, souvent de
+plusieurs Go selon le modèle.</p>
+
+<h2 id="docker">Avec Docker Compose<a class="anchor" href="#docker" aria-label="Lien vers cette section">#</a></h2>
+
+<div class="snippet" data-lang="bash"><pre><code>git lfs install                  # une fois par machine, avant le clone
+git clone https://github.com/EdwinAlkins/e-learning.git
+cd e-learning
+cp .env.template .env</code></pre></div>
+
+<div class="note">
+  <strong>Git LFS est requis</strong>
+  Sans <code>git lfs install</code> (paquet <code>git-lfs</code>) avant le clone, vous
+  récupérez des fichiers pointeurs de quelques centaines d'octets à la place des images :
+  les icônes du front manquent et le build échoue. Sur un dépôt déjà cloné,
+  <code>git lfs install &amp;&amp; git lfs pull</code> répare.
+</div>
+
+<p>Dans <code>.env</code>, les trois valeurs à regarder en premier :</p>
+
+<div class="table-wrap">
+<table>
+  <thead><tr><th>Variable</th><th>Pourquoi</th></tr></thead>
+  <tbody>
+    <tr><td><code>VIDEOS_HOST_PATH</code></td><td>Dossier hôte des formations, monté sur <code>/app/videos</code> dans l'API et le worker.</td></tr>
+    <tr><td><code>APP_OPENAI_BASE_URL</code></td><td>Modèle de langage pour les résumés et l'assistant. <code>host.docker.internal</code> désigne la machine hôte.</td></tr>
+    <tr><td><code>NEXT_PUBLIC_API_URL</code></td><td>URL de l'API <em>vue par le navigateur</em>. Intégrée au build du front.</td></tr>
+  </tbody>
+</table>
+</div>
+
+<div class="snippet" data-lang="bash"><pre><code>docker compose up -d --build     # à la racine du dépôt
+docker compose ps</code></pre></div>
+
+<div class="note">
+  <strong>Lancez depuis la racine du dépôt</strong>
+  <code>e-learning-api/</code> contient son propre <code>docker-compose.yml</code>,
+  réservé au développement de l'API : il ne démarre ni le front ni Qdrant.
+</div>
+
+<p>Au démarrage, le service <code>migrate</code> applique les migrations Alembic
+puis s'arrête ; l'API et le worker attendent qu'il ait réussi.</p>
+
+<div class="table-wrap">
+<table>
+  <thead><tr><th>Service</th><th>Rôle</th><th>Port</th></tr></thead>
+  <tbody>
+    <tr><td><code>front</code></td><td>Interface web</td><td><code>3000</code></td></tr>
+    <tr><td><code>api</code></td><td>API REST et stream des médias</td><td><code>8000</code></td></tr>
+    <tr><td><code>worker</code></td><td>Consomme les jobs : conversion, transcription, résumé, indexation</td><td>&mdash;</td></tr>
+    <tr><td><code>migrate</code></td><td>Migrations, une fois</td><td>&mdash;</td></tr>
+    <tr><td><code>postgres</code></td><td>Base de données</td><td><code>5432</code></td></tr>
+    <tr><td><code>rabbitmq</code></td><td>File des jobs, console de gestion</td><td><code>5672</code>, <code>15672</code></td></tr>
+    <tr><td><code>qdrant</code></td><td>Base vectorielle de l'assistant</td><td><code>6333</code></td></tr>
+  </tbody>
+</table>
+</div>
+
+<p>Ouvrez <a href="http://localhost:3000">http://localhost:3000</a>, cliquez sur
+<strong>Generate New UID</strong>, puis <strong>Studio</strong> pour créer une
+première formation.</p>
+
+<div class="note">
+  <strong><code>NEXT_PUBLIC_API_URL</code> est figée au build</strong>
+  Next.js remplace la valeur dans le JavaScript livré au navigateur. Après l'avoir
+  changée : <code>docker compose build front &amp;&amp; docker compose up -d front</code>.
+</div>
+
+<h2 id="import">Importer des vidéos existantes<a class="anchor" href="#import" aria-label="Lien vers cette section">#</a></h2>
+
+<p>Rangez les médias sous <code>VIDEOS_HOST_PATH</code> en
+<code>Formation/Chapitre/fichier</code> (détails dans
+<a href="./studio.html#dossier">Studio et catalogue</a>), puis réconciliez :</p>
+
+<div class="snippet" data-lang="bash"><pre><code>docker compose exec api e-learning-cli reconcile
+docker compose exec api e-learning-cli list-videos</code></pre></div>
+
+<p>Ou, pour que la réconciliation tourne à chaque démarrage de l'API :
+<code>APP_RECONCILE_ON_STARTUP=true</code>.</p>
+
+<h2 id="hors-docker">Hors Docker<a class="anchor" href="#hors-docker" aria-label="Lien vers cette section">#</a></h2>
+
+<p>Utile pour développer. Les services d'infrastructure restent dans Docker :</p>
+
+<div class="snippet" data-lang="bash"><pre><code>docker compose up -d postgres rabbitmq qdrant
+
+# API
+cd e-learning-api
+cp .env.template .env           # URLs en localhost
+uv sync --group ai --group dev
+uv run alembic upgrade head
+uv run e-learning-api           # http://localhost:8000
+
+# Worker, dans un second terminal
+uv run e-learning-worker
+
+# Front, dans un troisième
+cd ../e-learning-front
+cp .env.template .env.local
+npm ci
+npm run dev                     # http://localhost:3000</code></pre></div>
+
+<p>Avec <code>APP_DEBUG=true</code>, la documentation OpenAPI est servie sur
+<a href="http://localhost:8000/api-docs">/api-docs</a>.</p>
+
+<h2 id="exposer">Exposer l'instance<a class="anchor" href="#exposer" aria-label="Lien vers cette section">#</a></h2>
+
+<div class="warn">
+  <strong>Pas d'authentification intégrée</strong>
+  Un UID n'est pas un secret de connexion : c'est un identifiant de suivi.
+  Toute personne qui atteint le front ou l'API peut lire le catalogue, téléverser
+  et supprimer. Mettez une authentification devant, ou restez sur un réseau privé
+  (VPN, Tailscale).
+</div>
+
+<p>Le compose publie aussi <strong>PostgreSQL, RabbitMQ (identifiants
+<code>guest</code> par défaut) et Qdrant</strong> sur toutes les interfaces. En
+production, retirez ces ports ou liez-les à la boucle locale, par exemple dans
+un <code>docker-compose.override.yml</code> (Compose 2.24+ pour <code>!override</code>) :</p>
+
+<div class="snippet" data-lang="yaml"><pre><code>services:
+  postgres:
+    ports: !override
+      - "127.0.0.1:${POSTGRES_PORT}:5432"</code></pre></div>
+
+<p>Un schéma simple : un seul domaine, le front à la racine, l'API sous
+<code>/api</code>, et une authentification HTTP devant les deux. Exemple avec Caddy :</p>
+
+<div class="snippet" data-lang="caddyfile"><pre><code>learn.example.com {
+	basic_auth {
+		# caddy hash-password
+		alice $2a$14$…
+	}
+	handle_path /api/* {
+		reverse_proxy 127.0.0.1:8000
+	}
+	handle {
+		reverse_proxy 127.0.0.1:3000
+	}
+}</code></pre></div>
+
+<p>Et dans <code>.env</code>, avant de reconstruire le front :</p>
+
+<div class="snippet" data-lang="env"><pre><code>NEXT_PUBLIC_API_URL=https://learn.example.com/api
+APP_CORS_ORIGINS=["https://learn.example.com"]
+APP_DEBUG=false</code></pre></div>
+
+<h3 id="choisir-auth">Quelle protection choisir<a class="anchor" href="#choisir-auth" aria-label="Lien vers cette section">#</a></h3>
+
+<div class="table-wrap">
+<table>
+  <thead><tr><th>Option</th><th>Navigateur</th><th>Application mobile</th><th>Pour qui</th></tr></thead>
+  <tbody>
+    <tr><td>VPN : Tailscale, WireGuard</td><td>Oui</td><td>Oui</td><td>Le plus simple, rien n'est exposé publiquement</td></tr>
+    <tr><td>Authentification HTTP basique (Caddy ci-dessus)</td><td>Oui</td><td>Non</td><td>Quelques personnes, un mot de passe partagé ou par personne</td></tr>
+    <tr><td>Proxy SSO : Authelia, Authentik, oauth2-proxy, Cloudflare Access</td><td>Oui</td><td>Non</td><td>Comptes existants (Google, GitHub, annuaire) devant l'instance</td></tr>
+  </tbody>
+</table>
+</div>
+
+<p>Un proxy protège l'accès, pas les données entre utilisateurs : une fois
+passé, chacun peut toujours ouvrir le studio. L'application mobile appelle l'API
+directement et ne sait pas passer une page de connexion : pour elle, le VPN est la
+seule option de ce tableau qui fonctionne.</p>
+
+<h2 id="mise-a-jour">Mettre à jour<a class="anchor" href="#mise-a-jour" aria-label="Lien vers cette section">#</a></h2>
+
+<div class="snippet" data-lang="bash"><pre><code>./scripts/backup.sh             # d'abord
+git pull
+docker compose up -d --build    # migrate applique les nouvelles migrations</code></pre></div>
+
+<p>Vérifier l'état : <code>GET /health</code> répond si le processus tourne,
+<code>GET /ready</code> vérifie aussi la connexion à PostgreSQL.</p>
+
+<nav class="pager"><a href="./overview.html">&larr; Présentation</a><a href="./configuration.html">Configuration &rarr;</a></nav>
+</main>
+</div>
+
+<footer class="site">
+  Documentation E-Learning &mdash;
+  <a href="https://github.com/EdwinAlkins/e-learning">EdwinAlkins/e-learning</a>
+</footer>
+</body>
+</html>

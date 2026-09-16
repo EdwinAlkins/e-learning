@@ -29,6 +29,11 @@ ai = [
     "python-docx>=1.2.0",
     "qdrant-client>=1.19.0,<1.20",
     "sentence-transformers>=5.0.0",
+    # Dependance transitive d'openai-whisper et sentence-transformers, declaree
+    # explicitement : [tool.uv.sources] ne s'applique qu'aux dependances
+    # directes du projet. Sans cette ligne, torch est resolu depuis PyPI avec
+    # la pile CUDA (voir le commentaire de [[tool.uv.index]] plus bas).
+    "torch>=2.14.0",
 ]
 dev = [
     "db2md[postgres]>=0.1.0",
@@ -40,6 +45,28 @@ dev = [
     "ruff>=0.16.1",
     "testcontainers>=4.15.0",
 ]
+
+# torch arrive par openai-whisper et sentence-transformers. L'index PyPI par
+# défaut livre la build CUDA : ~3,2 Go de paquets `nvidia-*` et ~900 Mo de
+# `triton` embarqués dans l'image alors qu'aucun service ne réserve de GPU.
+# L'index CPU de PyTorch fournit la même version sans ces dépendances.
+# `explicit = true` : seul `torch` y est résolu, le reste vient de PyPI.
+# triton est le compilateur de noyaux GPU de PyTorch (~900 Mo installes). Meme
+# la roue `+cpu` le declare en dependance sous Linux x86_64, alors qu'il ne
+# sert qu'a `torch.compile` sur GPU : ni Whisper ni sentence-transformers ne
+# l'utilisent en inference CPU. torch teste sa presence via
+# `torch.utils._triton.has_triton()`, import protege — l'absence est geree.
+# Le marqueur est volontairement infalsifiable : il retire le paquet du graphe.
+[tool.uv]
+override-dependencies = ["triton ; sys_platform == 'nonexistent'"]
+
+[[tool.uv.index]]
+name = "pytorch-cpu"
+url = "https://download.pytorch.org/whl/cpu"
+explicit = true
+
+[tool.uv.sources]
+torch = { index = "pytorch-cpu" }
 
 [build-system]
 requires = ["hatchling"]

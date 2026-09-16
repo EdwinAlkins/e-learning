@@ -1,0 +1,22 @@
+{
+  "name": "e-learning-media",
+  "version": "0.0.0",
+  "private": true,
+  "description": "Données de démonstration, captures d'écran et vidéo de présentation (hors build de l'application)",
+  "type": "module",
+  "engines": {
+    "node": ">=20"
+  },
+  "scripts": {
+    "setup": "npm install && npx playwright install chromium",
+    "seed": "node seed.mjs",
+    "shots": "node capture.mjs",
+    "video": "MODE=video node capture.mjs",
+    "encode": "node encode.mjs",
+    "promote": "node promote.mjs",
+    "all": "npm run shots && npm run video && npm run encode && npm run promote"
+  },
+  "devDependencies": {
+    "playwright": "^1.55.0"
+  }
+}

@@ -1,0 +1,115 @@
+<!doctype html>
+<html lang="fr">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Développement &mdash; E-Learning</title>
+<meta name="description" content="Développer sur E-Learning : environnement, tests, qualité, captures et vidéo de démonstration, site de documentation.">
+<link rel="canonical" href="https://edwinalkins.github.io/e-learning/development.html">
+<meta property="og:type" content="article">
+<meta property="og:url" content="https://edwinalkins.github.io/e-learning/development.html">
+<meta property="og:title" content="Développement &mdash; E-Learning">
+<meta property="og:description" content="Développer sur E-Learning : environnement, tests, qualité, captures et vidéo de démonstration, site de documentation.">
+<meta property="og:image" content="https://edwinalkins.github.io/e-learning/assets/media/poster.png">
+<meta property="og:locale" content="fr_FR">
+<link rel="stylesheet" href="./assets/style.css">
+<link rel="icon" href="./assets/logo.png" type="image/png">
+</head>
+<body>
+<a class="skip" href="#content">Aller au contenu</a>
+
+<div class="topbar">
+  <a class="brand" href="./index.html"><img src="./assets/logo.png" alt="">E-Learning <span>documentation</span></a>
+  <nav aria-label="Liens principaux"><a class="optional" href="./index.html">Accueil</a><a href="https://github.com/EdwinAlkins/e-learning">Code source</a></nav>
+</div>
+
+<div class="shell">
+<nav class="sidenav" aria-label="Sections de la documentation"><h2>La plateforme</h2><ul><li><a href="./overview.html">Présentation</a></li><li><a href="./installation.html">Installation</a></li><li><a href="./configuration.html">Configuration</a></li></ul><h2>Utiliser</h2><ul><li><a href="./learning.html">Côté apprenant</a></li><li><a href="./studio.html">Studio et catalogue</a></li><li><a href="./ai.html">Transcription et IA</a></li><li><a href="./mobile.html">Application mobile</a></li></ul><h2>Sous le capot</h2><ul><li><a href="./architecture.html">Architecture</a></li><li><a href="./api.html">API HTTP</a></li><li><a href="./operations.html">Exploitation</a></li><li><a href="./development.html" aria-current="page">Développement</a></li></ul></nav>
+<main id="content">
+<header>
+  <h1>Développement</h1>
+  <p class="lede">Lancer chaque application, vérifier la qualité, régénérer les captures et la vidéo de démonstration.</p>
+</header>
+
+<h2 id="environnement">Environnement<a class="anchor" href="#environnement" aria-label="Lien vers cette section">#</a></h2>
+
+<p>La procédure hors Docker est dans <a href="./installation.html#hors-docker">Installation</a> :
+infrastructure en conteneurs, API, worker et front en local.</p>
+
+<h2 id="api">API<a class="anchor" href="#api" aria-label="Lien vers cette section">#</a></h2>
+
+<div class="snippet" data-lang="bash"><pre><code>cd e-learning-api
+uv sync --group ai --group dev
+
+uv run pytest tests/unit/          # rapides, sans dépendance externe
+uv run pytest tests/integration/   # Docker requis (testcontainers)
+
+uv run ruff check .
+uv run ruff format .
+uv run mypy                        # mode strict
+uv run lint-imports                # règles d'architecture</code></pre></div>
+
+<p><code>lint-imports</code> vérifie deux contrats : les couches
+<code>presentation → infrastructure → application → domain</code>, et un domaine
+sans FastAPI, SQLAlchemy ni Pydantic. Voir <a href="./architecture.html#api">Architecture</a>.</p>
+
+<h2 id="front">Front<a class="anchor" href="#front" aria-label="Lien vers cette section">#</a></h2>
+
+<div class="snippet" data-lang="bash"><pre><code>cd e-learning-front
+npm ci
+npm run dev      # Turbopack, http://localhost:3000
+npm run lint
+npm run build</code></pre></div>
+
+<p>Pas de framework de test côté front pour l'instant. Tout le style passe par
+MUI, sans Tailwind ; le thème est dans <code>src/app/theme-provider.tsx</code>.</p>
+
+<h2 id="mobile">Mobile<a class="anchor" href="#mobile" aria-label="Lien vers cette section">#</a></h2>
+
+<div class="snippet" data-lang="bash"><pre><code>cd e-learning-mobile
+cp .env.template .env
+flutter pub get
+flutter analyze
+flutter test</code></pre></div>
+
+<h2 id="medias">Captures et vidéo de démonstration<a class="anchor" href="#medias" aria-label="Lien vers cette section">#</a></h2>
+
+<p>Les images et la vidéo de ce site sont produites par des scripts Playwright
+dans <code>dev-tools/media/</code>. Ils pilotent un front en cours d'exécution,
+créent au besoin une formation de démonstration avec des médias synthétiques, et
+produisent captures PNG, une vidéo MP4 et un GIF.</p>
+
+<div class="snippet" data-lang="bash"><pre><code>cd dev-tools/media
+npm run setup                 # Playwright + Chromium
+
+npm run seed                  # formation de démo via l'API (ffmpeg requis)
+npm run shots                 # → out/shots/*.png
+npm run video                 # → out/video/raw.webm (brut)
+npm run encode                # → demo.mp4, demo.gif, poster.png
+npm run promote               # copie la sélection dans docs/assets/media/</code></pre></div>
+
+<p>Le mode d'emploi complet, les variables et les précautions avant publication
+sont dans <code>dev-tools/media/README.md</code>.</p>
+
+<h2 id="site">Ce site<a class="anchor" href="#site" aria-label="Lien vers cette section">#</a></h2>
+
+<p>HTML statique dans <code>docs/</code>, une seule feuille de style, aucune
+dépendance : ni générateur, ni police externe, ni script. Il s'ouvre directement
+depuis le disque et se publie tel quel sur GitHub Pages
+(<em>Settings → Pages → Deploy from a branch → <code>main</code> / <code>/docs</code></em>).
+Le fichier <code>.nojekyll</code> désactive le traitement Jekyll.</p>
+
+<p>Pour ajouter une page : copier une page existante, mettre à jour
+<code>aria-current</code> dans la navigation, et reporter le lien dans la
+navigation de toutes les pages ainsi que dans les liens « précédent / suivant ».</p>
+
+<nav class="pager"><a href="./operations.html">&larr; Exploitation</a><span></span></nav>
+</main>
+</div>
+
+<footer class="site">
+  Documentation E-Learning &mdash;
+  <a href="https://github.com/EdwinAlkins/e-learning">EdwinAlkins/e-learning</a>
+</footer>
+</body>
+</html>

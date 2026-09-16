@@ -1,0 +1,131 @@
+<!doctype html>
+<html lang="fr">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Application mobile &mdash; E-Learning</title>
+<meta name="description" content="L'application Flutter apprenant : périmètre, configuration de l'URL de l'API, lancement et construction Android.">
+<link rel="canonical" href="https://edwinalkins.github.io/e-learning/mobile.html">
+<meta property="og:type" content="article">
+<meta property="og:url" content="https://edwinalkins.github.io/e-learning/mobile.html">
+<meta property="og:title" content="Application mobile &mdash; E-Learning">
+<meta property="og:description" content="L'application Flutter apprenant : périmètre, configuration de l'URL de l'API, lancement et construction Android.">
+<meta property="og:image" content="https://edwinalkins.github.io/e-learning/assets/media/poster.png">
+<meta property="og:locale" content="fr_FR">
+<link rel="stylesheet" href="./assets/style.css">
+<link rel="icon" href="./assets/logo.png" type="image/png">
+</head>
+<body>
+<a class="skip" href="#content">Aller au contenu</a>
+
+<div class="topbar">
+  <a class="brand" href="./index.html"><img src="./assets/logo.png" alt="">E-Learning <span>documentation</span></a>
+  <nav aria-label="Liens principaux"><a class="optional" href="./index.html">Accueil</a><a href="https://github.com/EdwinAlkins/e-learning">Code source</a></nav>
+</div>
+
+<div class="shell">
+<nav class="sidenav" aria-label="Sections de la documentation"><h2>La plateforme</h2><ul><li><a href="./overview.html">Présentation</a></li><li><a href="./installation.html">Installation</a></li><li><a href="./configuration.html">Configuration</a></li></ul><h2>Utiliser</h2><ul><li><a href="./learning.html">Côté apprenant</a></li><li><a href="./studio.html">Studio et catalogue</a></li><li><a href="./ai.html">Transcription et IA</a></li><li><a href="./mobile.html" aria-current="page">Application mobile</a></li></ul><h2>Sous le capot</h2><ul><li><a href="./architecture.html">Architecture</a></li><li><a href="./api.html">API HTTP</a></li><li><a href="./operations.html">Exploitation</a></li><li><a href="./development.html">Développement</a></li></ul></nav>
+<main id="content">
+<header>
+  <h1>Application mobile</h1>
+  <p class="lede">Le parcours apprenant en application Flutter, pour Android, iOS et Linux. Le studio reste sur le web.</p>
+</header>
+
+<h2 id="perimetre">Périmètre<a class="anchor" href="#perimetre" aria-label="Lien vers cette section">#</a></h2>
+
+<div class="table-wrap">
+<table>
+  <thead><tr><th>Inclus</th><th>Hors périmètre</th></tr></thead>
+  <tbody>
+    <tr><td>Identifiant UID : génération et reprise</td><td>Studio : création, téléversement, réordonnancement</td></tr>
+    <tr><td>Catalogue, détail formation, progressions</td><td>Lecture hors ligne</td></tr>
+    <tr><td>Lecteur vidéo et audio, reprise, vitesse, ±10&nbsp;s, précédent / suivant</td><td>Notifications</td></tr>
+    <tr><td>Notes horodatées : création, édition, suppression, seek au tap</td><td></td></tr>
+    <tr><td>Transcription, génération et édition du résumé</td><td></td></tr>
+    <tr><td>Documents de la leçon, assistant de formation</td><td></td></tr>
+    <tr><td>Thème clair, sombre ou système</td><td></td></tr>
+  </tbody>
+</table>
+</div>
+
+<p>La position de lecture est sauvegardée avec un anti-rebond de 500&nbsp;ms,
+et forcée à la pause, au passage en arrière-plan et en quittant l'écran. Un
+apprenant qui commence sur le web reprend sur son téléphone en saisissant le
+même UID.</p>
+
+<p>Lecture : <code>video_player</code> et <code>chewie</code> pour la vidéo,
+<code>just_audio</code> pour l'audio sur mobile ; <code>media_kit</code> (libmpv)
+sur desktop.</p>
+
+<h2 id="configuration">Configuration de l'API<a class="anchor" href="#configuration" aria-label="Lien vers cette section">#</a></h2>
+
+<div class="snippet" data-lang="bash"><pre><code>cd e-learning-mobile
+cp .env.template .env      # obligatoire : le fichier est embarqué comme asset</code></pre></div>
+
+<div class="table-wrap">
+<table>
+  <thead><tr><th>Cible</th><th><code>API_URL</code></th></tr></thead>
+  <tbody>
+    <tr><td>Émulateur Android</td><td><code>http://10.0.2.2:8000</code></td></tr>
+    <tr><td>Simulateur iOS</td><td><code>http://localhost:8000</code></td></tr>
+    <tr><td>Téléphone réel</td><td><code>http://&lt;IP-LAN&gt;:8000</code></td></tr>
+    <tr><td>Production</td><td>HTTPS, via <code>--dart-define=API_URL=https://…</code></td></tr>
+  </tbody>
+</table>
+</div>
+
+<p>Ordre de priorité, du plus fort au plus faible :</p>
+<ol>
+  <li>le panneau <strong>Paramètres</strong> de l'application (icône engrenage,
+      présente dès l'écran de connexion) : saisie, test de <code>/health</code>, enregistrement ;</li>
+  <li><code>--dart-define=API_URL=…</code> ;</li>
+  <li>le fichier <code>.env</code> ;</li>
+  <li><code>http://10.0.2.2:8000</code>.</li>
+</ol>
+
+<div class="note">
+  <strong>Le <code>.env</code> est lu au lancement</strong>
+  Embarqué comme asset, il n'est pas rechargé par le hot reload. Relancez
+  l'application, ou changez l'URL depuis le panneau Paramètres.
+</div>
+
+<h2 id="lancer">Lancer<a class="anchor" href="#lancer" aria-label="Lien vers cette section">#</a></h2>
+
+<p>Flutter 3.47+ et Dart 3.13+. Sur Linux desktop, installez aussi
+<code>libsecret-1-dev</code>, <code>libmpv-dev</code> et <code>mpv</code>.</p>
+
+<div class="snippet" data-lang="bash"><pre><code>flutter pub get
+flutter run -d android
+flutter run -d linux</code></pre></div>
+
+<p>Sur Linux, le runner force l'ancien moteur de rendu à la place d'Impeller :
+avec Impeller, quitter le lecteur vidéo fait planter le moteur Flutter.
+Rien à faire de votre côté.</p>
+
+<h2 id="android">Construire pour Android<a class="anchor" href="#android" aria-label="Lien vers cette section">#</a></h2>
+
+<p>La compilation demande l'Android SDK API 37 (exigence de
+<code>flutter_secure_storage</code> 11+). Le pas-à-pas complet &mdash; détection
+du téléphone, APK, installation par <code>adb</code> &mdash; est dans
+<code>e-learning-mobile/docs/how-to-build-android.md</code>.</p>
+
+<div class="snippet" data-lang="bash"><pre><code>flutter build apk --release --dart-define=API_URL=http://192.168.1.20:8000
+adb install -r build/app/outputs/flutter-apk/app-release.apk</code></pre></div>
+
+<div class="note">
+  <strong>Téléphone et API sur le même réseau</strong>
+  <code>localhost</code> sur le téléphone désigne le téléphone. Utilisez l'IP LAN
+  de la machine qui fait tourner l'API, et vérifiez que le port <code>8000</code>
+  est joignable.
+</div>
+
+<nav class="pager"><a href="./ai.html">&larr; Transcription et IA</a><a href="./architecture.html">Architecture &rarr;</a></nav>
+</main>
+</div>
+
+<footer class="site">
+  Documentation E-Learning &mdash;
+  <a href="https://github.com/EdwinAlkins/e-learning">EdwinAlkins/e-learning</a>
+</footer>
+</body>
+</html>

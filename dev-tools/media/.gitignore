@@ -1,0 +1,6 @@
+# Tout ce que produisent ces scripts. Les scripts sont versionnés, leurs sorties
+# non : seule la sélection copiée dans docs/assets/media/ est commitée.
+out/
+
+node_modules/
+package-lock.json

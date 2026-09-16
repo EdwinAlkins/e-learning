@@ -1,0 +1,151 @@
+<!doctype html>
+<html lang="fr">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Studio et catalogue &mdash; E-Learning</title>
+<meta name="description" content="Créer des formations dans le studio, téléverser médias et documents, et organiser le catalogue sur disque.">
+<link rel="canonical" href="https://edwinalkins.github.io/e-learning/studio.html">
+<meta property="og:type" content="article">
+<meta property="og:url" content="https://edwinalkins.github.io/e-learning/studio.html">
+<meta property="og:title" content="Studio et catalogue &mdash; E-Learning">
+<meta property="og:description" content="Créer des formations dans le studio, téléverser médias et documents, et organiser le catalogue sur disque.">
+<meta property="og:image" content="https://edwinalkins.github.io/e-learning/assets/media/poster.png">
+<meta property="og:locale" content="fr_FR">
+<link rel="stylesheet" href="./assets/style.css">
+<link rel="icon" href="./assets/logo.png" type="image/png">
+</head>
+<body>
+<a class="skip" href="#content">Aller au contenu</a>
+
+<div class="topbar">
+  <a class="brand" href="./index.html"><img src="./assets/logo.png" alt="">E-Learning <span>documentation</span></a>
+  <nav aria-label="Liens principaux"><a class="optional" href="./index.html">Accueil</a><a href="https://github.com/EdwinAlkins/e-learning">Code source</a></nav>
+</div>
+
+<div class="shell">
+<nav class="sidenav" aria-label="Sections de la documentation"><h2>La plateforme</h2><ul><li><a href="./overview.html">Présentation</a></li><li><a href="./installation.html">Installation</a></li><li><a href="./configuration.html">Configuration</a></li></ul><h2>Utiliser</h2><ul><li><a href="./learning.html">Côté apprenant</a></li><li><a href="./studio.html" aria-current="page">Studio et catalogue</a></li><li><a href="./ai.html">Transcription et IA</a></li><li><a href="./mobile.html">Application mobile</a></li></ul><h2>Sous le capot</h2><ul><li><a href="./architecture.html">Architecture</a></li><li><a href="./api.html">API HTTP</a></li><li><a href="./operations.html">Exploitation</a></li><li><a href="./development.html">Développement</a></li></ul></nav>
+<main id="content">
+<header>
+  <h1>Studio et catalogue</h1>
+  <p class="lede">Deux façons d'alimenter la plateforme : le studio web, ou un dossier rangé sur le disque. Les deux arrivent au même endroit.</p>
+</header>
+
+<h2 id="studio">Le studio<a class="anchor" href="#studio" aria-label="Lien vers cette section">#</a></h2>
+
+<p>Le bouton <strong>Studio</strong> de l'en-tête liste les formations, avec
+<strong>Nouvelle formation</strong>, l'édition et la suppression.</p>
+
+<img class="shot" src="./assets/media/studio.png" loading="lazy"
+     alt="Studio : liste des formations avec nombre de chapitres et durée, boutons éditer et supprimer.">
+
+<h3 id="formation">Éditer une formation<a class="anchor" href="#formation" aria-label="Lien vers cette section">#</a></h3>
+
+<ul>
+  <li><strong>Titre</strong> modifiable en tête de page, enregistré par l'icône disquette.</li>
+  <li><strong>Ajouter un chapitre</strong> ; chaque chapitre se renomme, se supprime,
+      et monte ou descend dans la formation.</li>
+  <li><strong>Ajouter un média</strong> dans un chapitre : un titre et un fichier vidéo ou audio.</li>
+  <li>Sur chaque média : <strong>Monter</strong>, <strong>Descendre</strong>,
+      <strong>Déplacer</strong> vers un autre chapitre (à la position choisie),
+      <strong>Modifier</strong> (titre ou remplacement du fichier), <strong>Supprimer</strong>.</li>
+  <li>Des actions de traitement : <strong>Transcrire</strong>,
+      <strong>Générer le résumé</strong>, <strong>Convertir pour le web</strong>
+      si un fichier ne se lit pas dans le navigateur.</li>
+</ul>
+
+<img class="shot" src="./assets/media/builder.png" loading="lazy"
+     alt="Éditeur de formation : titre, chapitres en accordéon, médias avec leurs statuts et leurs actions.">
+
+<p>Des pastilles indiquent l'état de chaque média : <em>Conversion…</em>,
+<em>Transcription…</em> et <em>Résumé…</em> avec leur pourcentage pendant le
+traitement, puis <em>Transcrit</em> et <em>Résumé</em> une fois prêts, ou
+<em>Échec …</em> en cas de problème.</p>
+
+<div class="note">
+  <strong>Réordonner ne renomme rien</strong>
+  L'ordre est stocké en base (colonne <code>position</code>). Les fichiers et
+  dossiers gardent leur nom, ce qui garde stables les chemins, les transcriptions
+  et les liens.
+</div>
+
+<h3 id="conversion">Conversion à l'import<a class="anchor" href="#conversion" aria-label="Lien vers cette section">#</a></h3>
+
+<p>Quand un fichier téléversé n'est pas un <code>.mp4</code> (vidéo) ou un
+<code>.mp3</code> (audio), l'API l'enregistre, marque le média
+<code>processing</code>, et publie un job <code>media_conversion</code>. Le worker
+le passe dans ffmpeg vers <strong>MP4 H.264/AAC</strong> ou <strong>MP3</strong>.
+Pendant ce temps, le fichier source porte un marqueur <code>.src</code> et n'est
+pas listé au catalogue.</p>
+
+<p>La décision se fonde sur l'extension, pas sur les codecs : un MP4 en HEVC est
+accepté tel quel. S'il ne se lit pas dans le navigateur, <strong>Convertir pour
+le web</strong> le ré-encode en H.264/AAC.</p>
+
+<h2 id="documents">Documents<a class="anchor" href="#documents" aria-label="Lien vers cette section">#</a></h2>
+
+<p><strong>Ajouter un document</strong> dans un chapitre, avec un titre et un
+champ <strong>Associé à</strong> : une vidéo précise, ou <em>Tout le chapitre</em>.
+L'association se change ensuite depuis l'édition du document.</p>
+
+<p>Extensions acceptées : <code>.pdf</code>, <code>.md</code>, <code>.txt</code>,
+<code>.csv</code>, <code>.doc</code>, <code>.docx</code>, <code>.ppt</code>,
+<code>.pptx</code>, <code>.xls</code>, <code>.xlsx</code>, <code>.odt</code>,
+<code>.ods</code>, <code>.odp</code>, <code>.png</code>, <code>.jpg</code>,
+<code>.jpeg</code>, <code>.webp</code>, <code>.gif</code>, <code>.svg</code>.
+Les PDF, DOCX, Markdown, texte et CSV sont aussi indexés pour
+<a href="./ai.html#assistant">l'assistant</a>.</p>
+
+<h2 id="dossier">Le catalogue sur disque<a class="anchor" href="#dossier" aria-label="Lien vers cette section">#</a></h2>
+
+<p>Tous les médias vivent sous <code>APP_VIDEOS_PATH</code>
+(<code>VIDEOS_HOST_PATH</code> côté hôte), avec trois niveaux :</p>
+
+<div class="snippet" data-lang="text"><pre><code>videos/
+└── SQL pour les débutants/            ← formation
+    ├── 01 - Premiers pas/             ← chapitre
+    │   ├── 01 - Installer Postgres.mp4
+    │   ├── 01 - Installer Postgres.txt    transcription (générée)
+    │   ├── 01 - Installer Postgres.md     résumé (généré)
+    │   ├── 01 - Installer Postgres.pdf    document, rattaché à la vidéo
+    │   └── 02 - SELECT.mp4
+    └── 02 - Les index/
+        ├── 01 - B-tree.mp4
+        └── Mémo.pdf                       document du chapitre</code></pre></div>
+
+<ul>
+  <li>Le <strong>préfixe d'ordre</strong> (<code>01 - </code>, <code>01-</code>,
+      <code>01_</code>, <code>01.</code>) est retiré du titre affiché.</li>
+  <li>Un <strong>document dont le nom correspond</strong> à celui d'une vidéo,
+      préfixe, casse et espaces ignorés, lui est rattaché automatiquement.</li>
+  <li>Un <code>.txt</code> ou <code>.md</code> portant le nom d'un
+      <code>.mp4</code> ou <code>.mp3</code> n'est pas un document : c'est sa
+      transcription ou son résumé. Vous pouvez déposer les vôtres.</li>
+  <li>La durée est lue par <code>ffprobe</code>.</li>
+</ul>
+
+<h3 id="reconcile">Réconcilier<a class="anchor" href="#reconcile" aria-label="Lien vers cette section">#</a></h3>
+
+<p>Après avoir ajouté, renommé ou supprimé des fichiers à la main :</p>
+
+<div class="snippet" data-lang="bash"><pre><code>docker compose exec api e-learning-cli reconcile</code></pre></div>
+
+<p>Le chemin relatif de chaque fichier est la clé de rapprochement entre disque
+et base. Les identifiants (UUIDv7) des éléments déjà connus ne changent pas,
+donc la progression et les notes des apprenants sont préservées.</p>
+
+<p>Des fichiers qui ne se lisent pas dans un navigateur ? Convertissez-les en lot :</p>
+
+<div class="snippet" data-lang="bash"><pre><code>docker compose exec api e-learning-cli convert --glob 'SQL pour les débutants/**/*.*'
+docker compose exec api e-learning-cli reconcile</code></pre></div>
+
+<nav class="pager"><a href="./learning.html">&larr; Côté apprenant</a><a href="./ai.html">Transcription et IA &rarr;</a></nav>
+</main>
+</div>
+
+<footer class="site">
+  Documentation E-Learning &mdash;
+  <a href="https://github.com/EdwinAlkins/e-learning">EdwinAlkins/e-learning</a>
+</footer>
+</body>
+</html>

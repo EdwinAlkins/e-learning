@@ -37,6 +37,18 @@ export default function ThemeProvider({ children }: ThemeProviderProps) {
         palette: {
           mode: effectiveMode,
         },
+        typography: {
+          fontFamily: [
+            'var(--font-inter)',
+            '-apple-system',
+            'BlinkMacSystemFont',
+            '"Segoe UI"',
+            'Roboto',
+            '"Helvetica Neue"',
+            'Arial',
+            'sans-serif',
+          ].join(','),
+        },
       }),
     [effectiveMode]
   );

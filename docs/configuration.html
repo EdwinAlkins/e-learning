@@ -1,0 +1,163 @@
+<!doctype html>
+<html lang="fr">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Configuration &mdash; E-Learning</title>
+<meta name="description" content="Référence des variables d'environnement : Docker Compose, API (préfixe APP_), IA, RabbitMQ, Qdrant et front.">
+<link rel="canonical" href="https://edwinalkins.github.io/e-learning/configuration.html">
+<meta property="og:type" content="article">
+<meta property="og:url" content="https://edwinalkins.github.io/e-learning/configuration.html">
+<meta property="og:title" content="Configuration &mdash; E-Learning">
+<meta property="og:description" content="Référence des variables d'environnement : Docker Compose, API (préfixe APP_), IA, RabbitMQ, Qdrant et front.">
+<meta property="og:image" content="https://edwinalkins.github.io/e-learning/assets/media/poster.png">
+<meta property="og:locale" content="fr_FR">
+<link rel="stylesheet" href="./assets/style.css">
+<link rel="icon" href="./assets/logo.png" type="image/png">
+</head>
+<body>
+<a class="skip" href="#content">Aller au contenu</a>
+
+<div class="topbar">
+  <a class="brand" href="./index.html"><img src="./assets/logo.png" alt="">E-Learning <span>documentation</span></a>
+  <nav aria-label="Liens principaux"><a class="optional" href="./index.html">Accueil</a><a href="https://github.com/EdwinAlkins/e-learning">Code source</a></nav>
+</div>
+
+<div class="shell">
+<nav class="sidenav" aria-label="Sections de la documentation"><h2>La plateforme</h2><ul><li><a href="./overview.html">Présentation</a></li><li><a href="./installation.html">Installation</a></li><li><a href="./configuration.html" aria-current="page">Configuration</a></li></ul><h2>Utiliser</h2><ul><li><a href="./learning.html">Côté apprenant</a></li><li><a href="./studio.html">Studio et catalogue</a></li><li><a href="./ai.html">Transcription et IA</a></li><li><a href="./mobile.html">Application mobile</a></li></ul><h2>Sous le capot</h2><ul><li><a href="./architecture.html">Architecture</a></li><li><a href="./api.html">API HTTP</a></li><li><a href="./operations.html">Exploitation</a></li><li><a href="./development.html">Développement</a></li></ul></nav>
+<main id="content">
+<header>
+  <h1>Configuration</h1>
+  <p class="lede">Tout passe par des variables d'environnement. Le fichier <code>.env</code> à la racine alimente Docker Compose, l'API et le worker.</p>
+</header>
+
+<p>L'API lit ses réglages avec <code>pydantic-settings</code>
+(<code>e-learning-api/src/e_learning/infrastructure/config.py</code>) : toute
+variable préfixée <code>APP_</code> surcharge la valeur par défaut. Hors Docker,
+elle lit <code>.env.template</code> puis <code>.env</code> dans son dossier.</p>
+
+<h2 id="compose">Docker Compose<a class="anchor" href="#compose" aria-label="Lien vers cette section">#</a></h2>
+
+<div class="table-wrap">
+<table>
+  <thead><tr><th>Variable</th><th>Défaut du template</th><th>Rôle</th></tr></thead>
+  <tbody>
+    <tr><td><code>VIDEOS_HOST_PATH</code></td><td><code>./e-learning-api/videos</code></td><td>Dossier hôte des médias, monté sur <code>/app/videos</code></td></tr>
+    <tr><td><code>POSTGRES_USER</code> / <code>_PASSWORD</code> / <code>_DB</code></td><td><code>elearning</code></td><td>Identifiants de la base créée au premier démarrage</td></tr>
+    <tr><td><code>POSTGRES_PORT</code></td><td><code>5432</code></td><td>Port publié sur l'hôte</td></tr>
+    <tr><td><code>API_PORT</code></td><td><code>8000</code></td><td>Port publié de l'API</td></tr>
+    <tr><td><code>FRONT_PORT</code></td><td><code>3000</code></td><td>Port publié du front</td></tr>
+    <tr><td><code>RABBITMQ_PORT</code> / <code>RABBITMQ_MANAGEMENT_PORT</code></td><td><code>5672</code> / <code>15672</code></td><td>Broker et console web</td></tr>
+    <tr><td><code>RABBITMQ_USER</code> / <code>RABBITMQ_PASSWORD</code></td><td><code>guest</code></td><td>À changer dès que le port sort de la machine</td></tr>
+    <tr><td><code>QDRANT_PORT</code></td><td><code>6333</code></td><td>Port publié de Qdrant</td></tr>
+  </tbody>
+</table>
+</div>
+
+<h2 id="api">API et worker<a class="anchor" href="#api" aria-label="Lien vers cette section">#</a></h2>
+
+<div class="table-wrap">
+<table>
+  <thead><tr><th>Variable</th><th>Défaut</th><th>Rôle</th></tr></thead>
+  <tbody>
+    <tr><td><code>APP_DATABASE_URL</code></td><td>Postgres local</td><td>URL SQLAlchemy async (<code>postgresql+asyncpg://…</code>)</td></tr>
+    <tr><td><code>APP_VIDEOS_PATH</code></td><td><code>videos/</code></td><td>Racine du catalogue sur disque (forcée à <code>/app/videos</code> par le compose)</td></tr>
+    <tr><td><code>APP_DEBUG</code></td><td><code>false</code></td><td>Active <code>/api-docs</code>, <code>/api-redoc</code> et un UID de repli si l'en-tête manque</td></tr>
+    <tr><td><code>APP_LOG_LEVEL</code></td><td><code>INFO</code></td><td><code>DEBUG</code>, <code>INFO</code>, <code>WARNING</code>, <code>ERROR</code>, <code>CRITICAL</code></td></tr>
+    <tr><td><code>APP_CORS_ORIGINS</code></td><td><code>[]</code></td><td>Liste JSON des origines autorisées, ex. <code>["http://localhost:3000"]</code></td></tr>
+    <tr><td><code>APP_INIT_DB</code></td><td><code>false</code></td><td><code>create_all</code> au démarrage ; préférer les migrations</td></tr>
+    <tr><td><code>APP_RECONCILE_ON_STARTUP</code></td><td><code>false</code></td><td>Réconcilie disque et base au démarrage</td></tr>
+    <tr><td><code>APP_MAX_UPLOAD_SIZE</code></td><td><code>524288000</code></td><td>Taille maximale d'un téléversement, en octets (500 Mo)</td></tr>
+    <tr><td><code>APP_DB_POOL_SIZE</code> / <code>APP_DB_MAX_OVERFLOW</code></td><td><code>10</code> / <code>20</code></td><td>Pool de connexions</td></tr>
+    <tr><td><code>APP_ECHO_SQL</code></td><td><code>false</code></td><td>Journalise chaque requête SQL</td></tr>
+  </tbody>
+</table>
+</div>
+
+<h2 id="ia">Modèle de langage<a class="anchor" href="#ia" aria-label="Lien vers cette section">#</a></h2>
+
+<p>Utilisé pour les résumés et les réponses de l'assistant. N'importe quel
+point d'accès qui parle l'API <code>/v1/chat/completions</code> d'OpenAI convient.</p>
+
+<div class="table-wrap">
+<table>
+  <thead><tr><th>Variable</th><th>Défaut</th><th>Rôle</th></tr></thead>
+  <tbody>
+    <tr><td><code>APP_OPENAI_BASE_URL</code></td><td><code>http://localhost:1234/v1</code></td><td>Point d'accès (LM Studio par défaut)</td></tr>
+    <tr><td><code>APP_OPENAI_API_KEY</code></td><td><code>lm-studio</code></td><td>Clé envoyée au point d'accès</td></tr>
+    <tr><td><code>APP_OPENAI_MODEL</code></td><td><code>openapi/gpt-oss-20b</code></td><td>Nom du modèle</td></tr>
+    <tr><td><code>APP_SUMMARY_STRATEGY</code></td><td><code>openapi</code></td><td><code>openapi</code> (point d'accès ci-dessus) ou <code>gemini</code> (via <code>gemini-cli</code>)</td></tr>
+  </tbody>
+</table>
+</div>
+
+<h2 id="rag">Assistant et embeddings<a class="anchor" href="#rag" aria-label="Lien vers cette section">#</a></h2>
+
+<div class="table-wrap">
+<table>
+  <thead><tr><th>Variable</th><th>Défaut</th><th>Rôle</th></tr></thead>
+  <tbody>
+    <tr><td><code>APP_QDRANT_URL</code></td><td><code>http://localhost:6333</code></td><td>Instance Qdrant</td></tr>
+    <tr><td><code>APP_QDRANT_COLLECTION</code></td><td><code>elearning_chunks</code></td><td>Collection des passages indexés</td></tr>
+    <tr><td><code>APP_EMBEDDING_BASE_URL</code></td><td><em>vide</em></td><td>Vide : embeddings locaux (<code>sentence-transformers</code>). Renseigné : API compatible OpenAI</td></tr>
+    <tr><td><code>APP_EMBEDDING_API_KEY</code></td><td><em>clé du LLM</em></td><td>Clé du point d'accès d'embeddings</td></tr>
+    <tr><td><code>APP_EMBEDDING_MODEL</code></td><td><code>sentence-transformers/paraphrase-multilingual-MiniLM-L12-v2</code></td><td>Modèle d'embeddings</td></tr>
+    <tr><td><code>APP_EMBEDDING_DIMS</code></td><td><code>384</code></td><td>Dimension des vecteurs ; doit correspondre au modèle</td></tr>
+    <tr><td><code>APP_RAG_TOP_K</code></td><td><code>6</code></td><td>Passages retenus par question</td></tr>
+    <tr><td><code>APP_RAG_CHUNK_SIZE</code></td><td><code>800</code></td><td>Taille d'un passage, en caractères</td></tr>
+    <tr><td><code>APP_RAG_CHUNK_OVERLAP</code></td><td><code>120</code></td><td>Recouvrement entre passages</td></tr>
+  </tbody>
+</table>
+</div>
+
+<div class="note">
+  <strong>Changer de modèle d'embeddings</strong>
+  Les vecteurs existants ont la dimension de l'ancien modèle. Après un changement
+  de <code>APP_EMBEDDING_MODEL</code> ou <code>APP_EMBEDDING_DIMS</code>, réindexez
+  tout : <code>e-learning-cli index-rag</code>. Dans Docker, les modèles
+  Hugging Face sont mis en cache dans le volume <code>huggingface_cache</code>,
+  et les poids Whisper dans <code>whisper_cache</code>. Aucun poids n'est
+  embarqué dans l'image : ils sont téléchargés au premier usage, puis conservés
+  d'une recréation de conteneur à l'autre grâce à ces deux volumes.
+</div>
+
+<h2 id="jobs">File de jobs<a class="anchor" href="#jobs" aria-label="Lien vers cette section">#</a></h2>
+
+<div class="table-wrap">
+<table>
+  <thead><tr><th>Variable</th><th>Défaut</th><th>Rôle</th></tr></thead>
+  <tbody>
+    <tr><td><code>APP_RABBITMQ_URL</code></td><td><code>amqp://guest:guest@localhost:5672/</code></td><td>Broker</td></tr>
+    <tr><td><code>APP_RABBITMQ_EXCHANGE</code></td><td><code>elearning_jobs</code></td><td>Exchange de type direct</td></tr>
+    <tr><td><code>APP_WORKER_PREFETCH</code></td><td><code>3</code></td><td>Jobs traités en parallèle par processus worker</td></tr>
+  </tbody>
+</table>
+</div>
+
+<p>Sur une petite machine, <code>APP_WORKER_PREFETCH=1</code> évite de lancer
+trois transcriptions Whisper en même temps.</p>
+
+<h2 id="front">Front<a class="anchor" href="#front" aria-label="Lien vers cette section">#</a></h2>
+
+<div class="table-wrap">
+<table>
+  <thead><tr><th>Variable</th><th>Défaut</th><th>Rôle</th></tr></thead>
+  <tbody>
+    <tr><td><code>NEXT_PUBLIC_API_URL</code></td><td><code>http://localhost:8000</code></td><td>URL de l'API vue par le navigateur ; intégrée au build (argument Docker)</td></tr>
+  </tbody>
+</table>
+</div>
+
+<p>L'application mobile a sa propre configuration (<code>API_URL</code>) : voir
+<a href="./mobile.html#configuration">Application mobile</a>.</p>
+
+<nav class="pager"><a href="./installation.html">&larr; Installation</a><a href="./learning.html">Côté apprenant &rarr;</a></nav>
+</main>
+</div>
+
+<footer class="site">
+  Documentation E-Learning &mdash;
+  <a href="https://github.com/EdwinAlkins/e-learning">EdwinAlkins/e-learning</a>
+</footer>
+</body>
+</html>

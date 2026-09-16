@@ -32,7 +32,9 @@ services:
     build:
       context: .
       dockerfile: docker/Dockerfile
-    command: ["uv", "run", "alembic", "upgrade", "head"]
+      # Cible dediee : alembic seul, sans openai-whisper, torch ni ffmpeg.
+      target: migrate
+    command: ["alembic", "upgrade", "head"]
     environment:
       APP_DATABASE_URL: postgresql+asyncpg://elearning:elearning@postgres:5432/elearning
     depends_on:
@@ -43,6 +45,7 @@ services:
     build:
       context: .
       dockerfile: docker/Dockerfile
+      target: api
     ports:
       - "8000:8000"
     environment:
@@ -54,6 +57,8 @@ services:
       APP_RABBITMQ_EXCHANGE: elearning_jobs
     volumes:
       - "${APP_VIDEOS_PATH:-./videos}:/app/videos"
+      - huggingface_cache:/cache/huggingface
+      - whisper_cache:/cache/whisper
     depends_on:
       migrate:
         condition: service_completed_successfully
@@ -64,7 +69,8 @@ services:
     build:
       context: .
       dockerfile: docker/Dockerfile
-    command: ["uv", "run", "e-learning-worker"]
+      target: api
+    command: ["e-learning-worker"]
     environment:
       APP_DATABASE_URL: postgresql+asyncpg://elearning:elearning@postgres:5432/elearning
       APP_VIDEOS_PATH: /app/videos
@@ -73,6 +79,8 @@ services:
       APP_WORKER_PREFETCH: "3"
     volumes:
       - "${APP_VIDEOS_PATH:-./videos}:/app/videos"
+      - huggingface_cache:/cache/huggingface
+      - whisper_cache:/cache/whisper
     depends_on:
       migrate:
         condition: service_completed_successfully
@@ -81,3 +89,5 @@ services:
 
 volumes:
   postgres_data:
+  huggingface_cache:
+  whisper_cache:

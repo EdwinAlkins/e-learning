@@ -1,0 +1,136 @@
+<!doctype html>
+<html lang="fr">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Côté apprenant &mdash; E-Learning</title>
+<meta name="description" content="Le parcours apprenant : identifiant, catalogue, page formation, lecteur, progression, notes horodatées, résumés et documents.">
+<link rel="canonical" href="https://edwinalkins.github.io/e-learning/learning.html">
+<meta property="og:type" content="article">
+<meta property="og:url" content="https://edwinalkins.github.io/e-learning/learning.html">
+<meta property="og:title" content="Côté apprenant &mdash; E-Learning">
+<meta property="og:description" content="Le parcours apprenant : identifiant, catalogue, page formation, lecteur, progression, notes horodatées, résumés et documents.">
+<meta property="og:image" content="https://edwinalkins.github.io/e-learning/assets/media/poster.png">
+<meta property="og:locale" content="fr_FR">
+<link rel="stylesheet" href="./assets/style.css">
+<link rel="icon" href="./assets/logo.png" type="image/png">
+</head>
+<body>
+<a class="skip" href="#content">Aller au contenu</a>
+
+<div class="topbar">
+  <a class="brand" href="./index.html"><img src="./assets/logo.png" alt="">E-Learning <span>documentation</span></a>
+  <nav aria-label="Liens principaux"><a class="optional" href="./index.html">Accueil</a><a href="https://github.com/EdwinAlkins/e-learning">Code source</a></nav>
+</div>
+
+<div class="shell">
+<nav class="sidenav" aria-label="Sections de la documentation"><h2>La plateforme</h2><ul><li><a href="./overview.html">Présentation</a></li><li><a href="./installation.html">Installation</a></li><li><a href="./configuration.html">Configuration</a></li></ul><h2>Utiliser</h2><ul><li><a href="./learning.html" aria-current="page">Côté apprenant</a></li><li><a href="./studio.html">Studio et catalogue</a></li><li><a href="./ai.html">Transcription et IA</a></li><li><a href="./mobile.html">Application mobile</a></li></ul><h2>Sous le capot</h2><ul><li><a href="./architecture.html">Architecture</a></li><li><a href="./api.html">API HTTP</a></li><li><a href="./operations.html">Exploitation</a></li><li><a href="./development.html">Développement</a></li></ul></nav>
+<main id="content">
+<header>
+  <h1>Côté apprenant</h1>
+  <p class="lede">Du premier accès à la prise de notes : ce que voit quelqu'un qui suit une formation.</p>
+</header>
+
+<h2 id="identifiant">L'identifiant (UID)<a class="anchor" href="#identifiant" aria-label="Lien vers cette section">#</a></h2>
+
+<p>À la première visite, l'écran d'accueil propose deux choix :</p>
+<ul>
+  <li><strong>Generate New UID</strong> crée un identifiant et ouvre le catalogue ;</li>
+  <li><strong>Continue</strong> reprend un identifiant existant, collé dans le champ.</li>
+</ul>
+
+<p>L'UID est conservé dans le navigateur (<code>localStorage</code>). Il s'affiche
+dans l'en-tête ; <strong>un clic le copie</strong>. C'est lui qui retrouve la
+progression et les notes sur un autre navigateur ou sur mobile.
+<strong>Déconnexion</strong> l'oublie localement : sans copie, la progression
+associée n'est plus accessible depuis ce navigateur.</p>
+
+<img class="shot" src="./assets/media/auth.png" loading="lazy"
+     alt="Écran d'accueil : champ UID, bouton Continue, séparateur OR et bouton Generate New UID.">
+
+<h2 id="catalogue">Le catalogue<a class="anchor" href="#catalogue" aria-label="Lien vers cette section">#</a></h2>
+
+<p>La page d'accueil liste les formations sous forme de cartes : nombre de
+chapitres et de vidéos, durée totale, temps déjà vu et pourcentage d'avancement.</p>
+
+<img class="shot" src="./assets/media/catalogue.png" loading="lazy"
+     alt="Catalogue : cartes de formation avec chapitres, vidéos, durée totale et barre de progression.">
+
+<h2 id="progression">La page formation et la progression<a class="anchor" href="#progression" aria-label="Lien vers cette section">#</a></h2>
+
+<ul>
+  <li>En tête, la progression globale de la formation.</li>
+  <li>L'<a href="./ai.html#assistant">assistant</a> de la formation, pour poser une question sur son contenu.</li>
+  <li>Les chapitres en accordéon, chacun avec sa durée, le nombre de documents
+      et un pourcentage coloré. L'état ouvert ou fermé de chaque chapitre est retenu.</li>
+  <li>Dans un chapitre : les vidéos (icône casque pour l'audio), leur durée,
+      leur avancement, un indicateur si une conversion est en cours ou a échoué,
+      et les documents rattachés.</li>
+</ul>
+
+<p>Les statuts des jobs sont rafraîchis toutes les 3 secondes tant que
+l'onglet est visible.</p>
+
+<h2 id="lecteur">Le lecteur<a class="anchor" href="#lecteur" aria-label="Lien vers cette section">#</a></h2>
+
+<img class="shot" src="./assets/media/player.png" loading="lazy"
+     alt="Lecteur : titre de la leçon, boutons Précédent et Suivant, vidéo, barre de progression et boutons d'IA.">
+
+<ul>
+  <li><strong>Reprise</strong> : la lecture repart de la dernière position enregistrée.
+      La position est envoyée à l'API au fil de la lecture (anti-rebond de 500&nbsp;ms).</li>
+  <li><strong>Précédent / Suivant</strong> enchaînent les leçons dans l'ordre de la
+      formation, y compris d'un chapitre au suivant.</li>
+  <li>Vidéos lues avec video.js, pistes audio avec un lecteur dédié. Le flux
+      supporte les requêtes <code>Range</code> : on peut sauter n'importe où sans
+      tout télécharger.</li>
+  <li>Sous le lecteur, les actions IA selon l'état de la leçon :
+      <strong>Transcrire</strong>, <strong>Générer</strong> (le résumé),
+      <strong>Résumé</strong> pour l'afficher, <strong>Régénérer</strong>. Voir
+      <a href="./ai.html">Transcription et IA</a>.</li>
+</ul>
+
+<h3 id="resume">Le résumé<a class="anchor" href="#resume" aria-label="Lien vers cette section">#</a></h3>
+
+<p>Le résumé s'affiche en Markdown sous le lecteur. Le crayon ouvre un éditeur :
+on peut corriger ou compléter le texte généré, puis enregistrer. La modification
+est écrite dans le fichier <code>.md</code> de la leçon.</p>
+
+<h2 id="notes">Les notes<a class="anchor" href="#notes" aria-label="Lien vers cette section">#</a></h2>
+
+<img class="shot" src="./assets/media/notes.png" loading="lazy"
+     alt="Onglet Notes : éditeur Markdown, temps actuel, bouton Lier au temps actuel, et liste des notes avec leur timecode.">
+
+<ol>
+  <li>Mettez la vidéo à l'endroit voulu.</li>
+  <li>Écrivez dans l'éditeur Markdown de l'onglet <strong>Notes</strong>.</li>
+  <li><strong>Lier au temps actuel</strong> enregistre la note avec le timecode affiché.</li>
+</ol>
+
+<p>La liste, à droite, est triée par timecode. Cliquer sur une note ramène la vidéo
+à son timecode ; chaque note se modifie ou se supprime sur place. Les notes
+sont personnelles : elles sont rattachées à l'UID.</p>
+
+<h2 id="documents">Les documents<a class="anchor" href="#documents" aria-label="Lien vers cette section">#</a></h2>
+
+<p>L'onglet <strong>Documents</strong> du lecteur liste les fichiers rattachés à
+la leçon : PDF, présentations, feuilles de calcul, images. Chacun s'ouvre dans un
+nouvel onglet ou se télécharge. Les documents rattachés au chapitre plutôt qu'à
+une vidéo apparaissent sur la page formation.</p>
+
+<h2 id="theme">Thème et mobile<a class="anchor" href="#theme" aria-label="Lien vers cette section">#</a></h2>
+
+<p>L'icône de l'en-tête bascule entre <strong>Clair</strong>, <strong>Sombre</strong>
+et <strong>Système</strong> ; le choix est retenu. L'interface web s'adapte aux
+petits écrans, et l'<a href="./mobile.html">application mobile</a> reprend le même parcours.</p>
+
+<nav class="pager"><a href="./configuration.html">&larr; Configuration</a><a href="./studio.html">Studio et catalogue &rarr;</a></nav>
+</main>
+</div>
+
+<footer class="site">
+  Documentation E-Learning &mdash;
+  <a href="https://github.com/EdwinAlkins/e-learning">EdwinAlkins/e-learning</a>
+</footer>
+</body>
+</html>

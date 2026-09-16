@@ -1,0 +1,137 @@
+<!doctype html>
+<html lang="fr">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Présentation &mdash; E-Learning</title>
+<meta name="description" content="Plateforme e-learning open source et auto-hébergée : formations, progression, notes, studio, et une IA qui transcrit, résume et répond en citant ses sources.">
+<link rel="canonical" href="https://edwinalkins.github.io/e-learning/overview.html">
+<meta property="og:type" content="article">
+<meta property="og:url" content="https://edwinalkins.github.io/e-learning/overview.html">
+<meta property="og:title" content="Présentation &mdash; E-Learning">
+<meta property="og:description" content="Plateforme e-learning open source et auto-hébergée : formations, progression, notes, studio, et une IA qui transcrit, résume et répond en citant ses sources.">
+<meta property="og:image" content="https://edwinalkins.github.io/e-learning/assets/media/poster.png">
+<meta property="og:locale" content="fr_FR">
+<link rel="stylesheet" href="./assets/style.css">
+<link rel="icon" href="./assets/logo.png" type="image/png">
+</head>
+<body>
+<a class="skip" href="#content">Aller au contenu</a>
+
+<div class="topbar">
+  <a class="brand" href="./index.html"><img src="./assets/logo.png" alt="">E-Learning <span>documentation</span></a>
+  <nav aria-label="Liens principaux"><a class="optional" href="./index.html">Accueil</a><a href="https://github.com/EdwinAlkins/e-learning">Code source</a></nav>
+</div>
+
+<div class="shell">
+<nav class="sidenav" aria-label="Sections de la documentation"><h2>La plateforme</h2><ul><li><a href="./overview.html" aria-current="page">Présentation</a></li><li><a href="./installation.html">Installation</a></li><li><a href="./configuration.html">Configuration</a></li></ul><h2>Utiliser</h2><ul><li><a href="./learning.html">Côté apprenant</a></li><li><a href="./studio.html">Studio et catalogue</a></li><li><a href="./ai.html">Transcription et IA</a></li><li><a href="./mobile.html">Application mobile</a></li></ul><h2>Sous le capot</h2><ul><li><a href="./architecture.html">Architecture</a></li><li><a href="./api.html">API HTTP</a></li><li><a href="./operations.html">Exploitation</a></li><li><a href="./development.html">Développement</a></li></ul></nav>
+<main id="content">
+<header>
+  <h1>Présentation</h1>
+  <p class="lede">Une plateforme e-learning open source et auto-hébergée, avec une couche IA intégrée aux formations.</p>
+</header>
+
+<img class="shot" src="./assets/media/demo.gif" loading="lazy" width="900" height="563"
+     alt="Démonstration animée : catalogue, page formation, question à l'assistant, lecteur avec résumé et notes, studio.">
+<p class="shot-caption">Catalogue → formation → assistant → lecteur et notes → studio.</p>
+<p class="shot-caption">Cours filmé : les présentations officielles des versions de Blender, publiées sur la chaîne YouTube de Blender et réutilisées sous licence <a href="https://creativecommons.org/licenses/by/3.0/">Creative Commons Attribution</a>.</p>
+
+<p>E-Learning repose sur trois piliers :</p>
+
+<ul>
+  <li><strong>E-learning.</strong> Des <strong>formations</strong> découpées en
+      <strong>chapitres</strong>, avec leçons vidéo ou audio et
+      <strong>documents</strong> ; progression et notes horodatées pour chaque
+      apprenant ; un studio pour construire les formations.</li>
+  <li><strong>Auto-hébergement.</strong> Toute la pile se déploie avec Docker
+      Compose ; médias, base et index restent sur votre infrastructure.</li>
+  <li><strong>IA.</strong> Transcription des leçons, résumés et assistant par
+      formation qui cite ses sources, avec le modèle de langage de votre choix,
+      local ou distant.</li>
+</ul>
+
+<h2 id="pour-qui">Pour qui<a class="anchor" href="#pour-qui" aria-label="Lien vers cette section">#</a></h2>
+
+<p>Pour un <strong>usage personnel</strong> (suivre sa bibliothèque de cours)
+ou une <strong>équipe de confiance</strong> (formations internes, onboarding) sur
+un réseau privé. Ce n'est pas un LMS commercial : pas de comptes avec mot de
+passe, pas de rôles, pas de vente ni de certification. Le détail est sur
+<a href="./index.html#pour-qui">la page d'accueil</a>.</p>
+
+<p>Le projet se compose de trois applications et d'une poignée de services :</p>
+
+<div class="table-wrap">
+<table>
+  <thead><tr><th>Dossier</th><th>Rôle</th><th>Technologie</th></tr></thead>
+  <tbody>
+    <tr><td><code>e-learning-api/</code></td><td>API REST, stream des médias, CLI et worker de jobs</td><td>FastAPI, SQLAlchemy async, Python 3.14</td></tr>
+    <tr><td><code>e-learning-front/</code></td><td>Interface apprenant et studio</td><td>Next.js 16, React 19, MUI 7</td></tr>
+    <tr><td><code>e-learning-mobile/</code></td><td>Application apprenant</td><td>Flutter, Riverpod</td></tr>
+    <tr><td><code>docker-compose.yml</code></td><td>PostgreSQL, RabbitMQ, Qdrant, migrations, API, worker, front</td><td>Docker Compose</td></tr>
+    <tr><td><code>scripts/backup.sh</code></td><td>Sauvegarde et restauration de la base</td><td>Bash, <code>pg_dump</code></td></tr>
+  </tbody>
+</table>
+</div>
+
+<h2 id="fonctionnalites">Fonctionnalités<a class="anchor" href="#fonctionnalites" aria-label="Lien vers cette section">#</a></h2>
+<ul class="cards">
+  <li><a href="./learning.html"><strong>Parcours apprenant</strong>
+      <p>Catalogue, reprise de lecture, progression, notes horodatées, documents.</p></a></li>
+  <li><a href="./studio.html"><strong>Studio</strong>
+      <p>Formations, chapitres, téléversement, réordonnancement, conversion ffmpeg.</p></a></li>
+  <li><a href="./studio.html#dossier"><strong>Catalogue sur disque</strong>
+      <p>Les fichiers restent lisibles dans un dossier ; la base se réconcilie avec lui.</p></a></li>
+  <li><a href="./ai.html"><strong>Transcription et IA</strong>
+      <p>Transcription, résumés de leçon, questions sur la formation avec sources.</p></a></li>
+  <li><a href="./mobile.html"><strong>Mobile</strong>
+      <p>Le parcours apprenant en application native.</p></a></li>
+  <li><a href="./operations.html"><strong>Exploitation</strong>
+      <p>CLI, worker, migrations, sauvegardes.</p></a></li>
+</ul>
+
+<img class="shot" src="./assets/media/formation.png" loading="lazy"
+     alt="Page d'une formation : progression globale, assistant, chapitres en accordéon avec la progression de chaque vidéo.">
+
+<h2 id="modele">Le modèle en une minute<a class="anchor" href="#modele" aria-label="Lien vers cette section">#</a></h2>
+
+<ul>
+  <li><strong>Formation → Chapitre → Vidéo / Document.</strong> L'ordre est une
+      colonne <code>position</code> en base : réordonner ne renomme aucun fichier.</li>
+  <li><strong>Un apprenant = un UID.</strong> Un UUID généré à la première visite,
+      envoyé dans l'en-tête <code>X-User-UID</code>. Il porte la progression et les notes.</li>
+  <li><strong>Les traitements lourds sont des jobs.</strong> Conversion,
+      transcription, résumé et indexation passent par RabbitMQ et un worker ;
+      l'interface affiche leur avancement.</li>
+  <li><strong>Transcriptions et résumés sont des fichiers.</strong> Ils sont
+      écrits à côté du média (<code>leçon.txt</code>, <code>leçon.md</code>),
+      donc versionnables, éditables, et portables d'une instance à l'autre.</li>
+</ul>
+
+<h2 id="demarrage">Démarrage rapide<a class="anchor" href="#demarrage" aria-label="Lien vers cette section">#</a></h2>
+
+<div class="snippet" data-lang="bash"><pre><code>git clone https://github.com/EdwinAlkins/e-learning.git
+cd e-learning
+cp .env.template .env
+docker compose up -d --build
+# → http://localhost:3000</code></pre></div>
+
+<p>Aucun modèle d'IA n'est requis pour démarrer ; résumés et assistant
+s'activent quand vous en branchez un.</p>
+
+<div class="note">
+  <strong>Une instance de confiance</strong>
+  Il n'y a ni mot de passe ni rôle : quiconque atteint le front peut ouvrir le
+  studio. Gardez l'instance en local ou derrière une authentification ; voir
+  <a href="./installation.html#exposer">Exposer l'instance</a>.
+</div>
+
+<nav class="pager"><span></span><a href="./installation.html">Installation &rarr;</a></nav>
+</main>
+</div>
+
+<footer class="site">
+  Documentation E-Learning &mdash;
+  <a href="https://github.com/EdwinAlkins/e-learning">EdwinAlkins/e-learning</a>
+</footer>
+</body>
+</html>

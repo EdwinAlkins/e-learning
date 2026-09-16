@@ -50,7 +50,9 @@ services:
     build:
       context: ./e-learning-api
       dockerfile: docker/Dockerfile
-    command: ["uv", "run", "alembic", "upgrade", "head"]
+      # Cible dediee : alembic seul, sans openai-whisper, torch ni ffmpeg.
+      target: migrate
+    command: ["alembic", "upgrade", "head"]
     environment:
       APP_DATABASE_URL: ${APP_DATABASE_URL}
     depends_on:
@@ -61,6 +63,7 @@ services:
     build:
       context: ./e-learning-api
       dockerfile: docker/Dockerfile
+      target: api
     ports:
       - "${API_PORT}:8000"
     env_file:
@@ -78,6 +81,7 @@ services:
     volumes:
       - "${VIDEOS_HOST_PATH}:/app/videos"
       - huggingface_cache:/cache/huggingface
+      - whisper_cache:/cache/whisper
     extra_hosts:
       - "host.docker.internal:host-gateway"
     depends_on:
@@ -92,7 +96,8 @@ services:
     build:
       context: ./e-learning-api
       dockerfile: docker/Dockerfile
-    command: ["uv", "run", "e-learning-worker"]
+      target: api
+    command: ["e-learning-worker"]
     env_file:
       - .env
     environment:
@@ -109,6 +114,7 @@ services:
     volumes:
       - "${VIDEOS_HOST_PATH}:/app/videos"
       - huggingface_cache:/cache/huggingface
+      - whisper_cache:/cache/whisper
     extra_hosts:
       - "host.docker.internal:host-gateway"
     depends_on:
@@ -135,3 +141,4 @@ volumes:
   qdrant_data:
   rabbitmq_data:
   huggingface_cache:
+  whisper_cache:

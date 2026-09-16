@@ -1,0 +1,185 @@
+<!doctype html>
+<html lang="fr">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Transcription et IA &mdash; E-Learning</title>
+<meta name="description" content="Transcription Whisper, résumés Markdown et assistant RAG par formation : fonctionnement, modèles, confidentialité et dépannage.">
+<link rel="canonical" href="https://edwinalkins.github.io/e-learning/ai.html">
+<meta property="og:type" content="article">
+<meta property="og:url" content="https://edwinalkins.github.io/e-learning/ai.html">
+<meta property="og:title" content="Transcription et IA &mdash; E-Learning">
+<meta property="og:description" content="Transcription Whisper, résumés Markdown et assistant RAG par formation : fonctionnement, modèles, confidentialité et dépannage.">
+<meta property="og:image" content="https://edwinalkins.github.io/e-learning/assets/media/poster.png">
+<meta property="og:locale" content="fr_FR">
+<link rel="stylesheet" href="./assets/style.css">
+<link rel="icon" href="./assets/logo.png" type="image/png">
+</head>
+<body>
+<a class="skip" href="#content">Aller au contenu</a>
+
+<div class="topbar">
+  <a class="brand" href="./index.html"><img src="./assets/logo.png" alt="">E-Learning <span>documentation</span></a>
+  <nav aria-label="Liens principaux"><a class="optional" href="./index.html">Accueil</a><a href="https://github.com/EdwinAlkins/e-learning">Code source</a></nav>
+</div>
+
+<div class="shell">
+<nav class="sidenav" aria-label="Sections de la documentation"><h2>La plateforme</h2><ul><li><a href="./overview.html">Présentation</a></li><li><a href="./installation.html">Installation</a></li><li><a href="./configuration.html">Configuration</a></li></ul><h2>Utiliser</h2><ul><li><a href="./learning.html">Côté apprenant</a></li><li><a href="./studio.html">Studio et catalogue</a></li><li><a href="./ai.html" aria-current="page">Transcription et IA</a></li><li><a href="./mobile.html">Application mobile</a></li></ul><h2>Sous le capot</h2><ul><li><a href="./architecture.html">Architecture</a></li><li><a href="./api.html">API HTTP</a></li><li><a href="./operations.html">Exploitation</a></li><li><a href="./development.html">Développement</a></li></ul></nav>
+<main id="content">
+<header>
+  <h1>Transcription et IA</h1>
+  <p class="lede">Trois étapes qui s'enchaînent : transcrire, résumer, indexer. Chacune est un job du worker, et chacune est facultative.</p>
+</header>
+
+<h2 id="chaine">La chaîne<a class="anchor" href="#chaine" aria-label="Lien vers cette section">#</a></h2>
+
+<div class="table-wrap">
+<table>
+  <thead><tr><th>Étape</th><th>Moteur</th><th>Tourne où</th><th>Produit</th></tr></thead>
+  <tbody>
+    <tr><td>Transcription</td><td>Whisper (<code>openai-whisper</code>, modèle <code>base</code>)</td><td>Worker, en local</td><td><code>leçon.txt</code> à côté du média</td></tr>
+    <tr><td>Résumé</td><td>LLM compatible OpenAI, ou <code>gemini-cli</code></td><td>Là où pointe <code>APP_OPENAI_BASE_URL</code></td><td><code>leçon.md</code> à côté du média</td></tr>
+    <tr><td>Indexation</td><td><code>sentence-transformers</code> ou API d'embeddings</td><td>Worker, en local par défaut</td><td>Vecteurs dans Qdrant</td></tr>
+    <tr><td>Question</td><td>Embeddings + LLM</td><td>API</td><td>Réponse et citations</td></tr>
+  </tbody>
+</table>
+</div>
+
+<p>Une transcription ou un résumé réussi déclenche automatiquement l'indexation
+de la leçon. Le résumé exige une transcription prête.</p>
+
+<h2 id="transcription">Transcription<a class="anchor" href="#transcription" aria-label="Lien vers cette section">#</a></h2>
+
+<p>Bouton <strong>Transcrire</strong> sous le lecteur ou dans le studio. La
+langue est détectée par Whisper. Le bouton affiche la progression du job ; la
+page se met à jour seule quand c'est fini.</p>
+
+<p>En ligne de commande, avec plus de contrôle :</p>
+
+<div class="snippet" data-lang="bash"><pre><code>docker compose exec api e-learning-cli list-videos --formation "SQL"
+docker compose exec api e-learning-cli transcribe -v &lt;uuid&gt; --model small --language fr --timecodes</code></pre></div>
+
+<p>Les modèles Whisper plus gros (<code>small</code>, <code>medium</code>) sont
+plus justes et nettement plus lents sur processeur. Ils sont téléchargés au
+premier usage.</p>
+
+<h2 id="resume">Résumé<a class="anchor" href="#resume" aria-label="Lien vers cette section">#</a></h2>
+
+<p>Bouton <strong>Générer</strong>, puis <strong>Résumé</strong> pour l'afficher
+et <strong>Régénérer</strong> pour recommencer. Le modèle reçoit la transcription
+et une consigne : un résumé pédagogique, structuré en Markdown, en français.
+Le texte reste éditable depuis le lecteur.</p>
+
+<div class="snippet" data-lang="bash"><pre><code>docker compose exec api e-learning-cli summary -v &lt;uuid&gt;</code></pre></div>
+
+<p><code>APP_SUMMARY_STRATEGY=gemini</code> passe par
+<code>npx @google/gemini-cli</code> au lieu du point d'accès OpenAI ; il faut
+alors Node et une authentification Gemini dans l'environnement de l'API.</p>
+
+<h2 id="assistant">Assistant de formation<a class="anchor" href="#assistant" aria-label="Lien vers cette section">#</a></h2>
+
+<img class="shot" src="./assets/media/assistant.png" loading="lazy"
+     alt="Assistant : question de l'utilisateur, réponse structurée et sources citées sous la réponse.">
+
+<ol>
+  <li>La question est transformée en vecteur.</li>
+  <li>Qdrant renvoie les <code>APP_RAG_TOP_K</code> passages les plus proches,
+      <strong>filtrés sur la formation</strong> : l'assistant ne voit jamais le contenu d'une autre.</li>
+  <li>Le LLM reçoit ces passages avec la consigne de répondre <strong>uniquement
+      à partir du contexte</strong>, et de le dire quand le contexte ne suffit pas.</li>
+  <li>La réponse revient avec ses <strong>sources</strong> : titre, type (transcription,
+      résumé, document) et extrait. Un clic ouvre la vidéo ou le document.</li>
+</ol>
+
+<p>Sont indexés : transcriptions, résumés, et le texte des documents PDF, DOCX,
+Markdown, texte et CSV. <strong>Réindexer</strong>, dans le panneau de
+l'assistant, relance l'indexation de toute la formation ; utile après l'ajout de
+documents. Ou en ligne de commande :</p>
+
+<div class="snippet" data-lang="bash"><pre><code>docker compose exec api e-learning-cli index-rag                      # tout
+docker compose exec api e-learning-cli index-rag --formation-id &lt;uuid&gt;</code></pre></div>
+
+<h2 id="limites">Limites à connaître<a class="anchor" href="#limites" aria-label="Lien vers cette section">#</a></h2>
+
+<ul>
+  <li><strong>L'IA ne voit pas l'image.</strong> Elle travaille sur la parole
+      transcrite et sur le texte des documents. Une slide, un schéma ou du code
+      affiché sans être lu à voix haute n'est pas indexé.</li>
+  <li><strong>Une réponse peut être fausse.</strong> La consigne demande au modèle
+      de s'en tenir au contexte et de dire quand il ne sait pas, mais un modèle de
+      langage peut malgré tout se tromper ou extrapoler. Les sources affichées
+      servent à vérifier.</li>
+  <li><strong>La qualité dépend de la chaîne.</strong> Une transcription Whisper
+      <code>base</code> sur un audio bruité produit des erreurs qui se retrouvent
+      dans le résumé et les réponses. Un modèle plus gros aide.</li>
+  <li><strong>Résumés et réponses sont rédigés en français</strong>, quelle que
+      soit la langue du cours.</li>
+</ul>
+
+<h2 id="confidentialite">Ce qui sort du serveur<a class="anchor" href="#confidentialite" aria-label="Lien vers cette section">#</a></h2>
+
+<div class="table-wrap">
+<table>
+  <thead><tr><th>Donnée</th><th>Configuration par défaut</th><th>Avec un fournisseur distant</th></tr></thead>
+  <tbody>
+    <tr><td>Fichiers vidéo, audio, documents</td><td>Restent sur le serveur</td><td>Restent sur le serveur</td></tr>
+    <tr><td>Transcription (Whisper)</td><td>Calculée dans le worker</td><td>Calculée dans le worker</td></tr>
+    <tr><td>Embeddings</td><td>Calculés localement (<code>sentence-transformers</code>)</td><td>Texte des passages envoyé si <code>APP_EMBEDDING_BASE_URL</code> est renseignée</td></tr>
+    <tr><td>Résumé</td><td>Transcription envoyée à <code>APP_OPENAI_BASE_URL</code> (LM Studio local dans le template)</td><td>Transcription envoyée au fournisseur ; à Google avec <code>APP_SUMMARY_STRATEGY=gemini</code></td></tr>
+    <tr><td>Question à l'assistant</td><td>Question et passages retrouvés envoyés à <code>APP_OPENAI_BASE_URL</code></td><td>Question et passages envoyés au fournisseur</td></tr>
+  </tbody>
+</table>
+</div>
+
+<p>Avec un modèle local et les embeddings par défaut, aucun contenu ne quitte la
+machine. Seul le premier démarrage télécharge le modèle d'embeddings depuis
+Hugging Face.</p>
+
+<h2 id="modeles">Brancher un modèle<a class="anchor" href="#modeles" aria-label="Lien vers cette section">#</a></h2>
+
+<p>Le template <code>.env.template</code> vise LM Studio avec
+<code>openapi/gpt-oss-20b</code>. Les autres lignes sont des exemples : choisissez
+un modèle adapté à votre machine.</p>
+
+<div class="snippet" data-lang="env"><pre><code># LM Studio sur l'hôte, serveur démarré sur :1234
+APP_OPENAI_BASE_URL=http://host.docker.internal:1234/v1
+APP_OPENAI_API_KEY=lm-studio
+APP_OPENAI_MODEL=openapi/gpt-oss-20b
+
+# Ollama sur l'hôte (exemple de modèle)
+APP_OPENAI_BASE_URL=http://host.docker.internal:11434/v1
+APP_OPENAI_API_KEY=ollama
+APP_OPENAI_MODEL=qwen3:8b
+
+# Fournisseur distant compatible OpenAI
+APP_OPENAI_BASE_URL=https://api.fournisseur.example/v1
+APP_OPENAI_API_KEY=…
+APP_OPENAI_MODEL=nom-du-modele</code></pre></div>
+
+<p>Le nom du modèle doit être exactement celui qu'expose le serveur
+(<code>GET /v1/models</code>).</p>
+
+<h2 id="depannage">Dépannage<a class="anchor" href="#depannage" aria-label="Lien vers cette section">#</a></h2>
+
+<dl class="faq">
+  <dt>Le bouton reste sur « Transcription… » sans avancer</dt>
+  <dd>Le worker ne tourne pas, ou ne joint pas RabbitMQ : <code>docker compose logs -f worker</code>. Le premier job télécharge aussi le modèle Whisper.</dd>
+
+  <dt>« Échec de la génération du résumé »</dt>
+  <dd>Le point d'accès du LLM est injoignable depuis le conteneur, ou le modèle n'est pas chargé. Testez depuis le conteneur :
+  <code>docker compose exec worker python -c "import os,urllib.request as u; print(u.urlopen(os.environ['APP_OPENAI_BASE_URL']+'/models').read()[:300])"</code></dd>
+
+  <dt>L'assistant répond qu'il ne trouve rien</dt>
+  <dd>La formation n'est pas encore indexée : transcrivez au moins une leçon, ou cliquez sur <strong>Réindexer</strong>. Après un changement de modèle d'embeddings, réindexez tout.</dd>
+</dl>
+
+<nav class="pager"><a href="./studio.html">&larr; Studio et catalogue</a><a href="./mobile.html">Application mobile &rarr;</a></nav>
+</main>
+</div>
+
+<footer class="site">
+  Documentation E-Learning &mdash;
+  <a href="https://github.com/EdwinAlkins/e-learning">EdwinAlkins/e-learning</a>
+</footer>
+</body>
+</html>

@@ -1,0 +1,162 @@
+<!doctype html>
+<html lang="fr">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>API HTTP &mdash; E-Learning</title>
+<meta name="description" content="Référence des routes de l'API E-Learning : authentification, formations, studio, vidéos, progression, notes et documents.">
+<link rel="canonical" href="https://edwinalkins.github.io/e-learning/api.html">
+<meta property="og:type" content="article">
+<meta property="og:url" content="https://edwinalkins.github.io/e-learning/api.html">
+<meta property="og:title" content="API HTTP &mdash; E-Learning">
+<meta property="og:description" content="Référence des routes de l'API E-Learning : authentification, formations, studio, vidéos, progression, notes et documents.">
+<meta property="og:image" content="https://edwinalkins.github.io/e-learning/assets/media/poster.png">
+<meta property="og:locale" content="fr_FR">
+<link rel="stylesheet" href="./assets/style.css">
+<link rel="icon" href="./assets/logo.png" type="image/png">
+</head>
+<body>
+<a class="skip" href="#content">Aller au contenu</a>
+
+<div class="topbar">
+  <a class="brand" href="./index.html"><img src="./assets/logo.png" alt="">E-Learning <span>documentation</span></a>
+  <nav aria-label="Liens principaux"><a class="optional" href="./index.html">Accueil</a><a href="https://github.com/EdwinAlkins/e-learning">Code source</a></nav>
+</div>
+
+<div class="shell">
+<nav class="sidenav" aria-label="Sections de la documentation"><h2>La plateforme</h2><ul><li><a href="./overview.html">Présentation</a></li><li><a href="./installation.html">Installation</a></li><li><a href="./configuration.html">Configuration</a></li></ul><h2>Utiliser</h2><ul><li><a href="./learning.html">Côté apprenant</a></li><li><a href="./studio.html">Studio et catalogue</a></li><li><a href="./ai.html">Transcription et IA</a></li><li><a href="./mobile.html">Application mobile</a></li></ul><h2>Sous le capot</h2><ul><li><a href="./architecture.html">Architecture</a></li><li><a href="./api.html" aria-current="page">API HTTP</a></li><li><a href="./operations.html">Exploitation</a></li><li><a href="./development.html">Développement</a></li></ul></nav>
+<main id="content">
+<header>
+  <h1>API HTTP</h1>
+  <p class="lede">JSON sur HTTP, identité par en-tête. Le schéma OpenAPI complet est servi en mode debug.</p>
+</header>
+
+<h2 id="auth">Authentification<a class="anchor" href="#auth" aria-label="Lien vers cette section">#</a></h2>
+
+<div class="snippet" data-lang="http"><pre><code>X-User-UID: 0192f0c4-7d7a-7c1e-9a0b-5d2c8e1f3a47</code></pre></div>
+
+<p>Requis pour la progression, les notes et les documents d'un chapitre.
+Publics : santé, <code>/auth/*</code>, lecture des formations, <code>/videos/*</code>
+et le téléchargement <code>/docs/{id}/file</code>. Avec <code>APP_DEBUG=true</code>,
+un UID fixe remplace l'en-tête absent, et l'interface OpenAPI est servie sur
+<code>/api-docs</code>, <code>/api-redoc</code> et <code>/openapi.json</code>.</p>
+
+<div class="snippet" data-lang="bash"><pre><code># UID est une variable réservée de bash : on utilise un autre nom
+LEARNER=$(curl -s -X POST localhost:8000/auth/generate | jq -r .uid)
+curl -s localhost:8000/progress/formations -H "X-User-UID: $LEARNER"</code></pre></div>
+
+<p>Les listes ne sont pas paginées : <code>GET /formations</code> renvoie le
+catalogue complet, chapitres et leçons compris.</p>
+
+<h2 id="sante">Santé<a class="anchor" href="#sante" aria-label="Lien vers cette section">#</a></h2>
+<div class="table-wrap"><table>
+  <thead><tr><th>Méthode</th><th>Route</th><th>Effet</th></tr></thead>
+  <tbody>
+    <tr><td><span class="pill pill-get">GET</span></td><td><code>/health</code></td><td><code>{"status": "ok"}</code></td></tr>
+    <tr><td><span class="pill pill-get">GET</span></td><td><code>/ready</code></td><td>Vérifie PostgreSQL</td></tr>
+    <tr><td><span class="pill pill-post">POST</span></td><td><code>/auth/generate</code></td><td><code>{"uid"}</code> nouvel identifiant</td></tr>
+    <tr><td><span class="pill pill-post">POST</span></td><td><code>/auth/restore</code></td><td>Corps <code>{"uid"}</code> ; valide et renvoie l'identifiant</td></tr>
+  </tbody>
+</table></div>
+
+<h2 id="formations">Formations<a class="anchor" href="#formations" aria-label="Lien vers cette section">#</a></h2>
+<div class="table-wrap"><table>
+  <thead><tr><th>Méthode</th><th>Route</th><th>Effet</th></tr></thead>
+  <tbody>
+    <tr><td><span class="pill pill-get">GET</span></td><td><code>/formations</code></td><td>Catalogue complet : chapitres, vidéos, documents, statuts, <code>active_jobs</code></td></tr>
+    <tr><td><span class="pill pill-get">GET</span></td><td><code>/formations/{id}</code></td><td>Une formation</td></tr>
+    <tr><td><span class="pill pill-post">POST</span></td><td><code>/formations/{id}/ask</code></td><td>Corps <code>{"question"}</code> → <code>{"answer", "citations"}</code></td></tr>
+    <tr><td><span class="pill pill-post">POST</span></td><td><code>/formations/{id}/index</code></td><td><code>202</code>, job <code>rag_index_formation</code></td></tr>
+  </tbody>
+</table></div>
+
+<h2 id="studio">Studio (écriture)<a class="anchor" href="#studio" aria-label="Lien vers cette section">#</a></h2>
+<div class="table-wrap"><table>
+  <thead><tr><th>Méthode</th><th>Route</th><th>Effet</th></tr></thead>
+  <tbody>
+    <tr><td><span class="pill pill-post">POST</span></td><td><code>/formations</code></td><td>Corps <code>{"name"}</code></td></tr>
+    <tr><td><span class="pill pill-patch">PATCH</span></td><td><code>/formations/{id}</code></td><td>Renommer</td></tr>
+    <tr><td><span class="pill pill-delete">DELETE</span></td><td><code>/formations/{id}</code></td><td>Supprimer</td></tr>
+    <tr><td><span class="pill pill-put">PUT</span></td><td><code>/formations/{id}/chapters/order</code></td><td>Corps <code>{"chapter_ids": [...]}</code></td></tr>
+    <tr><td><span class="pill pill-post">POST</span></td><td><code>/formations/{id}/chapters</code></td><td>Corps <code>{"name"}</code></td></tr>
+    <tr><td><span class="pill pill-patch">PATCH</span></td><td><code>/chapters/{id}</code></td><td>Renommer</td></tr>
+    <tr><td><span class="pill pill-delete">DELETE</span></td><td><code>/chapters/{id}</code></td><td>Supprimer</td></tr>
+    <tr><td><span class="pill pill-post">POST</span></td><td><code>/chapters/{id}/videos</code></td><td>Multipart <code>title</code> + <code>file</code> ; conversion en job si nécessaire</td></tr>
+    <tr><td><span class="pill pill-put">PUT</span></td><td><code>/chapters/{id}/videos/order</code></td><td>Corps <code>{"video_ids": [...]}</code></td></tr>
+    <tr><td><span class="pill pill-patch">PATCH</span></td><td><code>/chapters/{source}/{target}/{video_id}</code></td><td>Déplacer ; <code>position</code> ou <code>after_video_id</code> facultatifs</td></tr>
+    <tr><td><span class="pill pill-patch">PATCH</span></td><td><code>/videos/{id}</code></td><td>JSON <code>{"title"}</code>, ou multipart <code>title?</code> + <code>file?</code></td></tr>
+    <tr><td><span class="pill pill-delete">DELETE</span></td><td><code>/videos/{id}</code></td><td>Supprimer</td></tr>
+    <tr><td><span class="pill pill-post">POST</span></td><td><code>/chapters/{id}/docs</code></td><td>Multipart <code>title</code> + <code>file</code> + <code>video_id?</code> ; <code>422</code> si extension refusée</td></tr>
+  </tbody>
+</table></div>
+
+<h2 id="videos">Vidéos<a class="anchor" href="#videos" aria-label="Lien vers cette section">#</a></h2>
+<div class="table-wrap"><table>
+  <thead><tr><th>Méthode</th><th>Route</th><th>Effet</th></tr></thead>
+  <tbody>
+    <tr><td><span class="pill pill-get">GET</span></td><td><code>/videos/{id}/stream</code></td><td>Flux avec support <code>Range</code></td></tr>
+    <tr><td><span class="pill pill-get">GET</span></td><td><code>/videos/{id}/file</code></td><td>Fichier complet</td></tr>
+    <tr><td><span class="pill pill-get">GET</span></td><td><code>/videos/{id}/transcription</code></td><td><code>{"content"}</code></td></tr>
+    <tr><td><span class="pill pill-post">POST</span></td><td><code>/videos/{id}/transcription</code></td><td><code>202</code>, job <code>transcription</code></td></tr>
+    <tr><td><span class="pill pill-get">GET</span></td><td><code>/videos/{id}/summary</code></td><td><code>{"summary"}</code></td></tr>
+    <tr><td><span class="pill pill-put">PUT</span></td><td><code>/videos/{id}/summary</code></td><td>Corps <code>{"summary"}</code> ; remplace le texte</td></tr>
+    <tr><td><span class="pill pill-post">POST</span></td><td><code>/videos/{id}/summary/generate</code></td><td><code>202</code>, job <code>summary</code></td></tr>
+    <tr><td><span class="pill pill-post">POST</span></td><td><code>/videos/{id}/conversion</code></td><td><code>202</code>, relance ffmpeg</td></tr>
+  </tbody>
+</table></div>
+
+<h3 id="modele-video">Champs d'état d'une vidéo<a class="anchor" href="#modele-video" aria-label="Lien vers cette section">#</a></h3>
+<div class="table-wrap"><table>
+  <thead><tr><th>Champ</th><th>Valeurs</th></tr></thead>
+  <tbody>
+    <tr><td><code>kind</code></td><td><code>video</code> | <code>audio</code></td></tr>
+    <tr><td><code>processing_status</code></td><td><code>ready</code> | <code>processing</code> | <code>failed</code></td></tr>
+    <tr><td><code>transcription_status</code></td><td><code>none</code> | <code>processing</code> | <code>ready</code> | <code>failed</code></td></tr>
+    <tr><td><code>summary_status</code></td><td><code>none</code> | <code>processing</code> | <code>ready</code> | <code>failed</code></td></tr>
+    <tr><td><code>active_jobs[]</code></td><td><code>id</code>, <code>kind</code>, <code>status</code> (<code>queued</code> | <code>running</code>), <code>progress</code> 0–100, <code>message</code></td></tr>
+  </tbody>
+</table></div>
+
+<h2 id="apprenant">Progression et notes<a class="anchor" href="#apprenant" aria-label="Lien vers cette section">#</a></h2>
+<div class="table-wrap"><table>
+  <thead><tr><th>Méthode</th><th>Route</th><th>Effet</th></tr></thead>
+  <tbody>
+    <tr><td><span class="pill pill-get">GET</span></td><td><code>/progress/formations</code></td><td>Progression de toutes les formations</td></tr>
+    <tr><td><span class="pill pill-get">GET</span></td><td><code>/progress/formation/{id}</code></td><td>Détail par chapitre et par vidéo</td></tr>
+    <tr><td><span class="pill pill-get">GET</span></td><td><code>/progress/{video_id}</code></td><td>Position d'une vidéo</td></tr>
+    <tr><td><span class="pill pill-post">POST</span></td><td><code>/progress/{video_id}</code></td><td>Corps <code>{"last_position"}</code> en secondes</td></tr>
+    <tr><td><span class="pill pill-get">GET</span></td><td><code>/notes/{video_id}</code></td><td>Notes de l'utilisateur sur la vidéo</td></tr>
+    <tr><td><span class="pill pill-post">POST</span></td><td><code>/notes/{video_id}</code></td><td>Corps <code>{"timecode", "content"}</code></td></tr>
+    <tr><td><span class="pill pill-put">PUT</span></td><td><code>/notes/{note_id}</code></td><td>Corps <code>{"content"}</code></td></tr>
+    <tr><td><span class="pill pill-delete">DELETE</span></td><td><code>/notes/{note_id}</code></td><td>Supprimer</td></tr>
+  </tbody>
+</table></div>
+
+<h2 id="documents">Documents<a class="anchor" href="#documents" aria-label="Lien vers cette section">#</a></h2>
+<div class="table-wrap"><table>
+  <thead><tr><th>Méthode</th><th>Route</th><th>Effet</th></tr></thead>
+  <tbody>
+    <tr><td><span class="pill pill-get">GET</span></td><td><code>/docs/chapters/{chapter_id}</code></td><td>Documents du chapitre (UID requis)</td></tr>
+    <tr><td><span class="pill pill-get">GET</span></td><td><code>/docs/{id}/file</code></td><td>Téléchargement</td></tr>
+    <tr><td><span class="pill pill-patch">PATCH</span></td><td><code>/docs/{id}</code></td><td>Corps <code>{"title"?, "video_id"?}</code> ; <code>video_id: null</code> détache</td></tr>
+    <tr><td><span class="pill pill-delete">DELETE</span></td><td><code>/docs/{id}</code></td><td>Supprimer</td></tr>
+  </tbody>
+</table></div>
+
+<div class="note">
+  <strong>Suivre un traitement</strong>
+  Après un <code>202</code>, interrogez <code>GET /formations/{id}</code> toutes les
+  quelques secondes tant qu'un statut vaut <code>processing</code>, et affichez
+  <code>active_jobs[].progress</code>.
+</div>
+
+<nav class="pager"><a href="./architecture.html">&larr; Architecture</a><a href="./operations.html">Exploitation &rarr;</a></nav>
+</main>
+</div>
+
+<footer class="site">
+  Documentation E-Learning &mdash;
+  <a href="https://github.com/EdwinAlkins/e-learning">EdwinAlkins/e-learning</a>
+</footer>
+</body>
+</html>

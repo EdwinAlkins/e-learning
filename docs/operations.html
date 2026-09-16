@@ -1,0 +1,146 @@
+<!doctype html>
+<html lang="fr">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Exploitation &mdash; E-Learning</title>
+<meta name="description" content="Exploiter E-Learning : CLI, worker, migrations, journaux, sauvegardes et restauration.">
+<link rel="canonical" href="https://edwinalkins.github.io/e-learning/operations.html">
+<meta property="og:type" content="article">
+<meta property="og:url" content="https://edwinalkins.github.io/e-learning/operations.html">
+<meta property="og:title" content="Exploitation &mdash; E-Learning">
+<meta property="og:description" content="Exploiter E-Learning : CLI, worker, migrations, journaux, sauvegardes et restauration.">
+<meta property="og:image" content="https://edwinalkins.github.io/e-learning/assets/media/poster.png">
+<meta property="og:locale" content="fr_FR">
+<link rel="stylesheet" href="./assets/style.css">
+<link rel="icon" href="./assets/logo.png" type="image/png">
+</head>
+<body>
+<a class="skip" href="#content">Aller au contenu</a>
+
+<div class="topbar">
+  <a class="brand" href="./index.html"><img src="./assets/logo.png" alt="">E-Learning <span>documentation</span></a>
+  <nav aria-label="Liens principaux"><a class="optional" href="./index.html">Accueil</a><a href="https://github.com/EdwinAlkins/e-learning">Code source</a></nav>
+</div>
+
+<div class="shell">
+<nav class="sidenav" aria-label="Sections de la documentation"><h2>La plateforme</h2><ul><li><a href="./overview.html">Présentation</a></li><li><a href="./installation.html">Installation</a></li><li><a href="./configuration.html">Configuration</a></li></ul><h2>Utiliser</h2><ul><li><a href="./learning.html">Côté apprenant</a></li><li><a href="./studio.html">Studio et catalogue</a></li><li><a href="./ai.html">Transcription et IA</a></li><li><a href="./mobile.html">Application mobile</a></li></ul><h2>Sous le capot</h2><ul><li><a href="./architecture.html">Architecture</a></li><li><a href="./api.html">API HTTP</a></li><li><a href="./operations.html" aria-current="page">Exploitation</a></li><li><a href="./development.html">Développement</a></li></ul></nav>
+<main id="content">
+<header>
+  <h1>Exploitation</h1>
+  <p class="lede">La ligne de commande, le worker, les migrations et les sauvegardes.</p>
+</header>
+
+<h2 id="cli">La CLI<a class="anchor" href="#cli" aria-label="Lien vers cette section">#</a></h2>
+
+<p><code>e-learning-cli</code> est installée dans l'image de l'API. Dans Docker,
+préfixez par <code>docker compose exec api</code> ; hors Docker, par <code>uv run</code>.</p>
+
+<div class="table-wrap">
+<table>
+  <thead><tr><th>Commande</th><th>Effet</th><th>Options</th></tr></thead>
+  <tbody>
+    <tr><td><code>reconcile</code></td><td>Synchronise le dossier des médias avec la base</td><td><code>--videos-path</code></td></tr>
+    <tr><td><code>list-videos</code></td><td>Liste les vidéos et leur UUID</td><td><code>-f, --formation</code> nom ou slug</td></tr>
+    <tr><td><code>convert</code></td><td>Convertit des médias pour le web avec ffmpeg</td><td><code>--glob</code> (défaut <code>**/*.*</code>), <code>--overwrite</code>, <code>--videos-path</code></td></tr>
+    <tr><td><code>transcribe</code></td><td>Transcrit une vidéo, de façon synchrone</td><td><code>-v</code> UUID, <code>-m</code> modèle Whisper (<code>base</code>), <code>-l</code> langue, <code>--timecodes</code></td></tr>
+    <tr><td><code>summary</code> (alias <code>resume</code>)</td><td>Génère le résumé d'une vidéo</td><td><code>-v</code> UUID</td></tr>
+    <tr><td><code>index-rag</code></td><td>Indexe transcriptions, résumés et documents dans Qdrant</td><td><code>--formation-id</code> ou <code>--video-id</code></td></tr>
+  </tbody>
+</table>
+</div>
+
+<p>Les commandes de la CLI s'exécutent dans le processus, sans passer par
+RabbitMQ : pratique pour un traitement par lot ou pour déboguer un job qui échoue.</p>
+
+<h2 id="worker">Le worker<a class="anchor" href="#worker" aria-label="Lien vers cette section">#</a></h2>
+
+<div class="snippet" data-lang="bash"><pre><code>docker compose logs -f worker
+docker compose up -d --scale worker=2   # deux processus, chacun avec son prefetch</code></pre></div>
+
+<p>Chaque processus traite jusqu'à <code>APP_WORKER_PREFETCH</code> jobs en
+parallèle. La console RabbitMQ, sur le port <code>15672</code>, montre la
+profondeur de la file. Whisper consomme beaucoup de mémoire : augmentez le
+nombre de workers avec prudence.</p>
+
+<h2 id="migrations">Migrations<a class="anchor" href="#migrations" aria-label="Lien vers cette section">#</a></h2>
+
+<p>Le service <code>migrate</code> applique <code>alembic upgrade head</code> à
+chaque <code>docker compose up</code>. À la main :</p>
+
+<div class="snippet" data-lang="bash"><pre><code>docker compose run --rm migrate
+# hors Docker
+cd e-learning-api
+uv run alembic upgrade head
+uv run alembic revision --autogenerate -m "description"</code></pre></div>
+
+<h2 id="sauvegardes">Sauvegardes<a class="anchor" href="#sauvegardes" aria-label="Lien vers cette section">#</a></h2>
+
+<p><code>scripts/backup.sh</code> sauvegarde <strong>la base PostgreSQL
+uniquement</strong>, avec <code>pg_dump</code> dans le conteneur.</p>
+
+<div class="snippet" data-lang="bash"><pre><code>./scripts/backup.sh                    # créer une archive (puis rotation)
+./scripts/backup.sh list               # lister
+./scripts/backup.sh restore            # restaurer la plus récente
+./scripts/backup.sh restore backups/e-learning-2026-08-05_120000.dump
+./scripts/backup.sh prune              # garder les BACKUP_KEEP plus récentes</code></pre></div>
+
+<div class="table-wrap">
+<table>
+  <thead><tr><th>Variable</th><th>Défaut</th><th>Rôle</th></tr></thead>
+  <tbody>
+    <tr><td><code>BACKUP_DIR</code></td><td><code>./backups</code></td><td>Dossier des archives</td></tr>
+    <tr><td><code>BACKUP_KEEP</code></td><td><code>7</code></td><td>Archives conservées par <code>prune</code></td></tr>
+    <tr><td><code>COMPOSE_FILE</code></td><td><code>./docker-compose.yml</code></td><td>Fichier Compose</td></tr>
+    <tr><td><code>ENV_FILE</code></td><td><code>./.env</code></td><td>Fichier d'environnement</td></tr>
+  </tbody>
+</table>
+</div>
+
+<p>Chaque sauvegarde applique la rotation dans la foulée. Tous les jours à 2&nbsp;h :</p>
+
+<div class="snippet" data-lang="cron"><pre><code>0 2 * * * cd /srv/e-learning &amp;&amp; ./scripts/backup.sh &gt;&gt; /var/log/e-learning-backup.log 2&gt;&amp;1</code></pre></div>
+
+<div class="warn">
+  <strong>Les médias ne sont pas dans l'archive</strong>
+  Vidéos, documents, transcriptions et résumés sont des fichiers sous
+  <code>VIDEOS_HOST_PATH</code>. Sauvegardez ce dossier séparément.
+  Qdrant se reconstruit avec <code>e-learning-cli index-rag</code>.
+</div>
+
+<p>Exemple avec <a href="https://restic.net">restic</a>, dédupliqué et chiffré,
+lancé après la sauvegarde de la base :</p>
+
+<div class="snippet" data-lang="bash"><pre><code>export RESTIC_REPOSITORY=/mnt/sauvegardes/e-learning   # ou sftp:, s3:, rest:…
+export RESTIC_PASSWORD_FILE=/root/.restic-e-learning
+
+restic init                                            # une seule fois
+restic backup /chemin/vers/VIDEOS_HOST_PATH ./backups
+restic forget --keep-daily 7 --keep-weekly 4 --prune</code></pre></div>
+
+<h2 id="diagnostic">Diagnostic<a class="anchor" href="#diagnostic" aria-label="Lien vers cette section">#</a></h2>
+
+<div class="table-wrap">
+<table>
+  <thead><tr><th>Symptôme</th><th>Piste</th></tr></thead>
+  <tbody>
+    <tr><td>Le front affiche une erreur réseau</td><td><code>NEXT_PUBLIC_API_URL</code> injoignable depuis le navigateur, ou origine absente de <code>APP_CORS_ORIGINS</code></td></tr>
+    <tr><td>Une formation ajoutée sur disque n'apparaît pas</td><td><code>e-learning-cli reconcile</code> ; vérifier les trois niveaux de dossiers</td></tr>
+    <tr><td>La vidéo ne se lit pas</td><td>Codec non supporté : <strong>Convertir pour le web</strong> dans le studio</td></tr>
+    <tr><td>Statut bloqué sur <code>processing</code></td><td><code>docker compose logs worker</code>, état de RabbitMQ</td></tr>
+    <tr><td><code>/ready</code> en erreur</td><td>PostgreSQL arrêté ou <code>APP_DATABASE_URL</code> incorrecte</td></tr>
+    <tr><td>Téléversement refusé</td><td>Fichier plus gros que <code>APP_MAX_UPLOAD_SIZE</code>, ou limite du proxy</td></tr>
+  </tbody>
+</table>
+</div>
+
+<nav class="pager"><a href="./api.html">&larr; API HTTP</a><a href="./development.html">Développement &rarr;</a></nav>
+</main>
+</div>
+
+<footer class="site">
+  Documentation E-Learning &mdash;
+  <a href="https://github.com/EdwinAlkins/e-learning">EdwinAlkins/e-learning</a>
+</footer>
+</body>
+</html>

@@ -1,0 +1,890 @@
+/*
+ * Feuille de style unique du site de documentation.
+ *
+ * La palette reprend l'application : le bleu primaire de MUI et le dégradé
+ * du logo (assets/brand/icon-master.png). Le front suit la
+ * préférence système, le site aussi.
+ *
+ * Aucune ressource externe : ni police, ni script, ni CDN. Le site fonctionne
+ * hors ligne et sur GitHub Pages sans configuration.
+ */
+
+:root {
+  --ground: #f6f8fb;
+  --surface: #ffffff;
+  --raised: #edf1f7;
+  --line: #d8dfe9;
+  --ink: #1a2230;
+  --muted: #586476;
+  --accent: #1565c0;
+  --accent-ink: #ffffff;
+  --gold: #9a6a0c;
+  --danger: #c62828;
+  --ok: #2e7d32;
+  --brand-from: #005bea;
+  --brand-to: #00c6fb;
+  --shadow: 0 1px 3px rgb(15 30 60 / 0.08);
+  color-scheme: light;
+}
+
+@media (prefers-color-scheme: dark) {
+  :root {
+    --ground: #0f141b;
+    --surface: #161d27;
+    --raised: #1f2834;
+    --line: #2d3846;
+    --ink: #e6ebf2;
+    --muted: #98a4b5;
+    --accent: #6cb6f7;
+    --accent-ink: #06121f;
+    --gold: #ecc94b;
+    --danger: #ef6a67;
+    --ok: #6cc070;
+    --shadow: 0 1px 3px rgb(0 0 0 / 0.45);
+    color-scheme: dark;
+  }
+}
+
+*,
+*::before,
+*::after {
+  box-sizing: border-box;
+}
+
+html {
+  scroll-behavior: smooth;
+  scroll-padding-top: 5rem;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  html {
+    scroll-behavior: auto;
+  }
+}
+
+body {
+  margin: 0;
+  background: var(--ground);
+  color: var(--ink);
+  font-family: system-ui, -apple-system, "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
+  font-size: 16px;
+  line-height: 1.65;
+  -webkit-text-size-adjust: 100%;
+}
+
+code,
+pre,
+kbd {
+  font-family: ui-monospace, SFMono-Regular, Menlo, Consolas, "Liberation Mono", monospace;
+}
+
+a {
+  color: var(--accent);
+  text-decoration-thickness: 1px;
+  text-underline-offset: 2px;
+}
+
+a:hover {
+  text-decoration-thickness: 2px;
+}
+
+img,
+video {
+  max-width: 100%;
+}
+
+/* ----------------------------------------------------------------- en-tête */
+
+.topbar {
+  position: sticky;
+  top: 0;
+  z-index: 20;
+  display: flex;
+  align-items: center;
+  gap: 1rem;
+  padding: 0.6rem 1.25rem;
+  background: color-mix(in srgb, var(--surface) 92%, transparent);
+  backdrop-filter: blur(8px);
+  border-bottom: 1px solid var(--line);
+}
+
+.brand {
+  display: flex;
+  align-items: center;
+  gap: 0.55rem;
+  font-weight: 650;
+  color: var(--ink);
+  text-decoration: none;
+  white-space: nowrap;
+}
+
+.brand img {
+  width: 1.9rem;
+  height: 1.9rem;
+}
+
+.brand span {
+  font-weight: 400;
+  font-size: 0.85rem;
+  color: var(--muted);
+}
+
+.topbar nav {
+  display: flex;
+  gap: 1.1rem;
+  margin-left: auto;
+  font-size: 0.9rem;
+}
+
+.topbar nav a {
+  color: var(--ink);
+  text-decoration: none;
+}
+
+.topbar nav a:hover {
+  color: var(--accent);
+}
+
+@media (max-width: 36rem) {
+  .brand span,
+  .topbar nav .optional {
+    display: none;
+  }
+}
+
+/* ------------------------------------------------------------------- corps */
+
+.shell {
+  display: grid;
+  grid-template-columns: 15rem minmax(0, 1fr);
+  gap: 2.5rem;
+  max-width: 70rem;
+  margin: 0 auto;
+  padding: 2rem 1.25rem 5rem;
+}
+
+@media (max-width: 60rem) {
+  .shell {
+    grid-template-columns: minmax(0, 1fr);
+    gap: 1.5rem;
+  }
+}
+
+/* -------------------------------------------------------------- navigation */
+
+.sidenav {
+  position: sticky;
+  top: 4.5rem;
+  align-self: start;
+  max-height: calc(100vh - 6rem);
+  overflow-y: auto;
+  font-size: 0.9rem;
+}
+
+@media (max-width: 60rem) {
+  .sidenav {
+    position: static;
+    max-height: none;
+    padding: 0.75rem 1rem;
+    border: 1px solid var(--line);
+    border-radius: 0.5rem;
+    background: var(--surface);
+  }
+}
+
+.sidenav h2 {
+  margin: 1.25rem 0 0.4rem;
+  font-size: 0.72rem;
+  font-weight: 600;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  color: var(--muted);
+}
+
+.sidenav h2:first-child {
+  margin-top: 0;
+}
+
+.sidenav ul {
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+
+.sidenav li {
+  margin: 0;
+}
+
+.sidenav a {
+  display: block;
+  padding: 0.28rem 0.6rem;
+  margin-left: -0.6rem;
+  border-radius: 0.3rem;
+  color: var(--ink);
+  text-decoration: none;
+}
+
+.sidenav a:hover {
+  background: var(--raised);
+}
+
+.sidenav a[aria-current="page"] {
+  background: var(--raised);
+  color: var(--accent);
+  font-weight: 600;
+}
+
+/* ----------------------------------------------------------------- contenu */
+
+main {
+  min-width: 0;
+}
+
+main > header {
+  padding-bottom: 1.25rem;
+  margin-bottom: 2rem;
+  border-bottom: 1px solid var(--line);
+}
+
+h1 {
+  margin: 0 0 0.4rem;
+  font-size: 2rem;
+  line-height: 1.2;
+  letter-spacing: -0.02em;
+  text-wrap: balance;
+}
+
+.lede {
+  margin: 0;
+  font-size: 1.05rem;
+  color: var(--muted);
+}
+
+h2 {
+  margin: 2.75rem 0 0.9rem;
+  font-size: 1.35rem;
+  line-height: 1.3;
+  letter-spacing: -0.01em;
+  scroll-margin-top: 5rem;
+  text-wrap: balance;
+}
+
+h3 {
+  margin: 2rem 0 0.6rem;
+  font-size: 1.05rem;
+  scroll-margin-top: 5rem;
+}
+
+h2 .anchor,
+h3 .anchor {
+  margin-left: 0.4rem;
+  color: var(--muted);
+  opacity: 0;
+  text-decoration: none;
+  font-weight: 400;
+}
+
+h2:hover .anchor,
+h3:hover .anchor,
+.anchor:focus {
+  opacity: 1;
+}
+
+p,
+ul,
+ol {
+  margin: 0 0 1rem;
+}
+
+ul,
+ol {
+  padding-left: 1.35rem;
+}
+
+li {
+  margin-bottom: 0.35rem;
+}
+
+strong {
+  font-weight: 600;
+}
+
+kbd {
+  padding: 0.05em 0.4em;
+  border: 1px solid var(--line);
+  border-bottom-width: 2px;
+  border-radius: 0.25rem;
+  background: var(--surface);
+  font-size: 0.85em;
+}
+
+/* -------------------------------------------------------------------- code */
+
+code {
+  padding: 0.1em 0.35em;
+  border-radius: 0.25rem;
+  background: var(--raised);
+  font-size: 0.875em;
+  word-break: break-word;
+}
+
+pre {
+  margin: 0 0 1.25rem;
+  padding: 0.9rem 1rem;
+  overflow-x: auto;
+  border: 1px solid var(--line);
+  border-radius: 0.5rem;
+  background: var(--surface);
+  box-shadow: var(--shadow);
+  font-size: 0.85rem;
+  line-height: 1.55;
+}
+
+pre code {
+  padding: 0;
+  background: none;
+  font-size: inherit;
+  word-break: normal;
+}
+
+/* Étiquette de langage, posée par un attribut sur le conteneur. */
+.snippet {
+  position: relative;
+  margin-bottom: 1.25rem;
+}
+
+.snippet > pre {
+  margin: 0;
+}
+
+.snippet::after {
+  content: attr(data-lang);
+  position: absolute;
+  top: 0.5rem;
+  right: 0.7rem;
+  font-family: ui-monospace, SFMono-Regular, Menlo, Consolas, monospace;
+  font-size: 0.68rem;
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+  color: var(--muted);
+  pointer-events: none;
+}
+
+/* ----------------------------------------------------------------- tableaux */
+
+.table-wrap {
+  margin-bottom: 1.25rem;
+  overflow-x: auto;
+  border: 1px solid var(--line);
+  border-radius: 0.5rem;
+}
+
+table {
+  width: 100%;
+  border-collapse: collapse;
+  font-size: 0.9rem;
+}
+
+th,
+td {
+  padding: 0.55rem 0.8rem;
+  text-align: left;
+  vertical-align: top;
+  border-bottom: 1px solid var(--line);
+}
+
+thead th {
+  background: var(--surface);
+  font-size: 0.78rem;
+  letter-spacing: 0.04em;
+  text-transform: uppercase;
+  color: var(--muted);
+  white-space: nowrap;
+}
+
+tbody tr:last-child td {
+  border-bottom: none;
+}
+
+td code {
+  white-space: nowrap;
+}
+
+/* ------------------------------------------------------------------ encarts */
+
+.note,
+.warn {
+  padding: 0.85rem 1rem;
+  margin: 0 0 1.25rem;
+  border: 1px solid var(--line);
+  border-left-width: 3px;
+  border-radius: 0.4rem;
+  background: var(--surface);
+}
+
+.note {
+  border-left-color: var(--accent);
+}
+
+.warn {
+  border-left-color: var(--danger);
+  background: color-mix(in srgb, var(--danger) 6%, var(--surface));
+}
+
+.note > :last-child,
+.warn > :last-child {
+  margin-bottom: 0;
+}
+
+.note strong:first-child,
+.warn strong:first-child {
+  display: block;
+  margin-bottom: 0.2rem;
+}
+
+/* ------------------------------------------------------------------- cartes */
+
+.cards {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(15rem, 1fr));
+  gap: 0.9rem;
+  margin-bottom: 1.5rem;
+  padding: 0;
+  list-style: none;
+}
+
+.cards li {
+  margin: 0;
+}
+
+.cards a,
+.cards > li > div {
+  display: block;
+  height: 100%;
+  padding: 0.9rem 1rem;
+  border: 1px solid var(--line);
+  border-radius: 0.5rem;
+  background: var(--surface);
+  color: inherit;
+  text-decoration: none;
+  transition: border-color 0.15s;
+}
+
+.cards a:hover {
+  border-color: var(--accent);
+}
+
+.cards strong {
+  display: block;
+  margin-bottom: 0.15rem;
+  color: var(--accent);
+}
+
+.cards p {
+  margin: 0;
+  font-size: 0.88rem;
+  color: var(--muted);
+}
+
+/* -------------------------------------------------------------------- pills */
+
+.pill {
+  display: inline-block;
+  min-width: 3.4rem;
+  padding: 0.05rem 0.45rem;
+  border-radius: 999px;
+  border: 1px solid var(--line);
+  background: var(--raised);
+  font-family: ui-monospace, SFMono-Regular, Menlo, Consolas, monospace;
+  font-size: 0.7rem;
+  font-weight: 600;
+  letter-spacing: 0.03em;
+  text-align: center;
+  white-space: nowrap;
+}
+
+.pill-get {
+  color: var(--ok);
+  border-color: color-mix(in srgb, var(--ok) 45%, var(--line));
+}
+
+.pill-post,
+.pill-put,
+.pill-patch {
+  color: var(--accent);
+  border-color: color-mix(in srgb, var(--accent) 45%, var(--line));
+}
+
+.pill-delete {
+  color: var(--danger);
+  border-color: color-mix(in srgb, var(--danger) 45%, var(--line));
+}
+
+/* ---------------------------------------------------------- pied de page */
+
+.pager {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.75rem;
+  justify-content: space-between;
+  margin-top: 3.5rem;
+  padding-top: 1.25rem;
+  border-top: 1px solid var(--line);
+  font-size: 0.9rem;
+}
+
+footer.site {
+  padding: 1.5rem 1.25rem 2.5rem;
+  border-top: 1px solid var(--line);
+  color: var(--muted);
+  font-size: 0.85rem;
+  text-align: center;
+}
+
+.skip {
+  position: absolute;
+  left: -9999px;
+}
+
+.skip:focus {
+  left: 1rem;
+  top: 0.6rem;
+  z-index: 30;
+  padding: 0.4rem 0.7rem;
+  border-radius: 0.3rem;
+  background: var(--accent);
+  color: var(--accent-ink);
+}
+
+/* Focus clavier : visible sur tout élément interactif, y compris les cartes
+ * et les boutons dont la bordure change déjà au survol. */
+a:focus-visible,
+button:focus-visible,
+video:focus-visible {
+  outline: 2px solid var(--accent);
+  outline-offset: 2px;
+  border-radius: 0.3rem;
+}
+
+/* ---------------------------------------------------------------------------
+ * Landing page (index.html)
+ *
+ * Les pages de documentation sont une grille à deux colonnes avec navigation ;
+ * la landing est une colonne centrée sans navigation latérale, avec un seul
+ * but : amener le visiteur de « qu'est-ce que c'est » à « docker compose up ».
+ * Elle réutilise les jetons, .cards, .snippet et .table-wrap ci-dessus plutôt
+ * que d'introduire un second système visuel.
+ * ------------------------------------------------------------------------ */
+
+.landing {
+  max-width: 64rem;
+  margin: 0 auto;
+  padding: 0 1.25rem 4rem;
+}
+
+.hero {
+  padding: 3.5rem 0 1.5rem;
+  text-align: center;
+}
+
+.hero .logo {
+  width: 5.5rem;
+  height: 5.5rem;
+  margin: 0 auto 1rem;
+}
+
+.hero h1 {
+  margin: 0 auto 0.9rem;
+  max-width: 48rem;
+  font-size: clamp(2rem, 5vw, 3.1rem);
+  line-height: 1.12;
+}
+
+.hero h1 em {
+  font-style: normal;
+  white-space: nowrap;
+  background: linear-gradient(90deg, var(--brand-from), var(--brand-to));
+  -webkit-background-clip: text;
+  background-clip: text;
+  color: transparent;
+}
+
+.hero .lede {
+  max-width: 44rem;
+  margin: 0 auto 1.75rem;
+  font-size: 1.15rem;
+}
+
+.hero .lede strong {
+  color: var(--ink);
+}
+
+.cta {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.75rem;
+  justify-content: center;
+}
+
+.cta a {
+  padding: 0.6rem 1.2rem;
+  border: 1px solid var(--line);
+  border-radius: 0.4rem;
+  background: var(--surface);
+  color: var(--ink);
+  font-weight: 600;
+  text-decoration: none;
+}
+
+.cta a.primary {
+  border-color: var(--accent);
+  background: var(--accent);
+  color: var(--accent-ink);
+}
+
+.cta a:hover {
+  border-color: var(--accent);
+}
+
+.badges {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.5rem;
+  justify-content: center;
+  margin: 1.5rem 0 0;
+  padding: 0;
+  list-style: none;
+  font-size: 0.82rem;
+  color: var(--muted);
+}
+
+.badges li {
+  margin: 0;
+  padding: 0.15rem 0.65rem;
+  border: 1px solid var(--line);
+  border-radius: 999px;
+  background: var(--surface);
+}
+
+/* Captures et boucle de démo. La bordure évite qu'une capture claire se
+ * fonde dans une page claire. */
+.shot {
+  display: block;
+  position: relative;
+  width: 100%;
+  height: auto;
+  /* Ratio des captures 1440×900 ; une image chargée garde son ratio réel. */
+  aspect-ratio: auto 16 / 10;
+  margin: 2rem 0;
+  border: 1px solid var(--line);
+  border-radius: 0.5rem;
+  box-shadow: var(--shadow);
+  background: var(--surface);
+  overflow: hidden;
+}
+
+/* Capture absente (docs/assets/media/ pas encore alimenté) : les navigateurs
+ * ne rendent ::before/::after sur une <img> que si elle n'a pas pu se charger.
+ * On y dessine une fenêtre d'application stylisée plutôt que le texte
+ * alternatif brut dans un cadre. */
+img.shot::before {
+  content: "";
+  position: absolute;
+  inset: 0;
+  background:
+    linear-gradient(var(--raised), var(--raised)) 0 0 / 100% 12% no-repeat,
+    radial-gradient(circle, var(--line) 45%, transparent 50%) 2.5% 6% / 1.8% 4% no-repeat,
+    radial-gradient(circle, var(--line) 45%, transparent 50%) 5.5% 6% / 1.8% 4% no-repeat,
+    radial-gradient(circle, var(--line) 45%, transparent 50%) 8.5% 6% / 1.8% 4% no-repeat,
+    linear-gradient(var(--raised), var(--raised)) 6% 26% / 22% 58% no-repeat,
+    linear-gradient(var(--raised), var(--raised)) 94% 26% / 62% 6% no-repeat,
+    linear-gradient(var(--raised), var(--raised)) 94% 42% / 62% 6% no-repeat,
+    linear-gradient(var(--raised), var(--raised)) 94% 58% / 45% 6% no-repeat,
+    linear-gradient(var(--raised), var(--raised)) 94% 74% / 55% 6% no-repeat,
+    var(--surface);
+}
+
+img.shot::after {
+  content: "Capture à venir";
+  position: absolute;
+  left: 50%;
+  top: 55%;
+  transform: translate(-50%, -50%);
+  padding: 0.35rem 0.9rem;
+  border: 1px solid var(--line);
+  border-radius: 999px;
+  background: var(--surface);
+  color: var(--muted);
+  font-size: 0.85rem;
+  white-space: nowrap;
+}
+
+video.shot {
+  background: var(--raised);
+}
+
+.shot-caption {
+  margin: -1.25rem 0 2.5rem;
+  color: var(--muted);
+  font-size: 0.9rem;
+  text-align: center;
+}
+
+/* Capture + texte côte à côte, empilés en dessous de 52 rem. */
+.split {
+  display: grid;
+  grid-template-columns: minmax(0, 1.25fr) minmax(0, 1fr);
+  gap: 2rem;
+  align-items: center;
+  margin: 2rem 0;
+}
+
+.split.reverse {
+  grid-template-columns: minmax(0, 1fr) minmax(0, 1.25fr);
+}
+
+.split.reverse > figure {
+  order: 2;
+}
+
+.split figure {
+  margin: 0;
+}
+
+.split .shot {
+  margin: 0;
+}
+
+.split h3 {
+  margin-top: 0;
+  font-size: 1.2rem;
+}
+
+@media (max-width: 52rem) {
+  .split,
+  .split.reverse {
+    grid-template-columns: minmax(0, 1fr);
+  }
+
+  .split.reverse > figure {
+    order: 0;
+  }
+}
+
+/* Le schéma d'architecture : large par nature, il défile dans sa propre boîte
+ * plutôt que de pousser la page sur le côté. */
+.diagram {
+  overflow-x: auto;
+  margin: 1.5rem 0 2rem;
+  padding: 1rem;
+  border: 1px solid var(--line);
+  border-radius: 0.5rem;
+  background: var(--surface);
+}
+
+.diagram svg {
+  display: block;
+  min-width: 46rem;
+  width: 100%;
+  height: auto;
+}
+
+.landing h2 {
+  margin-top: 3.5rem;
+  font-size: 1.6rem;
+}
+
+.steps {
+  counter-reset: step;
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(14rem, 1fr));
+  gap: 0.9rem;
+  margin: 0 0 1.5rem;
+  padding: 0;
+  list-style: none;
+}
+
+.steps li {
+  counter-increment: step;
+  margin: 0;
+  padding: 0.9rem 1rem 0.9rem 3.1rem;
+  position: relative;
+  border: 1px solid var(--line);
+  border-radius: 0.5rem;
+  background: var(--surface);
+  font-size: 0.92rem;
+}
+
+.steps li::before {
+  content: counter(step);
+  position: absolute;
+  left: 0.9rem;
+  top: 0.85rem;
+  width: 1.6rem;
+  height: 1.6rem;
+  border-radius: 50%;
+  background: var(--accent);
+  color: var(--accent-ink);
+  font-weight: 700;
+  font-size: 0.85rem;
+  line-height: 1.6rem;
+  text-align: center;
+}
+
+.landing .cards {
+  grid-template-columns: repeat(auto-fit, minmax(13.5rem, 1fr));
+}
+
+.faq dt {
+  margin-top: 1.25rem;
+  font-weight: 600;
+}
+
+.faq dd {
+  margin: 0.35rem 0 0;
+  color: var(--muted);
+}
+
+/* Fonctions secondaires : présentes, sans le poids visuel des sections. */
+.also {
+  margin: 1.5rem 0 0;
+  color: var(--muted);
+  font-size: 0.92rem;
+}
+
+.landing .note,
+.landing .warn {
+  margin-top: 1.25rem;
+}
+
+/* Tableau « Est-ce le bon outil pour vous ? » */
+table.fit td.yes,
+table.fit td.no {
+  font-weight: 600;
+  white-space: nowrap;
+}
+
+table.fit td.yes {
+  color: var(--ok);
+}
+
+table.fit td.no {
+  color: var(--danger);
+}
+
+table.fit td.yes::before {
+  content: "✓ ";
+}
+
+table.fit td.no::before {
+  content: "✗ ";
+}
+
+.closing {
+  margin-top: 3.5rem;
+  padding: 1.75rem 1.5rem;
+  border: 1px solid var(--line);
+  border-radius: 0.5rem;
+  background: var(--surface);
+  text-align: center;
+}

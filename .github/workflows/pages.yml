@@ -1,0 +1,62 @@
+name: Docs
+
+# Le site de documentation est du HTML statique dans docs/ : rien à construire,
+# le dossier est publié tel quel.
+#
+# Ce workflow suppose « Settings → Pages → Source: GitHub Actions ». Si tu
+# préfères « Deploy from a branch » (main, dossier /docs), ce fichier devient
+# inutile et peut être supprimé.
+on:
+  push:
+    branches: [main]
+    paths:
+      - "docs/**"
+      - ".github/workflows/pages.yml"
+  workflow_dispatch:
+
+permissions:
+  contents: read
+  pages: write
+  id-token: write
+
+# Un seul déploiement à la fois, sans interrompre celui en cours : une page
+# à moitié déployée n'aide personne.
+concurrency:
+  group: pages
+  cancel-in-progress: false
+
+jobs:
+  deploy:
+    name: Publier docs/
+    runs-on: ubuntu-latest
+    environment:
+      name: github-pages
+      url: ${{ steps.deployment.outputs.page_url }}
+    steps:
+      - uses: actions/checkout@v7
+        with:
+          # docs/ contient 12 fichiers suivis par Git LFS (captures, demo.gif,
+          # demo.mp4 — voir .gitattributes). Sans cette option, checkout ne
+          # récupère que les pointeurs : le site se déploie « avec succès »
+          # mais toutes les images sont des fichiers texte de 130 octets.
+          lfs: true
+
+      # Filet de sécurité : l'échec ci-dessus est silencieux côté Pages. Le
+      # quota de bande passante LFS peut aussi rendre des pointeurs sans que
+      # checkout échoue.
+      - name: Vérifier l'absence de pointeurs LFS
+        run: |
+          if grep -rl --binary-files=text \
+              'version https://git-lfs.github.com/spec/v1' docs/; then
+            echo "::error::Des fichiers de docs/ sont restés des pointeurs LFS."
+            exit 1
+          fi
+
+      - uses: actions/configure-pages@v6
+
+      - uses: actions/upload-pages-artifact@v5
+        with:
+          path: docs
+
+      - id: deployment
+        uses: actions/deploy-pages@v5

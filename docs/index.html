@@ -1,0 +1,248 @@
+<!doctype html>
+<html lang="fr">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>E-Learning &mdash; plateforme e-learning auto-hébergée avec transcription et assistant IA</title>
+<meta name="description" content="Plateforme e-learning open source et auto-hébergée : formations vidéo et audio, progression, notes horodatées, studio. L'IA transcrit, résume et répond en citant les passages du cours. Modèle local ou distant, déploiement Docker.">
+<link rel="canonical" href="https://edwinalkins.github.io/e-learning/">
+<link rel="stylesheet" href="./assets/style.css">
+<link rel="icon" href="./assets/logo.png" type="image/png">
+<meta property="og:type" content="website">
+<meta property="og:url" content="https://edwinalkins.github.io/e-learning/">
+<meta property="og:title" content="E-Learning — votre plateforme de formation auto-hébergée, avec l'IA intégrée">
+<meta property="og:description" content="Formations vidéo, progression et notes horodatées, plus transcription, résumés et un assistant qui cite ses sources. Open source, Docker, modèle d'IA au choix.">
+<meta property="og:image" content="https://edwinalkins.github.io/e-learning/assets/media/poster.png">
+<meta property="og:locale" content="fr_FR">
+<meta name="twitter:card" content="summary_large_image">
+<meta name="twitter:title" content="E-Learning — plateforme e-learning auto-hébergée avec IA">
+<meta name="twitter:description" content="Formations vidéo, progression, notes, transcription, résumés et assistant qui cite ses sources. Open source, Docker.">
+<meta name="twitter:image" content="https://edwinalkins.github.io/e-learning/assets/media/poster.png">
+<script type="application/ld+json">
+{
+  "@context": "https://schema.org",
+  "@type": "SoftwareApplication",
+  "name": "E-Learning",
+  "description": "Plateforme e-learning open source et auto-hébergée, avec transcription, résumés et assistant IA par formation.",
+  "applicationCategory": "EducationalApplication",
+  "operatingSystem": "Linux, macOS, Windows (Docker)",
+  "license": "https://www.apache.org/licenses/LICENSE-2.0",
+  "url": "https://edwinalkins.github.io/e-learning/",
+  "codeRepository": "https://github.com/EdwinAlkins/e-learning",
+  "offers": { "@type": "Offer", "price": "0", "priceCurrency": "EUR" }
+}
+</script>
+</head>
+<body>
+<a class="skip" href="#content">Aller au contenu</a>
+
+<div class="topbar">
+  <a class="brand" href="./index.html"><img src="./assets/logo.png" alt="">E-Learning <span>plateforme de formation</span></a>
+  <nav aria-label="Liens principaux">
+    <a class="optional" href="#fonctionnalites">Fonctionnalités</a>
+    <a href="#installer">Installer</a>
+    <a href="./overview.html">Documentation</a>
+    <a class="optional" href="https://github.com/EdwinAlkins/e-learning">GitHub</a>
+  </nav>
+</div>
+
+<main class="landing" id="content">
+
+<header class="hero">
+  <img class="logo" src="./assets/logo.png" alt="">
+  <h1>Votre plateforme e-learning, <em>auto-hébergée</em>, avec l'IA intégrée à vos cours</h1>
+  <p class="lede">Hébergez vos formations vidéo et audio, suivez la progression, prenez des notes
+  liées au passage de la vidéo. <strong>L'IA transcrit les leçons, rédige des résumés et répond
+  aux questions en citant les passages utilisés.</strong></p>
+  <div class="cta">
+    <a class="primary" href="#installer">Installer avec Docker</a>
+    <a href="https://github.com/EdwinAlkins/e-learning">Voir sur GitHub</a>
+  </div>
+  <ul class="badges" aria-label="En bref">
+    <li>Open source, Apache 2.0</li>
+    <li>Docker Compose</li>
+    <li>IA locale ou distante</li>
+    <li>Usage personnel ou équipe de confiance</li>
+  </ul>
+</header>
+
+<video class="shot" autoplay muted loop playsinline controls preload="metadata" poster="./assets/media/poster.png"
+       aria-label="Démonstration : catalogue, page formation, question à l'assistant, lecteur vidéo avec résumé et notes, puis studio.">
+  <source src="./assets/media/demo.mp4" type="video/mp4">
+  <img src="./assets/media/demo.gif" alt="Démonstration animée de la plateforme.">
+</video>
+<p class="shot-caption">Catalogue → formation → question à l'assistant → lecteur, résumé et notes → studio.</p>
+<p class="shot-caption">Cours filmé : les présentations officielles des versions de Blender, publiées sur la chaîne YouTube de Blender et réutilisées sous licence <a href="https://creativecommons.org/licenses/by/3.0/">Creative Commons Attribution</a>.</p>
+
+<ol class="steps" aria-label="Comment ça marche">
+  <li><strong>Ajoutez vos cours</strong> depuis le studio web, ou en pointant un dossier de vidéos existant.</li>
+  <li><strong>La plateforme les prépare</strong> en arrière-plan : conversion, transcription, résumé, indexation.</li>
+  <li><strong>Suivez et interrogez</strong> vos formations : progression, notes, questions à l'assistant.</li>
+</ol>
+
+<h2 id="installer">Installer en trois commandes<a class="anchor" href="#installer" aria-label="Lien vers cette section">#</a></h2>
+
+<div class="snippet" data-lang="bash"><pre><code>git clone https://github.com/EdwinAlkins/e-learning.git &amp;&amp; cd e-learning
+cp .env.template .env        # VIDEOS_HOST_PATH : dossier de vos médias
+docker compose up -d --build # → http://localhost:3000</code></pre></div>
+
+<div class="note">
+  <strong>Aucun modèle d'IA n'est nécessaire pour démarrer</strong>
+  Catalogue, lecteur, progression, notes, documents et studio fonctionnent
+  immédiatement. Branchez ensuite LM Studio, Ollama ou un fournisseur compatible
+  OpenAI pour activer les résumés et l'assistant.
+  <a href="./installation.html">Guide d'installation complet &rarr;</a>
+</div>
+
+<h2 id="fonctionnalites">Une plateforme de formation complète<a class="anchor" href="#fonctionnalites" aria-label="Lien vers cette section">#</a></h2>
+
+<p>Formations, chapitres, leçons vidéo ou audio et documents : les apprenants
+retrouvent leur progression et leurs notes, les formateurs organisent le contenu
+depuis le studio.</p>
+
+<div class="split">
+  <figure><img class="shot" src="./assets/media/player.png" loading="lazy"
+       alt="Lecteur vidéo avec navigation précédent / suivant, boutons Résumé et Régénérer, et onglets Notes et Documents."></figure>
+  <div>
+    <h3>Reprendre là où on s'est arrêté</h3>
+    <p>La position de lecture est enregistrée en continu, sur le web comme sur
+    mobile. La progression se lit par leçon, par chapitre et par formation.</p>
+    <p><strong>Les notes sont liées au temps</strong> de la vidéo, écrites en
+    Markdown ; un clic sur une note ramène au passage.</p>
+  </div>
+</div>
+
+<div class="split reverse">
+  <figure><img class="shot" src="./assets/media/builder.png" loading="lazy"
+       alt="Studio : chapitres en accordéon, leçons avec statuts de transcription et de résumé, actions monter, descendre, déplacer."></figure>
+  <div>
+    <h3>Un studio pour construire les formations</h3>
+    <p>Créez formations et chapitres, téléversez vidéos, audio et documents,
+    réordonnez, déplacez une leçon d'un chapitre à l'autre. Les formats que le
+    navigateur ne lit pas sont convertis automatiquement en arrière-plan.</p>
+  </div>
+</div>
+
+<div class="note">
+  <strong>Vous avez déjà vos formations sur disque ?</strong>
+  Inutile de tout recréer : rangez-les en <code>Formation/Chapitre/leçon</code>
+  et une commande les transforme en catalogue, titres et documents associés compris.
+  <a href="./studio.html#dossier">Importer un dossier existant &rarr;</a>
+</div>
+
+<p class="also">Aussi : documents PDF et Office rattachés aux leçons · application
+mobile Android, iOS et Linux · thème clair et sombre · sauvegardes de la base.</p>
+
+<h2 id="ia">L'IA directement dans vos formations<a class="anchor" href="#ia" aria-label="Lien vers cette section">#</a></h2>
+
+<p>Une vidéo ne se parcourt pas comme un texte. L'IA rend le contenu des leçons
+lisible et interrogeable, sans quitter la formation.</p>
+
+<ul class="cards">
+  <li><a href="./ai.html#transcription"><strong>Transcription automatique</strong>
+      <p>Whisper convertit la parole des vidéos et pistes audio en texte, sur votre serveur.</p></a></li>
+  <li><a href="./ai.html#resume"><strong>Résumés de leçon</strong>
+      <p>Un résumé structuré en Markdown pour réviser vite, que vous pouvez corriger à la main.</p></a></li>
+  <li><a href="./ai.html#assistant"><strong>Questions sur la formation</strong>
+      <p>La réponse s'accompagne des passages utilisés ; un clic ouvre la leçon ou le document d'origine.</p></a></li>
+</ul>
+
+<div class="split reverse">
+  <figure><img class="shot" src="./assets/media/assistant.png" loading="lazy"
+       alt="Assistant de formation : une question posée, une réponse structurée et la liste des sources citées."></figure>
+  <div>
+    <h3>Des réponses que l'on peut vérifier</h3>
+    <p>Chaque formation a son assistant. Il cherche uniquement dans le contenu
+    indexé de <em>cette</em> formation &mdash; transcriptions, résumés, documents
+    PDF, Word ou Markdown &mdash; et affiche les extraits sur lesquels il s'appuie.</p>
+    <p>Comme tout modèle de langage, il peut se tromper : les sources sont là pour
+    revenir au cours en un clic.</p>
+  </div>
+</div>
+
+<div class="note">
+  <strong>Ce que l'IA sait, et ce qu'elle ne sait pas</strong>
+  Elle travaille sur la parole transcrite et sur le texte des documents. Elle ne
+  voit pas l'image : un schéma affiché à l'écran sans être commenté lui échappe.
+</div>
+
+<h2 id="controle">Votre plateforme, votre infrastructure, votre modèle<a class="anchor" href="#controle" aria-label="Lien vers cette section">#</a></h2>
+
+<ul class="cards">
+  <li><div><strong>Auto-hébergée</strong>
+      <p>Toute la plateforme se déploie avec Docker Compose. Pas d'abonnement ni de coût par apprenant.</p></div></li>
+  <li><div><strong>Médias sur votre serveur</strong>
+      <p>Vidéos et documents ne quittent pas votre disque. Transcription et indexation tournent en local par défaut.</p></div></li>
+  <li><div><strong>Modèle au choix</strong>
+      <p>LM Studio ou Ollama en local, ou un fournisseur compatible OpenAI. Vous décidez où va le texte.</p></div></li>
+</ul>
+
+<p>Pour être précis : avec un modèle distant, le texte des transcriptions et les
+extraits retrouvés sont envoyés à ce fournisseur pour produire résumés et
+réponses. Avec un modèle local, rien ne sort de la machine.
+<a href="./ai.html#confidentialite">Détail des flux de données</a> ·
+<a href="./architecture.html#vue">architecture technique</a>.</p>
+
+<h2 id="pour-qui">Est-ce le bon outil pour vous ?<a class="anchor" href="#pour-qui" aria-label="Lien vers cette section">#</a></h2>
+
+<div class="table-wrap">
+<table class="fit">
+  <thead><tr><th>Si vous cherchez…</th><th>E-Learning</th><th>Précision</th></tr></thead>
+  <tbody>
+    <tr><td>Héberger et suivre vos propres formations vidéo</td><td class="yes">Oui</td><td>&mdash;</td></tr>
+    <tr><td>Une plateforme privée pour une petite équipe de confiance</td><td class="yes">Oui</td><td>Sur un réseau privé, ou derrière une authentification</td></tr>
+    <tr><td>Transcription, résumés et assistant sans service tiers imposé</td><td class="yes">Oui</td><td>Modèle local ou distant, à configurer</td></tr>
+    <tr><td>Reprendre une bibliothèque de cours déjà rangée en dossiers</td><td class="yes">Oui</td><td>Import par réconciliation du dossier</td></tr>
+    <tr><td>Comptes avec mot de passe, SSO, rôles formateur / apprenant</td><td class="no">Non</td><td>Identité par identifiant anonyme ; <a href="./installation.html#exposer">authentification à placer devant</a></td></tr>
+    <tr><td>Vendre des formations, gérer inscriptions ou certificats, SCORM</td><td class="no">Non</td><td>Moodle, Open edX</td></tr>
+  </tbody>
+</table>
+</div>
+
+<div class="warn">
+  <strong>Pas d'authentification intégrée, pour l'instant</strong>
+  Chaque apprenant est reconnu par un identifiant stocké dans son navigateur, sans
+  mot de passe, et le studio est accessible à quiconque atteint l'interface. Gardez
+  l'instance sur un réseau privé ou derrière un proxy authentifiant.
+</div>
+
+<h2 id="faq">Questions fréquentes<a class="anchor" href="#faq" aria-label="Lien vers cette section">#</a></h2>
+
+<dl class="faq">
+  <dt>Mes vidéos sont-elles envoyées à un service d'IA ?</dt>
+  <dd>Non. Les fichiers restent sur votre serveur, et la transcription comme les embeddings y sont calculés. Seul du texte part vers le modèle de langage, et uniquement si vous configurez un fournisseur distant.</dd>
+
+  <dt>Faut-il une carte graphique ?</dt>
+  <dd>Non. Whisper et les embeddings fonctionnent sur processeur ; la transcription est plus lente, et se fait en arrière-plan. Comptez environ 2,5&nbsp;Go de mémoire pour la pile au repos ; voir <a href="./installation.html#ressources">les ressources</a>.</dd>
+
+  <dt>Combien ça coûte ?</dt>
+  <dd>Le logiciel est gratuit et open source. Vous payez votre machine, et votre fournisseur d'IA si vous en choisissez un distant.</dd>
+
+  <dt>Quels formats sont acceptés ?</dt>
+  <dd>Vidéo : MP4, WebM, MKV, AVI, MOV, M4V, WMV, FLV. Audio : MP3, WAV, M4A, AAC, OGG, FLAC, WMA, Opus. Les documents : PDF, Office, OpenDocument, Markdown, texte, images.</dd>
+
+  <dt>Comment un apprenant retrouve-t-il sa progression sur un autre appareil ?</dt>
+  <dd>Avec son identifiant : il le copie depuis l'en-tête de l'application et le saisit sur l'autre appareil, web ou mobile.</dd>
+
+  <dt>Et sur téléphone ?</dt>
+  <dd>L'interface web s'adapte aux petits écrans, et une <a href="./mobile.html">application Flutter</a> reprend le parcours apprenant. Le studio reste sur le web.</dd>
+</dl>
+
+<div class="closing">
+  <p><strong>Une plateforme e-learning qui reste la vôtre.</strong><br>
+  Open source sous licence Apache 2.0, déployée en quelques minutes.</p>
+  <div class="cta">
+    <a class="primary" href="#installer">Installer avec Docker</a>
+    <a href="https://github.com/EdwinAlkins/e-learning">Voir sur GitHub</a>
+    <a href="./overview.html">Documentation</a>
+  </div>
+</div>
+
+</main>
+
+<footer class="site">
+  E-Learning &mdash;
+  <a href="https://github.com/EdwinAlkins/e-learning">EdwinAlkins/e-learning</a> &mdash; Apache 2.0
+</footer>
+</body>
+</html>

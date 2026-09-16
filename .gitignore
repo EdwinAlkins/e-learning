@@ -1,2 +1,28 @@
-backups/
+# --- Secrets et configuration locale ---
+# Regle absolue : aucun .env ne part sur git, meme sans secret dedans.
 .env
+.env.*
+!.env.template
+
+# --- Sauvegardes ---
+backups/
+
+# --- graphify : graphe de connaissance, regenerable via `graphify update .` ---
+# Rien n'est versionne : chaque clone reconstruit son graphe localement.
+graphify-out/
+
+# --- Claude Code : reglages locaux, non partages ---
+.claude/settings.local.json
+.claude/**/*.graphify-bak
+
+# --- Systeme et editeurs ---
+.DS_Store
+Thumbs.db
+.idea/
+.vscode/
+*.swp
+*~
+
+# --- Logs et temporaires ---
+*.log
+tmp/

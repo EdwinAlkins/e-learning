@@ -112,3 +112,15 @@ uv run e-learning-worker
 # stack complète
 docker compose up --build
 ```
+
+`docker/Dockerfile` expose deux cibles :
+
+| Cible | Contenu | Services |
+|-------|---------|----------|
+| `migrate` | alembic + SQLAlchemy + asyncpg, sans groupe `ai` ni ffmpeg (~180 Mo) | `migrate` |
+| `api` | cible par défaut, groupe `ai` complet + ffmpeg (~1,9 Go) | `api`, `worker` |
+
+torch est résolu depuis l'index CPU de PyTorch et `triton` est exclu
+(`[tool.uv.sources]` / `[tool.uv]` dans `pyproject.toml`) : aucun service ne
+réserve de GPU, la pile CUDA pesait 4 Go pour rien. Ne pas retirer ces réglages
+sans ajouter une réservation de device dans compose.

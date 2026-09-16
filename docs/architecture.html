@@ -1,0 +1,253 @@
+<!doctype html>
+<html lang="fr">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Architecture &mdash; E-Learning</title>
+<meta name="description" content="Architecture hexagonale de l'API, bounded contexts, cycle de vie des jobs, catalogue disque et front Next.js.">
+<link rel="canonical" href="https://edwinalkins.github.io/e-learning/architecture.html">
+<meta property="og:type" content="article">
+<meta property="og:url" content="https://edwinalkins.github.io/e-learning/architecture.html">
+<meta property="og:title" content="Architecture &mdash; E-Learning">
+<meta property="og:description" content="Architecture hexagonale de l'API, bounded contexts, cycle de vie des jobs, catalogue disque et front Next.js.">
+<meta property="og:image" content="https://edwinalkins.github.io/e-learning/assets/media/poster.png">
+<meta property="og:locale" content="fr_FR">
+<link rel="stylesheet" href="./assets/style.css">
+<link rel="icon" href="./assets/logo.png" type="image/png">
+</head>
+<body>
+<a class="skip" href="#content">Aller au contenu</a>
+
+<div class="topbar">
+  <a class="brand" href="./index.html"><img src="./assets/logo.png" alt="">E-Learning <span>documentation</span></a>
+  <nav aria-label="Liens principaux"><a class="optional" href="./index.html">Accueil</a><a href="https://github.com/EdwinAlkins/e-learning">Code source</a></nav>
+</div>
+
+<div class="shell">
+<nav class="sidenav" aria-label="Sections de la documentation"><h2>La plateforme</h2><ul><li><a href="./overview.html">Présentation</a></li><li><a href="./installation.html">Installation</a></li><li><a href="./configuration.html">Configuration</a></li></ul><h2>Utiliser</h2><ul><li><a href="./learning.html">Côté apprenant</a></li><li><a href="./studio.html">Studio et catalogue</a></li><li><a href="./ai.html">Transcription et IA</a></li><li><a href="./mobile.html">Application mobile</a></li></ul><h2>Sous le capot</h2><ul><li><a href="./architecture.html" aria-current="page">Architecture</a></li><li><a href="./api.html">API HTTP</a></li><li><a href="./operations.html">Exploitation</a></li><li><a href="./development.html">Développement</a></li></ul></nav>
+<main id="content">
+<header>
+  <h1>Architecture</h1>
+  <p class="lede">Une API hexagonale en Python, deux clients, et un worker qui partage le même code métier.</p>
+</header>
+
+<h2 id="vue">Vue d'ensemble<a class="anchor" href="#vue" aria-label="Lien vers cette section">#</a></h2>
+
+<p>Tout tient dans un <code>docker compose</code>. Les requêtes HTTP restent
+courtes ; le travail lourd part dans une file RabbitMQ et un worker dédié s'en
+charge, sans bloquer l'interface.</p>
+
+<div class="diagram">
+<svg viewBox="0 0 960 340" role="img" xmlns="http://www.w3.org/2000/svg"
+     aria-label="Le navigateur, via le front Next.js, et l'application mobile appellent l'API FastAPI. L'API lit et écrit dans PostgreSQL et le dossier médias, et publie les jobs dans RabbitMQ. Le worker consomme les jobs : ffmpeg, Whisper, LLM et embeddings, et écrit les vecteurs dans Qdrant.">
+  <defs>
+    <marker id="arrow" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="7" markerHeight="7" orient="auto">
+      <path d="M0 0 L10 5 L0 10 z" fill="var(--muted)"/>
+    </marker>
+  </defs>
+  <g font-family="system-ui,-apple-system,'Segoe UI',Roboto,'DejaVu Sans',Helvetica,Arial,sans-serif">
+    <g fill="var(--ground)" stroke="var(--line)" stroke-width="1.2">
+      <rect x="4"   y="36"  width="176" height="76"  rx="8"/>
+      <rect x="4"   y="176" width="176" height="76"  rx="8"/>
+      <rect x="500" y="10"  width="190" height="62"  rx="8"/>
+      <rect x="500" y="112" width="190" height="62"  rx="8"/>
+      <rect x="500" y="214" width="190" height="62"  rx="8"/>
+      <rect x="764" y="10"  width="192" height="62"  rx="8"/>
+    </g>
+    <g fill="color-mix(in srgb, var(--accent) 10%, var(--ground))" stroke="var(--accent)" stroke-width="1.4">
+      <rect x="244" y="74"  width="196" height="140" rx="8"/>
+      <rect x="764" y="190" width="192" height="108" rx="8"/>
+    </g>
+    <g fill="var(--ink)" font-size="15" font-weight="600" text-anchor="middle">
+      <text x="92"  y="69">Navigateur</text>
+      <text x="92"  y="209">Application mobile</text>
+      <text x="342" y="110">API FastAPI</text>
+      <text x="595" y="37">PostgreSQL</text>
+      <text x="595" y="139">Dossier médias</text>
+      <text x="595" y="241">RabbitMQ</text>
+      <text x="860" y="37">Qdrant</text>
+      <text x="860" y="220">Worker</text>
+    </g>
+    <g fill="var(--muted)" font-size="12" text-anchor="middle">
+      <text x="92"  y="90">front Next.js</text>
+      <text x="92"  y="230">Flutter</text>
+      <text x="342" y="134">catalogue · studio</text>
+      <text x="342" y="153">progression · notes</text>
+      <text x="342" y="172">stream avec Range</text>
+      <text x="342" y="191">questions à l'assistant</text>
+      <text x="595" y="58">catalogue, notes, jobs</text>
+      <text x="595" y="160">VIDEOS_HOST_PATH</text>
+      <text x="595" y="262">jobs publiés après commit</text>
+      <text x="860" y="58">vecteurs du contenu</text>
+      <text x="860" y="243">ffmpeg · Whisper</text>
+      <text x="860" y="262">LLM · embeddings</text>
+      <text x="860" y="281">prefetch réglable</text>
+    </g>
+    <g stroke="var(--muted)" stroke-width="1.5" fill="none" marker-end="url(#arrow)">
+      <line x1="184" y1="80"  x2="238" y2="116"/>
+      <line x1="184" y1="210" x2="238" y2="176"/>
+      <line x1="444" y1="104" x2="494" y2="52"/>
+      <line x1="444" y1="143" x2="494" y2="143"/>
+      <line x1="444" y1="184" x2="494" y2="234"/>
+      <line x1="694" y1="245" x2="758" y2="245"/>
+      <line x1="860" y1="186" x2="860" y2="78"/>
+    </g>
+    <text x="480" y="328" fill="var(--muted)" font-size="12.5" text-anchor="middle">Le LLM est n'importe quel point d'accès compatible OpenAI : LM Studio ou Ollama en local, ou un fournisseur distant.</text>
+  </g>
+</svg>
+</div>
+
+<p>L'API interroge aussi Qdrant et le modèle de langage pour répondre aux
+questions de l'assistant ; le worker, lui, écrit transcriptions et résumés dans
+le dossier médias et les statuts en base.</p>
+
+<h2 id="api">L'API : ports et adaptateurs<a class="anchor" href="#api" aria-label="Lien vers cette section">#</a></h2>
+
+<p>Le paquet <code>e_learning</code> est découpé en quatre couches. Les
+dépendances vont uniquement vers l'intérieur, et c'est vérifié :
+<code>import-linter</code> échoue si une couche importe une couche plus externe,
+ou si le domaine importe FastAPI, SQLAlchemy ou Pydantic.</p>
+
+<div class="diagram">
+<svg viewBox="0 0 900 270" role="img" xmlns="http://www.w3.org/2000/svg"
+     aria-label="Quatre couches imbriquées : presentation contient infrastructure, qui contient application, qui contient domain. Les dépendances pointent vers le centre.">
+  <g font-family="system-ui,-apple-system,'Segoe UI',Roboto,'DejaVu Sans',Helvetica,Arial,sans-serif">
+    <rect x="4"   y="4"   width="892" height="262" rx="12" fill="var(--ground)" stroke="var(--line)"/>
+    <rect x="150" y="38"  width="736" height="220" rx="10" fill="var(--surface)" stroke="var(--line)"/>
+    <rect x="330" y="72"  width="546" height="176" rx="10" fill="var(--raised)" stroke="var(--line)"/>
+    <rect x="530" y="106" width="336" height="132" rx="10" fill="color-mix(in srgb, var(--accent) 12%, var(--surface))" stroke="var(--accent)"/>
+    <g font-size="15" font-weight="650" fill="var(--ink)">
+      <text x="20"  y="30">presentation</text>
+      <text x="166" y="64">infrastructure</text>
+      <text x="346" y="98">application</text>
+      <text x="546" y="132">domain</text>
+    </g>
+    <g font-size="13" fill="var(--muted)">
+      <text x="20" y="80">API FastAPI</text>
+      <text x="20" y="98">CLI Click</text>
+      <text x="20" y="116">worker RabbitMQ</text>
+      <text x="20" y="134">composition</text>
+      <text x="20" y="150">des dépendances</text>
+      <text x="166" y="110">SQLAlchemy async</text>
+      <text x="166" y="128">catalogue disque</text>
+      <text x="166" y="146">ffmpeg, Whisper</text>
+      <text x="166" y="164">LLM, Qdrant</text>
+      <text x="166" y="182">aio-pika, config</text>
+      <text x="346" y="144">cas d'usage</text>
+      <text x="346" y="162">DTO</text>
+      <text x="346" y="180">ports techniques</text>
+      <text x="346" y="198">(stockage, médias,</text>
+      <text x="346" y="216">résumé, messagerie)</text>
+      <text x="546" y="160">entités, value objects (UUIDv7)</text>
+      <text x="546" y="178">exceptions métier</text>
+      <text x="546" y="196">ports des repositories</text>
+      <text x="546" y="214">aucun framework</text>
+    </g>
+  </g>
+</svg>
+</div>
+
+<p>L'API, la CLI et le worker sont trois <em>adaptateurs primaires</em> sur les
+mêmes cas d'usage : lancer une transcription depuis le navigateur ou depuis la
+ligne de commande exécute le même code.</p>
+
+<h2 id="contextes">Bounded contexts<a class="anchor" href="#contextes" aria-label="Lien vers cette section">#</a></h2>
+
+<div class="table-wrap">
+<table>
+  <thead><tr><th>Contexte</th><th>Contenu</th></tr></thead>
+  <tbody>
+    <tr><td><code>user</code></td><td>Utilisateur anonyme, identifié par un <code>UserId</code> UUIDv7</td></tr>
+    <tr><td><code>catalog</code></td><td>Formation, Chapter, Video, Document, Job ; <code>position</code> en base, slugs disque stables</td></tr>
+    <tr><td><code>learning</code></td><td>Note et Progress, rattachées à un utilisateur et à une vidéo</td></tr>
+    <tr><td><code>content</code></td><td>Transcription, résumé, conversion, indexation et questions RAG</td></tr>
+  </tbody>
+</table>
+</div>
+
+<h2 id="jobs">Cycle de vie d'un job<a class="anchor" href="#jobs" aria-label="Lien vers cette section">#</a></h2>
+
+<ol>
+  <li>La requête HTTP crée un <code>Job</code> en base (<code>queued</code>) et
+      passe le statut métier de la vidéo à <code>processing</code>.</li>
+  <li><strong>Après le commit</strong>, le message est publié sur l'exchange
+      <code>elearning_jobs</code> (type direct, durable). Publier avant le commit
+      exposerait le worker à un job qui n'existe pas encore.</li>
+  <li>L'API répond <code>202</code> avec la vidéo et ses <code>active_jobs</code>.</li>
+  <li>Le worker consomme (<code>APP_WORKER_PREFETCH</code> en parallèle), passe le
+      job en <code>running</code> et met à jour <code>progress</code> et <code>message</code>.</li>
+  <li>À la fin : <code>succeeded</code> ou <code>failed</code>, et le statut
+      métier (<code>transcription_status</code>, <code>summary_status</code>,
+      <code>processing_status</code>) passe à <code>ready</code> ou <code>failed</code>.</li>
+  <li>Transcription et résumé réussis enchaînent un job <code>rag_index_video</code>.</li>
+</ol>
+
+<p>Les clients n'ont pas de canal temps réel : ils interrogent la formation
+toutes les 3 secondes tant qu'un statut vaut <code>processing</code>. Les jobs
+terminés disparaissent de <code>active_jobs</code> ; les colonnes de statut
+restent la vérité métier.</p>
+
+<div class="table-wrap">
+<table>
+  <thead><tr><th>Type de job</th><th>Déclenché par</th></tr></thead>
+  <tbody>
+    <tr><td><code>media_conversion</code></td><td>Téléversement d'un fichier autre que MP4 / MP3, ou <code>POST /videos/{id}/conversion</code></td></tr>
+    <tr><td><code>transcription</code></td><td><code>POST /videos/{id}/transcription</code></td></tr>
+    <tr><td><code>summary</code></td><td><code>POST /videos/{id}/summary/generate</code></td></tr>
+    <tr><td><code>rag_index_video</code></td><td>Fin d'une transcription ou d'un résumé</td></tr>
+    <tr><td><code>rag_index_formation</code></td><td><code>POST /formations/{id}/index</code> (bouton Réindexer)</td></tr>
+  </tbody>
+</table>
+</div>
+
+<h2 id="catalogue">Disque et base<a class="anchor" href="#catalogue" aria-label="Lien vers cette section">#</a></h2>
+
+<ul>
+  <li>Chaque média et document a un <code>relative_path</code> unique : c'est la
+      clé de réconciliation entre le dossier et PostgreSQL.</li>
+  <li>Les identifiants sont des UUIDv7 (module <code>uuid</code> de Python 3.14),
+      ordonnés dans le temps, indépendants du chemin.</li>
+  <li>Renommer une formation ou un chapitre réécrit les chemins relatifs de son
+      contenu ; réordonner ne touche que <code>position</code>.</li>
+  <li>Transcription et résumé sont des fichiers voisins du média
+      (<code>.txt</code>, <code>.md</code>), pas des colonnes.</li>
+  <li>Le stream (<code>GET /videos/{id}/stream</code>) gère les requêtes
+      <code>Range</code>, nécessaires au déplacement dans la vidéo.</li>
+</ul>
+
+<h2 id="front">Le front<a class="anchor" href="#front" aria-label="Lien vers cette section">#</a></h2>
+
+<div class="table-wrap">
+<table>
+  <thead><tr><th>Route</th><th>Page</th></tr></thead>
+  <tbody>
+    <tr><td><code>/auth</code></td><td>Génération ou reprise de l'UID</td></tr>
+    <tr><td><code>/</code></td><td>Catalogue</td></tr>
+    <tr><td><code>/formation/[formationId]</code></td><td>Détail, assistant, chapitres</td></tr>
+    <tr><td><code>/player/[videoId]</code></td><td>Lecteur, résumé, notes, documents</td></tr>
+    <tr><td><code>/studio</code></td><td>Liste des formations à éditer</td></tr>
+    <tr><td><code>/studio/formation/new</code></td><td>Création</td></tr>
+    <tr><td><code>/studio/formation/[id]</code></td><td>Éditeur de formation</td></tr>
+  </tbody>
+</table>
+</div>
+
+<p>Next.js 16 en App Router, mais toutes les pages sont des composants client :
+pas de rendu serveur en pratique. L'état vit dans des stores Zustand
+(<code>auth</code>, <code>catalog</code>, <code>studio</code>, <code>player</code>,
+<code>theme</code>) ; les appels passent par un client Axios unique
+(<code>src/services/api.ts</code>) qui ajoute l'en-tête <code>X-User-UID</code>.
+L'interface est entièrement en MUI 7 ; le lecteur vidéo est video.js et
+l'éditeur Markdown <code>@uiw/react-md-editor</code>. Le build Docker produit
+une sortie <code>standalone</code>, exécutée par un utilisateur non root.</p>
+
+<nav class="pager"><a href="./mobile.html">&larr; Application mobile</a><a href="./api.html">API HTTP &rarr;</a></nav>
+</main>
+</div>
+
+<footer class="site">
+  Documentation E-Learning &mdash;
+  <a href="https://github.com/EdwinAlkins/e-learning">EdwinAlkins/e-learning</a>
+</footer>
+</body>
+</html>
