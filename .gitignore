@@ -15,6 +15,15 @@ graphify-out/
 .claude/settings.local.json
 .claude/**/*.graphify-bak
 
+# --- /brag : outil de communication local, hors projet ---
+# Skills installes via `npx skills` (.agents/ + lock) et leur lien pour Claude Code.
+.agents/
+skills-lock.json
+.claude/skills/brag
+# Videos de presentation generees (Hyperframes), regenerables.
+brag-output/
+brag-output-*/
+
 # --- Systeme et editeurs ---
 .DS_Store
 Thumbs.db

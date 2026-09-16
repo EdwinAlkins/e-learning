@@ -96,7 +96,7 @@ export default function Auth() {
       >
         <Paper sx={{ p: 4, width: '100%' }}>
           <Typography variant="h4" component="h1" gutterBottom align="center">
-            Formation Platform
+            Cladèse
           </Typography>
           <Typography variant="body1" color="text.secondary" align="center" sx={{ mb: 4 }}>
             Enter your UID or generate a new one

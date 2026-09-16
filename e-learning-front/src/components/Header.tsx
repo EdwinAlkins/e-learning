@@ -105,7 +105,7 @@ export default function Header() {
             sx={{ flexGrow: 1, cursor: 'pointer' }}
             onClick={() => router.push('/')}
           >
-            Formation
+            Cladèse
           </Typography>
           <Box sx={{ display: 'flex', alignItems: 'center', gap: 2 }}>
             <Button color="inherit" onClick={() => router.push('/studio')}>

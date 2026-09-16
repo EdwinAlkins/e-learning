@@ -62,6 +62,7 @@ Tout vient de l'environnement ; aucun hôte ni identifiant n'est écrit dans un 
 | `OUT` | `out` | Dossier de sortie, relatif à ce dossier |
 | `VIDEO_START`, `POSTER_AT`, `GIF_START`, `GIF_DURATION` | tirés de `marks.json` | Réglages fins de `encode.mjs`, en secondes |
 | `VIDEO_CRF` | `30` | Qualité H.264 : plus bas = plus net et plus lourd |
+| `GIF_FPS`, `GIF_COLORS` | `6`, `96` | Images par seconde et couleurs du GIF : plus haut = plus fluide et plus lourd |
 
 Exemples :
 
@@ -77,7 +78,7 @@ FRONT_URL=https://learn.example.test API_URL=https://learn.example.test/api \
 Accueil (saisie de l'UID) → catalogue → page formation → question à l'assistant → leçon
 dans le lecteur, lecture quelques secondes → résumé → notes (en vidéo, une note est écrite
 puis retirée par l'API à la fin) → documents → studio → éditeur de formation, survol des
-actions → bascule clair / sombre → rendu mobile (captures uniquement).
+actions → rendu mobile (captures uniquement).
 
 **Aucune action destructive.** Rien n'est supprimé, renommé ni déplacé dans l'interface. Si
 vous étendez le script, gardez cette règle : il doit pouvoir tourner contre une instance
@@ -118,14 +119,39 @@ la page blanche du début, choisir l'image d'aperçu et le départ du GIF.
 | `shots/10-builder.png` | Éditeur de formation | `builder.png` |
 | `shots/11-mobile.png` | Lecteur à 430 px | — |
 | `video/raw.webm` | Enregistrement brut de Playwright (VP8, lourd) | — |
-| `video/demo.mp4`, `poster.png` | Vidéo de présentation (67 s, ≈ 1,4 Mo) et image d'aperçu | mêmes noms |
-| `video/demo.gif` | Boucle de 36 s, 900 px (≈ 5,9 Mo) | `demo.gif` (README, page Présentation) |
+| `video/demo.mp4`, `poster.png` | Vidéo de présentation (61 s, ≈ 1,6 Mo) et image d'aperçu | mêmes noms |
+| `video/demo.gif` | Boucle de 36 s, 900 px, 6 images/s (≈ 3 Mo) | `demo.gif` (README ; repli de la vidéo sur la page Présentation) |
+
+### Vidéo de lancement (landing)
+
+La landing ne montre pas `demo.mp4` mais un film de présentation de 31 s, réalisé à part avec
+le skill `/brag` (Hyperframes) dans `brag-output/`, dossier ignoré par git. Il n'est pas produit
+par ce pipeline : après un nouveau rendu de `brag-output/brag.mp4`, dérivez la version web à la
+main, depuis la racine du dépôt :
+
+```bash
+# Sans son (lecture automatique muette), 1280 px, première image (miniature intégrée) retirée
+ffmpeg -y -i brag-output/brag.mp4 -an \
+  -vf "select='gte(n\,1)',setpts=N/FRAME_RATE/TB,scale=1280:-2:flags=lanczos" \
+  -c:v libx264 -preset veryslow -tune animation -crf 32 -pix_fmt yuv420p -movflags +faststart \
+  docs/assets/media/launch.mp4
+ffmpeg -y -i brag-output/brag.jpg -vf "scale=1280:-2:flags=lanczos" -q:v 4 \
+  docs/assets/media/launch-poster.jpg
+```
+
+| Fichier | Contenu | Page |
+| --- | --- | --- |
+| `docs/assets/media/launch.mp4` | Film de présentation, sans son, 1280×720 (≈ 0,8 Mo) | `index.html` |
+| `docs/assets/media/launch-poster.jpg` | Image d'aperçu : logo, nom, tagline | `index.html` |
+
+La version complète, avec musique, sert aux réseaux sociaux et ne va pas dans `docs/` : la
+licence de la musique n'est pas vérifiée pour une diffusion sur le site.
 
 ### Pourquoi un seul format vidéo
 
 Le site ne publie qu'un **MP4 H.264** : c'est le seul format lu par tous les navigateurs, y
 compris les anciens Safari sur iOS. Encodé en `-preset veryslow -tune animation` (réglage
-adapté aux aplats d'une interface) à CRF 30, il pèse ≈ 1,4 Mo pour 67 s. Un second format
+adapté aux aplats d'une interface) à CRF 30, il pèse ≈ 1,6 Mo pour 61 s. Un second format
 n'ajouterait que du poids au dépôt.
 
 Le poids dépend fortement de ce qui est filmé : des cartons titres du seed compressent bien

@@ -14,7 +14,7 @@ class ELearningApp extends ConsumerWidget {
     final themeMode = ref.watch(themeControllerProvider);
 
     return MaterialApp.router(
-      title: 'E-Learning',
+      title: 'Cladèse',
       debugShowCheckedModeBanner: false,
       theme: buildLightTheme(),
       darkTheme: buildDarkTheme(),

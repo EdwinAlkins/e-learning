@@ -49,7 +49,7 @@ class _AuthScreenState extends ConsumerState<AuthScreen> {
                         crossAxisAlignment: CrossAxisAlignment.stretch,
                         children: [
                           Text(
-                            'E-Learning',
+                            'Cladèse',
                             textAlign: TextAlign.center,
                             style: theme.textTheme.headlineMedium?.copyWith(
                               fontWeight: FontWeight.bold,

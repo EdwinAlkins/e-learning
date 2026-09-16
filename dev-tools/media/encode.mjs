@@ -15,6 +15,8 @@ import { FFMPEG, VIDEO_DIR, fail } from './config.mjs';
 // Les instants viennent de marks.json (écrit par la capture) ; VIDEO_START,
 // POSTER_AT, GIF_START et GIF_DURATION, en secondes, les surchargent.
 // VIDEO_CRF règle le compromis poids / netteté (défaut 30 ; plus bas = plus net).
+// GIF_FPS (défaut 6) et GIF_COLORS (défaut 96) règlent le poids du GIF : une
+// interface se lit bien à 6 images/s, et 96 couleurs suffisent à ses aplats.
 
 const env = process.env;
 let source = join(VIDEO_DIR, 'raw.webm');
@@ -68,9 +70,12 @@ await ffmpeg(['-ss', String(posterAt), '-i', join(VIDEO_DIR, 'demo.mp4'), '-fram
 
 const gifStart = Number(env.GIF_START ?? Math.max(0, at('catalogue', 8) - start));
 const gifDuration = Number(env.GIF_DURATION ?? 36);
-console.log(`→ demo.gif (${gifStart.toFixed(1)} s, ${gifDuration} s)`);
+const gifFps = Number(env.GIF_FPS ?? 6);
+const gifColors = Number(env.GIF_COLORS ?? 96);
+console.log(`→ demo.gif (${gifStart.toFixed(1)} s, ${gifDuration} s, ${gifFps} images/s, ${gifColors} couleurs)`);
+// diff_mode=rectangle : seule la zone qui change d'une image à l'autre est retramée.
 await ffmpeg(['-ss', String(gifStart), '-t', String(gifDuration), '-i', join(VIDEO_DIR, 'demo.mp4'),
-  '-vf', 'fps=10,scale=900:-1:flags=lanczos,split[a][b];[a]palettegen=stats_mode=diff[p];[b][p]paletteuse=dither=bayer:bayer_scale=4',
+  '-vf', `fps=${gifFps},scale=900:-1:flags=lanczos,split[a][b];[a]palettegen=max_colors=${gifColors}:stats_mode=diff[p];[b][p]paletteuse=dither=bayer:bayer_scale=5:diff_mode=rectangle`,
   join(VIDEO_DIR, 'demo.gif')]);
 
 for (const name of ['demo.mp4', 'poster.png', 'demo.gif']) {

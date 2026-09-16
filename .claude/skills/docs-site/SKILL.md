@@ -1,9 +1,9 @@
 ---
 name: docs-site
-description: Maintenir le site de documentation et la landing page d'E-Learning (docs/, HTML statique sans dépendance, en français), le README du dépôt, et régénérer captures, vidéo et GIF de présentation avec dev-tools/media. À utiliser dès qu'il faut écrire, corriger ou restructurer une page de docs/, la landing, le README, ajouter une page, mettre à jour des médias, ou vérifier la cohérence doc ↔ code.
+description: Maintenir le site de documentation et la landing page de Cladèse (docs/, HTML statique sans dépendance, en français), le README du dépôt, et régénérer captures, vidéo et GIF de présentation avec dev-tools/media. À utiliser dès qu'il faut écrire, corriger ou restructurer une page de docs/, la landing, le README, ajouter une page, mettre à jour des médias, ou vérifier la cohérence doc ↔ code.
 ---
 
-# Site de documentation E-Learning
+# Site de documentation Cladèse
 
 Le site vit dans `docs/` et se publie tel quel sur GitHub Pages
 (`https://edwinalkins.github.io/e-learning/`, branche `main`, dossier `/docs`). Les médias
@@ -62,7 +62,7 @@ Aussi : `sitemap.xml`, `robots.txt`, `.nojekyll`, `assets/logo.png`, `assets/med
 
 Copier une page existante plutôt que partir de zéro. Éléments obligatoires :
 
-- `<head>` : `<title>Titre &mdash; E-Learning</title>`, `meta description`, `link rel="canonical"`,
+- `<head>` : `<title>Titre &mdash; Cladèse</title>`, `meta description`, `link rel="canonical"`,
   balises `og:type/url/title/description/image/locale` (URL absolues), feuille et favicon.
 - `.topbar` (marque + « Accueil » + « Code source »), `.shell` avec `.sidenav` identique sur
   toutes les pages et `aria-current="page"` sur la page courante.
@@ -117,7 +117,11 @@ npm run promote                  # → docs/assets/media/
 - `ASK` doit être une question pertinente pour la formation filmée, sinon l'assistant répond
   qu'il ne sait pas.
 - Noms publiés attendus par les pages : `auth, catalogue, formation, assistant, player, notes,
-  studio, builder` (`.png`), `demo.mp4`, `poster.png`, `demo.gif`. Toute nouvelle image
+  studio, builder` (`.png`), `demo.mp4`, `poster.png`, `demo.gif`, plus `launch.mp4` et
+  `launch-poster.jpg` (film de la landing, dérivé à la main de `brag-output/brag.mp4` : voir
+  « Vidéo de lancement » dans `dev-tools/media/README.md`).
+- Répartition : landing = `launch.mp4` (sans son) ; page Présentation = `demo.mp4` avec
+  `demo.gif` en repli ; README = `demo.gif` (GitHub n'anime pas un MP4 du dépôt). Toute nouvelle image
   référencée doit être ajoutée à `SELECTION` dans `promote.mjs`.
 - Si une capture manque, `.shot` affiche un emplacement « Capture à venir » (CSS
   `img.shot::before/::after`) : ne pas s'en contenter pour une publication.

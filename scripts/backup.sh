@@ -1,5 +1,5 @@
 #!/usr/bin/env bash
-# Sauvegarde / restauration E-Learning (Postgres uniquement).
+# Sauvegarde / restauration Cladèse (Postgres uniquement).
 set -euo pipefail
 
 ROOT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"

@@ -1,4 +1,4 @@
-# E-Learning API
+# Cladèse API
 
 API FastAPI pour la plateforme e-learning — **architecture hexagonale / DDD**.
 

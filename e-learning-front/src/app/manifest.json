@@ -1,7 +1,7 @@
 {
-  "name": "Formation Platform",
-  "short_name": "Formation",
-  "description": "Formation platform for video courses",
+  "name": "Cladèse",
+  "short_name": "Cladèse",
+  "description": "Plateforme de formation auto-hébergée",
   "start_url": "/",
   "display": "standalone",
   "background_color": "#ffffff",

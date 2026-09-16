@@ -293,15 +293,6 @@ try {
     await smoothScrollTo(page.getByText('Ajouter un chapitre'), 500);
     await pause(1500);
     await toTop();
-    await pause(600);
-
-    // Bascule de thème, puis retour : montre le mode sombre sans le garder.
-    mark('theme');
-    await click(page.getByRole('button', { name: 'Changer le thème' }));
-    await click(page.getByRole('menuitem', { name: THEME === 'dark' ? 'Clair' : 'Sombre' }));
-    await pause(2200);
-    await click(page.getByRole('button', { name: 'Changer le thème' }));
-    await click(page.getByRole('menuitem', { name: 'Système' }));
     await pause(1200);
   }
 
@@ -310,7 +301,7 @@ try {
   // page protégée repasse par /auth, qui renvoie au catalogue.
   if (!video) {
     await page.setViewportSize({ width: 430, height: 932 });
-    await page.getByText('Formation', { exact: true }).first().click();
+    await page.getByText('Cladèse', { exact: true }).first().click();
     await page.getByRole('heading', { name: formation.name, exact: true }).click();
     await page.getByRole('heading', { level: 1, name: formation.name }).waitFor();
     await (await revealLesson()).click();

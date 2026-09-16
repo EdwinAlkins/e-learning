@@ -33,7 +33,7 @@ class Settings(BaseSettings):
         extra="ignore",
     )
 
-    app_name: str = "E-Learning API"
+    app_name: str = "Cladèse API"
     database_url: SecretStr = SecretStr(
         "postgresql+asyncpg://elearning:elearning@localhost:5432/elearning"
     )

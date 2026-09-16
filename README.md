@@ -1,4 +1,4 @@
-# E-Learning
+# Cladèse
 
 **Votre plateforme e-learning, auto-hébergée, avec l'IA intégrée à vos cours.** Hébergez vos
 formations vidéo et audio, suivez la progression, prenez des notes liées au passage de la vidéo ;
@@ -36,7 +36,7 @@ Une plateforme de formation pour un **usage personnel** ou une **équipe de conf
 médias, base et index sur votre infrastructure. Ce n'est **pas** un LMS commercial : pas de comptes
 avec mot de passe ni de rôles pour l'instant.
 
-| Besoin | E-Learning | Sinon |
+| Besoin | Cladèse | Sinon |
 | --- | --- | --- |
 | Héberger et suivre vos propres formations vidéo | ✅ | — |
 | Une plateforme privée pour une petite équipe | ✅ | Sur un réseau privé, ou derrière une authentification |

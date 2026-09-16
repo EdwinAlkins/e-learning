@@ -16,7 +16,7 @@ from e_learning.presentation.cli.commands.transcribe import transcribe_cmd
 
 @click.group()
 def cli() -> None:
-    """Outils CLI E-Learning (catalogue, transcription, résumé, conversion)."""
+    """Outils CLI Cladèse (catalogue, transcription, résumé, conversion)."""
     configure_logging(get_settings().log_level)
 
 

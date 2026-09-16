@@ -10,8 +10,8 @@ const inter = Inter({
 });
 
 export const metadata: Metadata = {
-  title: "Formation Platform",
-  description: "Formation platform for video courses",
+  title: "Cladèse",
+  description: "Plateforme de formation auto-hébergée",
   // Les conventions `icon.png` / `apple-icon.png` dupliquaient des rendus deja
   // presents dans `public/`. On pointe directement sur ceux-ci : `icon-192`
   // pour le favicon (variante a fond transparent), `icon-maskable-512` pour
