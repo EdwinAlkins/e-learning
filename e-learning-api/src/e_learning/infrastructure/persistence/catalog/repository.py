@@ -291,6 +291,14 @@ class SqlAlchemyVideoRepository(VideoRepository):
         )
         return [mappers.video_to_domain(m) for m in result.scalars().all()]
 
+    async def list_by_ids(self, video_ids: list[VideoId]) -> list[Video]:
+        if not video_ids:
+            return []
+        result = await self._session.execute(
+            select(VideoModel).where(VideoModel.id.in_([video_id.value for video_id in video_ids]))
+        )
+        return [mappers.video_to_domain(model) for model in result.scalars().all()]
+
     async def list_all(self) -> list[Video]:
         result = await self._session.execute(select(VideoModel))
         return [mappers.video_to_domain(m) for m in result.scalars().all()]
@@ -442,6 +450,44 @@ class SqlAlchemyJobRepository(JobRepository):
             self._session.add(mappers.job_to_model(job))
         else:
             mappers.apply_job(existing, job)
+
+    async def upsert_many(self, jobs: list[Job]) -> None:
+        if not jobs:
+            return
+        rows = [
+            {
+                "id": job.id.value,
+                "kind": job.kind,
+                "status": job.status,
+                "progress": job.progress,
+                "message": job.message,
+                "error": job.error,
+                "video_id": job.video_id.value if job.video_id else None,
+                "formation_id": job.formation_id.value if job.formation_id else None,
+                "created_at": job.created_at,
+                "started_at": job.started_at,
+                "finished_at": job.finished_at,
+                "updated_at": job.updated_at,
+            }
+            for job in jobs
+        ]
+        statement = pg_insert(JobModel).values(rows)
+        statement = statement.on_conflict_do_update(
+            index_elements=[JobModel.id],
+            set_={
+                "kind": statement.excluded.kind,
+                "status": statement.excluded.status,
+                "progress": statement.excluded.progress,
+                "message": statement.excluded.message,
+                "error": statement.excluded.error,
+                "video_id": statement.excluded.video_id,
+                "formation_id": statement.excluded.formation_id,
+                "started_at": statement.excluded.started_at,
+                "finished_at": statement.excluded.finished_at,
+                "updated_at": statement.excluded.updated_at,
+            },
+        )
+        await self._session.execute(statement)
 
     async def get(self, job_id: JobId) -> Job:
         model = await self._session.get(JobModel, job_id.value)

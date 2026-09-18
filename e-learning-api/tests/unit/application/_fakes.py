@@ -163,6 +163,10 @@ class FakeVideoRepository(VideoRepository):
     async def list_by_formation(self, formation_id: FormationId) -> list[Video]:
         return list(self.items.values())
 
+    async def list_by_ids(self, video_ids: list[VideoId]) -> list[Video]:
+        wanted = {str(video_id) for video_id in video_ids}
+        return [video for key, video in self.items.items() if key in wanted]
+
     async def list_all(self) -> list[Video]:
         return list(self.items.values())
 
@@ -234,6 +238,10 @@ class FakeJobRepository(JobRepository):
 
     async def save(self, job: Job) -> None:
         self.items[str(job.id)] = job
+
+    async def upsert_many(self, jobs: list[Job]) -> None:
+        for job in jobs:
+            self.items[str(job.id)] = job
 
     async def get(self, job_id: JobId) -> Job:
         try:

@@ -26,8 +26,6 @@ from e_learning.application.catalog.use_cases.create_video import CreateVideo
 from e_learning.application.catalog.use_cases.delete_chapter import DeleteChapter
 from e_learning.application.catalog.use_cases.delete_formation import DeleteFormation
 from e_learning.application.catalog.use_cases.delete_video import DeleteVideo
-from e_learning.application.catalog.use_cases.get_formation import GetFormation
-from e_learning.application.catalog.use_cases.list_formations import ListFormations
 from e_learning.application.catalog.use_cases.move_video import MoveVideo
 from e_learning.application.catalog.use_cases.rename_chapter import RenameChapter
 from e_learning.application.catalog.use_cases.rename_formation import RenameFormation
@@ -46,8 +44,6 @@ from e_learning.presentation.api.dependencies import (
     get_delete_chapter,
     get_delete_formation,
     get_delete_video,
-    get_get_formation,
-    get_list_formations,
     get_move_video,
     get_rename_chapter,
     get_rename_formation,
@@ -56,6 +52,7 @@ from e_learning.presentation.api.dependencies import (
     get_reorder_videos,
     get_start_formation_index,
 )
+from e_learning.presentation.api.dependencies.queries import CatalogQueryDep
 from e_learning.presentation.api.uploads import read_upload_limited
 from e_learning.presentation.api.v1.schemas.common import (
     AskFormationRequest,
@@ -80,18 +77,18 @@ studio_router = APIRouter(tags=["studio"])
 
 @formations_router.get("", response_model=CatalogResponse)
 async def list_formations(
-    use_case: Annotated[ListFormations, Depends(get_list_formations)],
+    queries: CatalogQueryDep,
 ) -> CatalogResponse:
-    dtos = await use_case.execute()
+    dtos = await queries.list_formations()
     return CatalogResponse(formations=[FormationResponse.from_dto(f) for f in dtos])
 
 
 @formations_router.get("/{formation_id}", response_model=FormationResponse)
 async def get_formation(
     formation_id: str,
-    use_case: Annotated[GetFormation, Depends(get_get_formation)],
+    queries: CatalogQueryDep,
 ) -> FormationResponse:
-    return FormationResponse.from_dto(await use_case.execute(formation_id))
+    return FormationResponse.from_dto(await queries.get_formation(formation_id))
 
 
 @formations_router.post("/{formation_id}/ask", response_model=AskFormationResponse)

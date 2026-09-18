@@ -10,15 +10,14 @@ from fastapi.responses import FileResponse
 from e_learning.application.catalog.dto import UpdateDocumentCommand
 from e_learning.application.catalog.use_cases.delete_document import DeleteDocument
 from e_learning.application.catalog.use_cases.get_document_path import GetDocumentPath
-from e_learning.application.catalog.use_cases.list_chapter_documents import ListChapterDocuments
 from e_learning.application.catalog.use_cases.update_document import UpdateDocument
 from e_learning.presentation.api.dependencies import (
     get_delete_document,
     get_get_document_path,
-    get_list_chapter_documents,
     get_update_document,
 )
 from e_learning.presentation.api.dependencies.auth import CurrentUserIdDep
+from e_learning.presentation.api.dependencies.queries import CatalogQueryDep
 from e_learning.presentation.api.v1.schemas.common import DocumentResponse, DocumentUpdateRequest
 
 router = APIRouter(prefix="/docs", tags=["docs"])
@@ -28,9 +27,9 @@ router = APIRouter(prefix="/docs", tags=["docs"])
 async def list_documents(
     chapter_id: str,
     _user_id: CurrentUserIdDep,
-    use_case: Annotated[ListChapterDocuments, Depends(get_list_chapter_documents)],
+    queries: CatalogQueryDep,
 ) -> list[DocumentResponse]:
-    dtos = await use_case.execute(chapter_id)
+    dtos = await queries.list_chapter_documents(chapter_id)
     return [DocumentResponse.from_dto(d) for d in dtos]
 
 

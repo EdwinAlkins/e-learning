@@ -6,11 +6,7 @@ import asyncio
 
 import click
 
-from e_learning.infrastructure.persistence.catalog.repository import (
-    SqlAlchemyChapterRepository,
-    SqlAlchemyFormationRepository,
-    SqlAlchemyVideoRepository,
-)
+from e_learning.infrastructure.persistence.catalog.queries import SqlAlchemyCatalogQueryService
 from e_learning.presentation.cli.session import transactional_session
 
 
@@ -23,25 +19,20 @@ def list_videos_cmd(formation: str | None) -> None:
 
 async def _list_videos(formation_filter: str | None) -> None:
     async with transactional_session() as session:
-        formations = SqlAlchemyFormationRepository(session)
-        chapters = SqlAlchemyChapterRepository(session)
-        videos = SqlAlchemyVideoRepository(session)
+        rows = await SqlAlchemyCatalogQueryService(session).list_videos(
+            formation_filter=formation_filter
+        )
 
-        all_formations = await formations.list_all()
-        if formation_filter:
-            needle = formation_filter.lower()
-            all_formations = [
-                f
-                for f in all_formations
-                if needle in str(f.name).lower() or needle in str(f.slug).lower()
-            ]
+        current_formation: str | None = None
+        current_chapter: str | None = None
+        for row in rows:
+            if row.formation_id != current_formation:
+                click.echo(f"\n[{row.formation_slug}] {row.formation_name} ({row.formation_id})")
+                current_formation = row.formation_id
+                current_chapter = None
+            if row.chapter_id != current_chapter:
+                click.echo(f"  └─ {row.chapter_name}")
+                current_chapter = row.chapter_id
+            click.echo(f"       {row.video_id}  {row.video_title}  ({row.relative_path})")
 
-        count = 0
-        for formation in all_formations:
-            click.echo(f"\n[{formation.slug}] {formation.name} ({formation.id})")
-            for chapter in await chapters.list_by_formation(formation.id):
-                click.echo(f"  └─ {chapter.name}")
-                for video in await videos.list_by_chapter(chapter.id):
-                    click.echo(f"       {video.id}  {video.title}  ({video.relative_path})")
-                    count += 1
-        click.echo(f"\n{count} vidéo(s).")
+        click.echo(f"\n{len(rows)} vidéo(s).")

@@ -422,9 +422,33 @@ async def recover_and_republish(deps: WorkerDeps) -> None:
         videos = SqlAlchemyVideoRepository(session)
         job_repo = SqlAlchemyJobRepository(session)
 
+        media_processing = await videos.list_media_processing()
+        ai_processing = await videos.list_ai_processing()
+        active_jobs = await job_repo.list_active()
+
+        videos_by_id = {str(video.id): video for video in [*media_processing, *ai_processing]}
+        missing_ids = [
+            job.video_id
+            for job in active_jobs
+            if job.video_id is not None and str(job.video_id) not in videos_by_id
+        ]
+        for video in await videos.list_by_ids(missing_ids):
+            videos_by_id[str(video.id)] = video
+
+        active_jobs_by_video = {
+            (job.kind, job.video_id): job for job in active_jobs if job.video_id is not None
+        }
+
+        def active_job(kind: str, video_id: VideoId) -> Job | None:
+            job = active_jobs_by_video.get((kind, video_id))
+            return job if job is not None and job.status in Job.ACTIVE_STATUSES else None
+
+        videos_to_save: dict[str, Video] = {}
+        jobs_to_save: dict[str, Job] = {}
+
         # Conversions orphelines sans staging
-        for video in await videos.list_media_processing():
-            existing = await job_repo.find_active(kind=Job.KIND_MEDIA_CONVERSION, video_id=video.id)
+        for video in media_processing:
+            existing = active_job(Job.KIND_MEDIA_CONVERSION, video.id)
             conversion = conversion_job_from_staging(
                 video_id=str(video.id),
                 relative_path=str(video.relative_path),
@@ -437,56 +461,60 @@ async def recover_and_republish(deps: WorkerDeps) -> None:
                     video.id,
                 )
                 video.mark_failed()
-                await videos.save(video)
+                videos_to_save[str(video.id)] = video
                 if existing:
                     existing.mark_failed("Staging manquant après restart")
-                    await job_repo.save(existing)
+                    jobs_to_save[str(existing.id)] = existing
             elif existing is None:
-                created = await create_queued_job(
-                    job_repo,
+                created = Job.create(
                     kind=Job.KIND_MEDIA_CONVERSION,
-                    video_id=str(video.id),
+                    video_id=video.id,
                     message="Reprise conversion",
                 )
+                jobs_to_save[str(created.id)] = created
                 to_publish.append(
                     ComputeJobMessage(
-                        job_id=created.id,
+                        job_id=str(created.id),
                         kind=Job.KIND_MEDIA_CONVERSION,
                         video_id=str(video.id),
                     )
                 )
 
         # IA stuck : sidecar présent → succeeded ; sinon laisser actif pour republish
-        for job in await job_repo.list_active():
+        for job in active_jobs:
             if job.kind not in (Job.KIND_TRANSCRIPTION, Job.KIND_SUMMARY):
                 continue
             if job.video_id is None:
                 job.mark_failed("Job sans video_id")
-                await job_repo.save(job)
+                jobs_to_save[str(job.id)] = job
                 continue
-            video = await videos.get(job.video_id)
-            relative = str(video.relative_path)
+            job_video = videos_by_id.get(str(job.video_id))
+            if job_video is None:
+                job.mark_failed("Vidéo introuvable pendant la récupération")
+                jobs_to_save[str(job.id)] = job
+                continue
+            relative = str(job_video.relative_path)
             if job.kind == Job.KIND_TRANSCRIPTION:
                 if media_files.transcription_path(relative).is_file():
-                    video.set_transcription_status(Video.AI_READY)
-                    await videos.save(video)
+                    job_video.set_transcription_status(Video.AI_READY)
+                    videos_to_save[str(job_video.id)] = job_video
                     job.mark_succeeded(message="Récupéré (sidecar présent)")
-                    await job_repo.save(job)
+                    jobs_to_save[str(job.id)] = job
             elif job.kind == Job.KIND_SUMMARY and media_files.summary_path(relative).is_file():
-                video.set_summary_status(Video.AI_READY)
+                job_video.set_summary_status(Video.AI_READY)
                 if (
-                    video.transcription_status != Video.AI_READY
+                    job_video.transcription_status != Video.AI_READY
                     and media_files.transcription_path(relative).is_file()
                 ):
-                    video.set_transcription_status(Video.AI_READY)
-                await videos.save(video)
+                    job_video.set_transcription_status(Video.AI_READY)
+                videos_to_save[str(job_video.id)] = job_video
                 job.mark_succeeded(message="Récupéré (sidecar présent)")
-                await job_repo.save(job)
+                jobs_to_save[str(job.id)] = job
 
-        for video in await videos.list_ai_processing():
+        for video in ai_processing:
             changed = False
             if video.transcription_status == Video.AI_PROCESSING:
-                active = await job_repo.find_active(kind=Job.KIND_TRANSCRIPTION, video_id=video.id)
+                active = active_job(Job.KIND_TRANSCRIPTION, video.id)
                 if active is None:
                     if media_files.transcription_path(str(video.relative_path)).is_file():
                         video.set_transcription_status(Video.AI_READY)
@@ -494,7 +522,7 @@ async def recover_and_republish(deps: WorkerDeps) -> None:
                         video.set_transcription_status(Video.AI_FAILED)
                     changed = True
             if video.summary_status == Video.AI_PROCESSING:
-                active = await job_repo.find_active(kind=Job.KIND_SUMMARY, video_id=video.id)
+                active = active_job(Job.KIND_SUMMARY, video.id)
                 if active is None:
                     if media_files.summary_path(str(video.relative_path)).is_file():
                         video.set_summary_status(Video.AI_READY)
@@ -502,17 +530,17 @@ async def recover_and_republish(deps: WorkerDeps) -> None:
                         video.set_summary_status(Video.AI_FAILED)
                     changed = True
             if changed:
-                await videos.save(video)
+                videos_to_save[str(video.id)] = video
 
-        for job in await job_repo.list_active():
+        for job in active_jobs:
             if job.kind in (Job.KIND_RAG_INDEX_VIDEO, Job.KIND_RAG_INDEX_FORMATION):
                 if job.kind == Job.KIND_RAG_INDEX_VIDEO and job.video_id is None:
                     job.mark_failed("Cible manquante")
-                    await job_repo.save(job)
+                    jobs_to_save[str(job.id)] = job
                     continue
                 if job.kind == Job.KIND_RAG_INDEX_FORMATION and job.formation_id is None:
                     job.mark_failed("Cible manquante")
-                    await job_repo.save(job)
+                    jobs_to_save[str(job.id)] = job
                     continue
             if job.status in Job.ACTIVE_STATUSES:
                 # Remettre running → queued pour reprise propre
@@ -520,7 +548,7 @@ async def recover_and_republish(deps: WorkerDeps) -> None:
                     job.status = Job.STATUS_QUEUED
                     job.message = "Reprise après restart"
                     job.started_at = None
-                    await job_repo.save(job)
+                    jobs_to_save[str(job.id)] = job
                 to_publish.append(
                     ComputeJobMessage(
                         job_id=str(job.id),
@@ -530,6 +558,8 @@ async def recover_and_republish(deps: WorkerDeps) -> None:
                     )
                 )
 
+        await videos.upsert_many(list(videos_to_save.values()))
+        await job_repo.upsert_many(list(jobs_to_save.values()))
         await session.commit()
 
     # Dédupliquer par job_id

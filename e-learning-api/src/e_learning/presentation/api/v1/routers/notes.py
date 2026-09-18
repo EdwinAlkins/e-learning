@@ -9,15 +9,14 @@ from fastapi import APIRouter, Depends, status
 from e_learning.application.learning.dto import CreateNoteCommand, UpdateNoteCommand
 from e_learning.application.learning.use_cases.create_note import CreateNote
 from e_learning.application.learning.use_cases.delete_note import DeleteNote
-from e_learning.application.learning.use_cases.list_notes import ListNotes
 from e_learning.application.learning.use_cases.update_note import UpdateNote
 from e_learning.presentation.api.dependencies import (
     get_create_note,
     get_delete_note,
-    get_list_notes,
     get_update_note,
 )
 from e_learning.presentation.api.dependencies.auth import CurrentUserIdDep
+from e_learning.presentation.api.dependencies.queries import LearningQueryDep
 from e_learning.presentation.api.v1.schemas.common import (
     NoteCreateRequest,
     NoteResponse,
@@ -31,9 +30,9 @@ router = APIRouter(prefix="/notes", tags=["notes"])
 async def list_notes(
     video_id: str,
     user_id: CurrentUserIdDep,
-    use_case: Annotated[ListNotes, Depends(get_list_notes)],
+    queries: LearningQueryDep,
 ) -> list[NoteResponse]:
-    dtos = await use_case.execute(user_id=user_id, video_id=video_id)
+    dtos = await queries.list_notes(user_id=user_id, video_id=video_id)
     return [NoteResponse.from_dto(n) for n in dtos]
 
 
