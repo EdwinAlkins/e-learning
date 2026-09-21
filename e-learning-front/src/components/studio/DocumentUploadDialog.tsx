@@ -1,6 +1,6 @@
 'use client';
 
-import { useEffect, useRef, useState } from 'react';
+import { useRef, useState } from 'react';
 import {
   Dialog,
   DialogTitle,
@@ -14,6 +14,7 @@ import {
   Typography,
 } from '@mui/material';
 import type { Video } from '../../types';
+import { useOpenReset } from '../../hooks/useOpenReset';
 import {
   DOCUMENT_ACCEPT_ATTR,
   DOCUMENT_ACCEPT_EXTENSIONS,
@@ -42,20 +43,12 @@ export default function DocumentUploadDialog({
   const [error, setError] = useState<string | null>(null);
   const fileInputRef = useRef<HTMLInputElement>(null);
 
-  useEffect(() => {
-    if (open) {
-      setTitle('');
-      setFile(null);
-      setVideoId('');
-      setError(null);
-    }
-  }, [open]);
-
-  useEffect(() => {
-    if (file) {
-      setTitle((current) => current.trim() || file.name.replace(/\.[^.]+$/, ''));
-    }
-  }, [file]);
+  useOpenReset(open, 'form', () => {
+    setTitle('');
+    setFile(null);
+    setVideoId('');
+    setError(null);
+  });
 
   const isUploading = loading && uploadProgress != null;
 
@@ -129,7 +122,13 @@ export default function DocumentUploadDialog({
             type="file"
             accept={DOCUMENT_ACCEPT_ATTR}
             hidden
-            onChange={(e) => setFile(e.target.files?.[0] ?? null)}
+            onChange={(e) => {
+              const nextFile = e.target.files?.[0] ?? null;
+              setFile(nextFile);
+              if (nextFile) {
+                setTitle((current) => current.trim() || nextFile.name.replace(/\.[^.]+$/, ''));
+              }
+            }}
           />
           <Button
             variant="outlined"

@@ -121,8 +121,11 @@ export default function DocumentsPanel({
               <ListItemText
                 primary={document.title}
                 secondary={document.filename || document.mime_type || undefined}
-                primaryTypographyProps={compact ? { variant: 'body2' } : undefined}
-                secondaryTypographyProps={compact ? { variant: 'caption' } : undefined}
+                slotProps={
+                  compact
+                    ? { primary: { variant: 'body2' }, secondary: { variant: 'caption' } }
+                    : undefined
+                }
               />
             </ListItem>
           ))}

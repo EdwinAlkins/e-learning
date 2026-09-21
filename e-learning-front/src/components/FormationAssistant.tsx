@@ -176,7 +176,7 @@ export default function FormationAssistant({
               {message.citations && message.citations.length > 0 ? (
                 <Box sx={{ mt: 1 }}>
                   <Divider sx={{ mb: 1, borderColor: 'divider' }} />
-                  <Typography variant="caption" display="block" sx={{ mb: 0.5, opacity: 0.85 }}>
+                  <Typography variant="caption" sx={{ display: 'block', mb: 0.5, opacity: 0.85 }}>
                     Sources
                   </Typography>
                   {message.citations.map((citation) => {
@@ -208,11 +208,15 @@ export default function FormationAssistant({
                             {citation.title} ({citation.source})
                           </Link>
                         ) : (
-                          <Typography variant="caption" display="block">
+                          <Typography variant="caption" sx={{ display: 'block' }}>
                             {citation.title} ({citation.source})
                           </Typography>
                         )}
-                        <Typography variant="caption" display="block" color="text.secondary">
+                        <Typography
+                          variant="caption"
+                          color="text.secondary"
+                          sx={{ display: 'block' }}
+                        >
                           {citation.excerpt}
                         </Typography>
                       </Box>

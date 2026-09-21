@@ -184,7 +184,11 @@ export default function Dashboard() {
                               <Box
                                 sx={{ display: 'flex', justifyContent: 'space-between', mb: 0.5 }}
                               >
-                                <Typography variant="body2" color="text.primary" fontWeight="bold">
+                                <Typography
+                                  variant="body2"
+                                  color="text.primary"
+                                  sx={{ fontWeight: 'bold' }}
+                                >
                                   {formatDurationCompact(doneDurationSeconds)} complétées
                                 </Typography>
                                 <Typography variant="body2" color="text.secondary">

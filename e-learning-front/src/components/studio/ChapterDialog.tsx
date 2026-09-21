@@ -1,6 +1,6 @@
 'use client';
 
-import { useEffect, useState } from 'react';
+import { useState } from 'react';
 import {
   Dialog,
   DialogTitle,
@@ -9,6 +9,7 @@ import {
   Button,
   TextField,
 } from '@mui/material';
+import { useOpenReset } from '../../hooks/useOpenReset';
 
 export type ChapterSubmitData = {
   name: string;
@@ -44,13 +45,11 @@ export default function ChapterDialog({
 
   const showOrderField = mode === 'edit' && chapterCount != null && chapterCount > 0;
 
-  useEffect(() => {
-    if (open) {
-      setName(initialName);
-      setOrder(String(initialOrder ?? 1));
-      setError(null);
-    }
-  }, [open, initialName, initialOrder]);
+  useOpenReset(open, `${initialName}|${initialOrder ?? ''}`, () => {
+    setName(initialName);
+    setOrder(String(initialOrder ?? 1));
+    setError(null);
+  });
 
   const handleSubmit = async () => {
     if (!name.trim()) {
@@ -119,7 +118,7 @@ export default function ChapterDialog({
             helperText={
               orderError ?? `Position de 1 (premier) à ${chapterCount} (dernier)`
             }
-            inputProps={{ min: 1, max: chapterCount, step: 1 }}
+            slotProps={{ htmlInput: { min: 1, max: chapterCount, step: 1 } }}
             onKeyDown={(e) => {
               if (e.key === 'Enter') void handleSubmit();
             }}

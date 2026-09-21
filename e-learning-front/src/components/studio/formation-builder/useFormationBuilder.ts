@@ -1,8 +1,8 @@
 'use client';
 
-import { useEffect, useRef, useState } from 'react';
+import { useEffect, useState } from 'react';
 import { studioUploadKeys, useStudioStore } from '../../../stores/studio.store';
-import type { Chapter, Formation, Video } from '../../../types';
+import type { Chapter, Video } from '../../../types';
 import { sortChaptersByNumber, sortVideosByNumber } from '../../../utils/formation';
 import { POLLING_INTERVAL_MS } from '../../../constants';
 import { setVisibilityInterval } from '../../../utils/visibility-interval';
@@ -49,8 +49,9 @@ export function useFormationBuilder(formationId: string) {
     getUploadProgress,
   } = useStudioStore();
 
-  const [formation, setFormation] = useState<Formation | null>(null);
   const [formationName, setFormationName] = useState('');
+  const [nameFormationId, setNameFormationId] = useState(formationId);
+  const [editingName, setEditingName] = useState(false);
   const [savingName, setSavingName] = useState(false);
   const [nameError, setNameError] = useState<string | null>(null);
   const [jobNotice, setJobNotice] = useState<string | null>(null);
@@ -66,34 +67,19 @@ export function useFormationBuilder(formationId: string) {
   const [moveDialog, setMoveDialog] = useState<MoveDialogState>(null);
   const [deleteTarget, setDeleteTarget] = useState<DeleteTarget | null>(null);
   const [deleting, setDeleting] = useState(false);
-  const nameDirtyRef = useRef(false);
-  const nameInitializedRef = useRef(false);
+
+  const formation = formations.find((item) => item.id === formationId) ?? null;
+  const displayedFormationName = editingName ? formationName : (formation?.name ?? '');
+
+  if (formationId !== nameFormationId) {
+    setNameFormationId(formationId);
+    setEditingName(false);
+    setFormationName('');
+  }
 
   useEffect(() => {
     void fetchFormations();
   }, [fetchFormations]);
-
-  useEffect(() => {
-    nameDirtyRef.current = false;
-    nameInitializedRef.current = false;
-    setFormationName('');
-  }, [formationId]);
-
-  useEffect(() => {
-    const found = formations.find((item) => item.id === formationId) ?? null;
-    setFormation(found);
-    if (!found || savingName) return;
-
-    if (!nameInitializedRef.current) {
-      setFormationName(found.name);
-      nameInitializedRef.current = true;
-      return;
-    }
-
-    if (!nameDirtyRef.current) {
-      setFormationName(found.name);
-    }
-  }, [formations, formationId, savingName]);
 
   const processingJobKey = formation
     ? formation.chapters
@@ -149,19 +135,19 @@ export function useFormationBuilder(formationId: string) {
   }, [formationId, processingJobKey, refreshFormation]);
 
   const handleFormationNameChange = (value: string) => {
-    nameDirtyRef.current = true;
+    setEditingName(true);
     setFormationName(value);
   };
 
   const handleSaveFormationName = async () => {
     if (!formation) return;
-    if (formationName.trim() === formation.name) return;
+    if (displayedFormationName.trim() === formation.name) return;
 
     setSavingName(true);
     setNameError(null);
     try {
-      await patchFormation(formation.id, { name: formationName.trim() });
-      nameDirtyRef.current = false;
+      await patchFormation(formation.id, { name: displayedFormationName.trim() });
+      setEditingName(false);
     } catch (err) {
       setNameError(err instanceof Error ? err.message : 'Erreur lors de la sauvegarde');
     } finally {
@@ -430,7 +416,7 @@ export function useFormationBuilder(formationId: string) {
     error,
     jobNotice,
     clearJobNotice: () => setJobNotice(null),
-    formationName,
+    formationName: displayedFormationName,
     setFormationName: handleFormationNameChange,
     savingName,
     nameError,

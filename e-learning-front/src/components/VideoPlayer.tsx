@@ -1,6 +1,6 @@
 'use client';
 
-import { forwardRef, useImperativeHandle, useRef, useEffect, useMemo } from 'react';
+import { forwardRef, useImperativeHandle, useRef, useEffect, useMemo, useCallback } from 'react';
 import videojs from 'video.js';
 import 'video.js/dist/video-js.css';
 import { usePlayerStore } from '../stores/player.store';
@@ -38,7 +38,7 @@ const VideoPlayer = forwardRef<VideoPlayerRef, VideoPlayerProps>(({ videoId }, r
     [videoUrl]
   );
 
-  const flushPendingSeek = () => {
+  const flushPendingSeek = useCallback(() => {
     isReadyRef.current = true;
     if (pendingSeekRef.current === null || !player.current || player.current.isDisposed()) {
       return;
@@ -47,7 +47,7 @@ const VideoPlayer = forwardRef<VideoPlayerRef, VideoPlayerProps>(({ videoId }, r
     pendingSeekRef.current = null;
     player.current.currentTime(time);
     setCurrentTime(time);
-  };
+  }, [setCurrentTime]);
 
   useImperativeHandle(ref, () => ({
     seekTo: (time: number) => {
@@ -111,7 +111,7 @@ const VideoPlayer = forwardRef<VideoPlayerRef, VideoPlayerProps>(({ videoId }, r
     isReadyRef.current = false;
     player.current.src(options.sources);
     player.current.one('loadedmetadata', flushPendingSeek);
-  }, [options, setCurrentTime]);
+  }, [options, flushPendingSeek]);
 
   return <div ref={videoContainer} style={{ width: '100%', maxWidth: '100%' }} />;
 });

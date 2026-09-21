@@ -1,6 +1,6 @@
 'use client';
 
-import { useEffect, useLayoutEffect, useState } from 'react';
+import { useEffect, useState } from 'react';
 import { useRouter, useParams } from 'next/navigation';
 import {
   Container,
@@ -34,7 +34,7 @@ import {
 } from '@mui/icons-material';
 import { useCatalogStore } from '../../../stores/catalog.store';
 import { apiService } from '../../../services/api';
-import type { Document, Video, FormationProgress, Formation } from '../../../types';
+import type { Document, Video, FormationProgress } from '../../../types';
 import AuthGuard from '../../../components/AuthGuard';
 import DocumentsPanel from '../../../components/DocumentsPanel';
 import FormationAssistant from '../../../components/FormationAssistant';
@@ -73,33 +73,29 @@ export default function FormationDetail() {
   const router = useRouter();
   const theme = useTheme();
 
-  const [formation, setFormation] = useState<Formation | null>(null);
+  const formation =
+    formations.length > 0
+      ? (formations.find((item) => item.id === formationIdDecoded) ?? null)
+      : null;
   const [progressData, setProgressData] = useState<FormationProgress | null>(null);
   const [progressLoading, setProgressLoading] = useState(false);
   const [expandedChapters, setExpandedChapters] = useState<Record<string, boolean> | null>(
     null
   );
+  const [expandedFormationId, setExpandedFormationId] = useState<string | null>(null);
   const [expandedVideoDocs, setExpandedVideoDocs] = useState<Record<string, boolean>>({});
+
+  if (formation && expandedFormationId !== formation.id) {
+    setExpandedFormationId(formation.id);
+    setExpandedChapters(loadChapterExpandedState(formation));
+  } else if (!formation && expandedFormationId !== null) {
+    setExpandedFormationId(null);
+    setExpandedChapters(null);
+  }
 
   useEffect(() => {
     void fetchFormations(true);
   }, [fetchFormations]);
-
-  useLayoutEffect(() => {
-    if (!formation) {
-      setExpandedChapters(null);
-      return;
-    }
-    // Ne réinitialise pas l'UI à chaque poll (nouvelle référence formation).
-    setExpandedChapters((prev) => prev ?? loadChapterExpandedState(formation));
-  }, [formation]);
-
-  useEffect(() => {
-    if (formations.length > 0) {
-      const found = formations.find((f) => f.id === formationIdDecoded);
-      setFormation(found ?? null);
-    }
-  }, [formations, formationIdDecoded]);
 
   const processingJobKey = formation
     ? formation.chapters
@@ -122,15 +118,17 @@ export default function FormationDetail() {
     }, POLLING_INTERVAL_MS);
   }, [formation?.id, processingJobKey, fetchFormations]);
 
+  const loadedFormationId = formation?.id;
+
   useEffect(() => {
-    if (!formation) return;
+    if (!loadedFormationId) return;
 
     let cancelled = false;
 
     const loadProgress = async () => {
       setProgressLoading(true);
       try {
-        const progress = await apiService.getFormationProgress(formation.id);
+        const progress = await apiService.getFormationProgress(loadedFormationId);
         if (!cancelled) setProgressData(progress);
       } catch (err) {
         console.error('Error fetching progress', err);
@@ -143,7 +141,7 @@ export default function FormationDetail() {
     return () => {
       cancelled = true;
     };
-  }, [formation?.id]);
+  }, [loadedFormationId]);
 
   const handleVideoClick = (video: Video) => {
     router.push(`/player/${video.id}`);
@@ -214,7 +212,7 @@ export default function FormationDetail() {
         ) : progressData ? (
           <Paper sx={{ mb: 4, p: 2 }}>
             <Box sx={{ display: 'flex', justifyContent: 'space-between', mb: 1 }}>
-              <Typography variant="body2" fontWeight="bold">
+              <Typography variant="body2" sx={{ fontWeight: 'bold' }}>
                 Progression globale
               </Typography>
               <Typography variant="body2">{progressData.progress_percentage.toFixed(1)}%</Typography>

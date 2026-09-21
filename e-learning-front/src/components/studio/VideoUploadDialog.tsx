@@ -13,6 +13,7 @@ import {
   Typography,
 } from '@mui/material';
 import { API_BASE_URL } from '../../services/api';
+import { useOpenReset } from '../../hooks/useOpenReset';
 
 interface VideoUploadDialogProps {
   open: boolean;
@@ -42,24 +43,28 @@ export default function VideoUploadDialog({
   const [file, setFile] = useState<File | null>(null);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
-  const [previewUrl, setPreviewUrl] = useState<string | null>(null);
+  const [previewUrl, setPreviewUrl] = useState<string | null>(
+    mode === 'edit' && videoId ? `${API_BASE_URL}/videos/${videoId}/stream` : null
+  );
   const fileInputRef = useRef<HTMLInputElement>(null);
   const objectUrlRef = useRef<string | null>(null);
 
+  useOpenReset(open, `${mode}|${videoId ?? ''}|${initialTitle}`, () => {
+    setTitle(initialTitle);
+    setFile(null);
+    setError(null);
+    setPreviewUrl(
+      mode === 'edit' && videoId ? `${API_BASE_URL}/videos/${videoId}/stream` : null
+    );
+  });
+
   useEffect(() => {
-    if (open) {
-      setTitle(initialTitle);
-      setFile(null);
-      setError(null);
-      if (objectUrlRef.current) {
-        URL.revokeObjectURL(objectUrlRef.current);
-        objectUrlRef.current = null;
-      }
-      setPreviewUrl(
-        mode === 'edit' && videoId ? `${API_BASE_URL}/videos/${videoId}/stream` : null
-      );
+    if (open) return;
+    if (objectUrlRef.current) {
+      URL.revokeObjectURL(objectUrlRef.current);
+      objectUrlRef.current = null;
     }
-  }, [open, initialTitle, mode, videoId]);
+  }, [open]);
 
   useEffect(() => {
     return () => {

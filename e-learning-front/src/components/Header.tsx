@@ -1,6 +1,7 @@
 'use client';
 
 import { useState } from 'react';
+import Image from 'next/image';
 import { useRouter } from 'next/navigation';
 import {
   AppBar,
@@ -99,14 +100,22 @@ export default function Header() {
     <>
       <AppBar position="static">
         <Toolbar>
-          <Typography
-            variant="h6"
-            component="div"
-            sx={{ flexGrow: 1, cursor: 'pointer' }}
+          <Box
+            sx={{ display: 'flex', alignItems: 'center', gap: 1, flexGrow: 1, cursor: 'pointer' }}
             onClick={() => router.push('/')}
           >
-            Cladèse
-          </Typography>
+            <Image
+              src="/icon-192.png"
+              alt=""
+              width={32}
+              height={32}
+              priority
+              style={{ borderRadius: 6 }}
+            />
+            <Typography variant="h6" component="div">
+              Cladèse
+            </Typography>
+          </Box>
           <Box sx={{ display: 'flex', alignItems: 'center', gap: 2 }}>
             <Button color="inherit" onClick={() => router.push('/studio')}>
               Studio

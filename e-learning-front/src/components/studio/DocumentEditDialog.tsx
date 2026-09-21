@@ -1,6 +1,6 @@
 'use client';
 
-import { useEffect, useState } from 'react';
+import { useState } from 'react';
 import {
   Dialog,
   DialogTitle,
@@ -12,6 +12,7 @@ import {
   Typography,
 } from '@mui/material';
 import type { Document, Video } from '../../types';
+import { useOpenReset } from '../../hooks/useOpenReset';
 
 interface DocumentEditDialogProps {
   open: boolean;
@@ -33,13 +34,11 @@ export default function DocumentEditDialog({
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
-  useEffect(() => {
-    if (open) {
-      setTitle(document.title);
-      setVideoId(document.video_id ?? '');
-      setError(null);
-    }
-  }, [open, document]);
+  useOpenReset(open, `${document.id}|${document.title}|${document.video_id ?? ''}`, () => {
+    setTitle(document.title);
+    setVideoId(document.video_id ?? '');
+    setError(null);
+  });
 
   const handleSubmit = async () => {
     if (!title.trim()) {
@@ -95,7 +94,7 @@ export default function DocumentEditDialog({
         </TextField>
 
         {document.filename && (
-          <Typography variant="caption" color="text.secondary" display="block" sx={{ mt: 1 }}>
+          <Typography variant="caption" color="text.secondary" sx={{ display: 'block', mt: 1 }}>
             Fichier : {document.filename}
           </Typography>
         )}

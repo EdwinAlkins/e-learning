@@ -1,6 +1,6 @@
 'use client';
 
-import { useEffect, useState } from 'react';
+import { useState } from 'react';
 import {
   Dialog,
   DialogTitle,
@@ -14,6 +14,7 @@ import {
   Typography,
 } from '@mui/material';
 import type { Chapter } from '../../types';
+import { useOpenReset } from '../../hooks/useOpenReset';
 import { sortVideosByNumber } from '../../utils/formation';
 
 interface VideoMoveDialogProps {
@@ -45,17 +46,11 @@ export default function VideoMoveDialog({
     ? Math.max(0, targetVideos.length - 1)
     : targetVideos.length;
 
-  useEffect(() => {
-    if (open) {
-      setTargetChapterId(currentChapterId);
-      setTargetPosition(-1);
-      setError(null);
-    }
-  }, [open, currentChapterId]);
-
-  useEffect(() => {
+  useOpenReset(open, currentChapterId, () => {
+    setTargetChapterId(currentChapterId);
     setTargetPosition(-1);
-  }, [targetChapterId]);
+    setError(null);
+  });
 
   const handleSubmit = async () => {
     setLoading(true);
@@ -85,7 +80,10 @@ export default function VideoMoveDialog({
             labelId="move-chapter-label"
             label="Chapitre de destination"
             value={targetChapterId}
-            onChange={(e) => setTargetChapterId(e.target.value)}
+            onChange={(e) => {
+              setTargetChapterId(e.target.value);
+              setTargetPosition(-1);
+            }}
             disabled={loading}
           >
             {chapters.map((chapter) => (

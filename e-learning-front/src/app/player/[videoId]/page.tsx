@@ -39,12 +39,24 @@ import MarkdownRenderer from '../../../components/MarkdownRenderer';
 import { usePlayerStore } from '../../../stores/player.store';
 import { useCatalogStore } from '../../../stores/catalog.store';
 import { apiService } from '../../../services/api';
-import type { Document, Video, Formation } from '../../../types';
+import type { Document, Formation, Video } from '../../../types';
 import AuthGuard from '../../../components/AuthGuard';
 import { flattenFormationVideos } from '../../../utils/formation';
 import { findActiveJob, jobProgressLabel } from '../../../utils/job-progress';
 import { POLLING_INTERVAL_MS } from '../../../constants';
 import { setVisibilityInterval } from '../../../utils/visibility-interval';
+
+function findVideoInCatalog(formations: Formation[], videoId: string) {
+  for (const formation of formations) {
+    for (const chapter of formation.chapters) {
+      const video = chapter.videos.find((vid) => vid.id === videoId);
+      if (video) {
+        return { video, formation, chapterId: chapter.id };
+      }
+    }
+  }
+  return { video: null, formation: null, chapterId: null };
+}
 
 export default function Player() {
   const params = useParams();
@@ -53,14 +65,7 @@ export default function Player() {
   const videoPlayerRef = useRef<VideoPlayerRef>(null);
   const notesListRef = useRef<NotesListRef>(null);
 
-  const [video, setVideo] = useState<Video | null>(null);
-  const [parentFormation, setParentFormation] = useState<Formation | null>(null);
-  const [chapterId, setChapterId] = useState<string | null>(null);
-  const [prevVideo, setPrevVideo] = useState<Video | null>(null);
-  const [nextVideo, setNextVideo] = useState<Video | null>(null);
-
-  const [loading, setLoading] = useState(true);
-  const [error, setError] = useState<string | null>(null);
+  const [optimisticVideo, setOptimisticVideo] = useState<Video | null>(null);
   const [summary, setSummary] = useState<string | null>(null);
   const [summaryLoading, setSummaryLoading] = useState(false);
   const [summaryError, setSummaryError] = useState<string | null>(null);
@@ -71,89 +76,42 @@ export default function Player() {
   const [aiJobBusy, setAiJobBusy] = useState(false);
   const [aiJobError, setAiJobError] = useState<string | null>(null);
   const [bottomTab, setBottomTab] = useState(0);
-  const [documents, setDocuments] = useState<Document[]>([]);
+  const [fetchedDocuments, setFetchedDocuments] = useState<Document[]>([]);
   const [documentsLoading, setDocumentsLoading] = useState(false);
   const [documentsError, setDocumentsError] = useState<string | null>(null);
+  const [playerSessionId, setPlayerSessionId] = useState(videoId);
 
   const { setVideo: setPlayerVideo, setCurrentTime } = usePlayerStore();
   const { formations, loading: catalogLoading, fetchFormations } = useCatalogStore();
   const theme = useTheme();
 
-  useEffect(() => {
-    fetchFormations();
-  }, [fetchFormations]);
+  const catalogMatch =
+    videoId && formations.length > 0 ? findVideoInCatalog(formations, videoId) : null;
 
-  useEffect(() => {
-    if (!videoId) {
-      setError('Identifiant vidéo manquant');
-      setLoading(false);
-      return;
+  const catalogVideo = catalogMatch?.video ?? null;
+  const parentFormation = catalogMatch?.formation ?? null;
+  const chapterId = catalogMatch?.chapterId ?? null;
+  const video =
+    optimisticVideo?.id === videoId ? optimisticVideo : catalogVideo;
+
+  const { prevVideo, nextVideo } = useMemo(() => {
+    if (!parentFormation || !videoId) {
+      return { prevVideo: null as Video | null, nextVideo: null as Video | null };
     }
-
-    // Ne bloque pas la synchro des statuts IA pendant un reload catalogue.
-    if (formations.length === 0) {
-      return;
+    const flatVideos = flattenFormationVideos(parentFormation.chapters);
+    const currentIndex = flatVideos.findIndex((item) => item.id === videoId);
+    if (currentIndex === -1) {
+      return { prevVideo: null, nextVideo: null };
     }
+    return {
+      prevVideo: currentIndex > 0 ? flatVideos[currentIndex - 1] : null,
+      nextVideo: currentIndex < flatVideos.length - 1 ? flatVideos[currentIndex + 1] : null,
+    };
+  }, [parentFormation, videoId]);
 
-    let foundVideo: Video | null = null;
-    let currentFormation: Formation | null = null;
-    let currentChapterId: string | null = null;
-
-    for (const formation of formations) {
-      for (const chapter of formation.chapters) {
-        const v = chapter.videos.find((vid) => vid.id === videoId);
-        if (v) {
-          foundVideo = v;
-          currentFormation = formation;
-          currentChapterId = chapter.id;
-          break;
-        }
-      }
-      if (foundVideo) break;
-    }
-
-    if (foundVideo && currentFormation) {
-      const nextVideo = foundVideo;
-      setVideo((prev) => {
-        // Toujours reprendre les statuts frais du catalogue (évite « Génération… » fantôme).
-        if (
-          prev &&
-          prev.id === nextVideo.id &&
-          prev.processing_status === nextVideo.processing_status &&
-          prev.transcription_status === nextVideo.transcription_status &&
-          prev.summary_status === nextVideo.summary_status &&
-          prev.title === nextVideo.title &&
-          prev.duration === nextVideo.duration &&
-          JSON.stringify(prev.active_jobs ?? []) === JSON.stringify(nextVideo.active_jobs ?? [])
-        ) {
-          return prev;
-        }
-        return nextVideo;
-      });
-      setParentFormation(currentFormation);
-      setChapterId(currentChapterId);
-      setPlayerVideo(videoId);
-      setError(null);
-
-      const flatVideos = flattenFormationVideos(currentFormation.chapters);
-      const currentIndex = flatVideos.findIndex((v) => v.id === videoId);
-      if (currentIndex !== -1) {
-        setPrevVideo(currentIndex > 0 ? flatVideos[currentIndex - 1] : null);
-        setNextVideo(currentIndex < flatVideos.length - 1 ? flatVideos[currentIndex + 1] : null);
-      }
-    } else {
-      setVideo(null);
-      setParentFormation(null);
-      setChapterId(null);
-      setPrevVideo(null);
-      setNextVideo(null);
-      setError('Vidéo introuvable');
-    }
-
-    setLoading(false);
-  }, [videoId, formations, setPlayerVideo]);
-
-  useEffect(() => {
+  if (playerSessionId !== videoId) {
+    setPlayerSessionId(videoId);
+    setOptimisticVideo(null);
     setSummary(null);
     setShowSummary(false);
     setSummaryError(null);
@@ -161,31 +119,56 @@ export default function Player() {
     setEditSummaryContent('');
     setAiJobError(null);
     setBottomTab(0);
-  }, [videoId]);
+  }
+
+  if (
+    optimisticVideo &&
+    catalogVideo &&
+    optimisticVideo.id === catalogVideo.id &&
+    optimisticVideo.processing_status === catalogVideo.processing_status &&
+    optimisticVideo.transcription_status === catalogVideo.transcription_status &&
+    optimisticVideo.summary_status === catalogVideo.summary_status
+  ) {
+    setOptimisticVideo(null);
+  }
+
+  const missingIdError = videoId ? null : 'Identifiant vidéo manquant';
+  const notFoundError =
+    catalogMatch && !catalogMatch.video ? 'Vidéo introuvable' : null;
+  const error = missingIdError ?? notFoundError;
+  const loading = Boolean(videoId) && formations.length === 0;
+
+  const transcriptionStatus = video?.transcription_status;
+  const summaryStatus = video?.summary_status;
+  const currentVideoId = video?.id;
+
+  const statusAiError =
+    transcriptionStatus === 'failed'
+      ? 'Échec de la transcription'
+      : summaryStatus === 'failed'
+        ? 'Échec de la génération du résumé (vérifiez la connexion API LLM)'
+        : null;
+  const displayedAiError = statusAiError ?? aiJobError;
+
+  const catalogDocuments = parentFormation?.chapters.find((c) => c.id === chapterId)?.documents;
 
   useEffect(() => {
-    if (!video) return;
+    fetchFormations();
+  }, [fetchFormations]);
+
+  useEffect(() => {
+    if (videoId) setPlayerVideo(videoId);
+  }, [videoId, setPlayerVideo]);
+
+  useEffect(() => {
+    if (!currentVideoId) return;
     const aiProcessing =
-      video.transcription_status === 'processing' || video.summary_status === 'processing';
+      transcriptionStatus === 'processing' || summaryStatus === 'processing';
     if (!aiProcessing) return;
     return setVisibilityInterval(() => {
       void fetchFormations(true, true);
     }, POLLING_INTERVAL_MS);
-  }, [video?.id, video?.transcription_status, video?.summary_status, fetchFormations]);
-
-  useEffect(() => {
-    if (!video) return;
-    if (video.transcription_status === 'failed') {
-      setAiJobError('Échec de la transcription');
-    } else if (video.summary_status === 'failed') {
-      setAiJobError('Échec de la génération du résumé (vérifiez la connexion API LLM)');
-    } else if (
-      video.transcription_status === 'ready' ||
-      video.summary_status === 'ready'
-    ) {
-      setAiJobError(null);
-    }
-  }, [video?.id, video?.transcription_status, video?.summary_status]);
+  }, [currentVideoId, transcriptionStatus, summaryStatus, fetchFormations]);
 
   useEffect(() => {
     if (!video || video.summary_status !== 'ready' || summary !== null) return;
@@ -208,18 +191,7 @@ export default function Player() {
   }, [video, videoId, summary]);
 
   useEffect(() => {
-    if (!chapterId) {
-      setDocuments([]);
-      return;
-    }
-
-    const chapterFromCatalog = parentFormation?.chapters.find((c) => c.id === chapterId);
-    if (chapterFromCatalog?.documents) {
-      setDocuments(chapterFromCatalog.documents);
-      setDocumentsError(null);
-      setDocumentsLoading(false);
-      return;
-    }
+    if (!chapterId || catalogDocuments) return;
 
     let cancelled = false;
     const loadDocuments = async () => {
@@ -227,10 +199,10 @@ export default function Player() {
       setDocumentsError(null);
       try {
         const docs = await apiService.getChapterDocuments(chapterId);
-        if (!cancelled) setDocuments(docs);
+        if (!cancelled) setFetchedDocuments(docs);
       } catch (err) {
         if (!cancelled) {
-          setDocuments([]);
+          setFetchedDocuments([]);
           setDocumentsError(
             err instanceof Error ? err.message : 'Échec du chargement des documents'
           );
@@ -244,12 +216,12 @@ export default function Player() {
     return () => {
       cancelled = true;
     };
-  }, [chapterId, parentFormation]);
+  }, [chapterId, catalogDocuments]);
 
-  const visibleDocuments = useMemo(
-    () => documents.filter((doc) => doc.video_id === videoId),
-    [documents, videoId]
-  );
+  const visibleDocuments = useMemo(() => {
+    const docs = catalogDocuments ?? (chapterId ? fetchedDocuments : []);
+    return docs.filter((doc) => doc.video_id === videoId);
+  }, [catalogDocuments, chapterId, fetchedDocuments, videoId]);
 
   useEffect(() => {
     if (!videoId) return;
@@ -344,7 +316,7 @@ export default function Player() {
     setAiJobError(null);
     try {
       const updated = await apiService.startTranscription(videoId);
-      setVideo(updated);
+      setOptimisticVideo(updated);
       void fetchFormations(true, true);
     } catch (err) {
       setAiJobError(
@@ -361,7 +333,7 @@ export default function Player() {
     setAiJobError(null);
     try {
       const updated = await apiService.generateVideoSummary(videoId);
-      setVideo(updated);
+      setOptimisticVideo(updated);
       setShowSummary(true);
       void fetchFormations(true, true);
     } catch (err) {
@@ -427,7 +399,12 @@ export default function Player() {
             </IconButton>
             <Box sx={{ minWidth: 0 }}>
               {parentFormation && (
-                <Typography variant="caption" color="text.secondary" display="block" noWrap>
+                <Typography
+                  variant="caption"
+                  color="text.secondary"
+                  noWrap
+                  sx={{ display: 'block' }}
+                >
                   {parentFormation.name}
                 </Typography>
               )}
@@ -621,7 +598,7 @@ export default function Player() {
             video.transcription_status !== 'processing' &&
             video.summary_status !== 'ready')) && (
           <Box sx={{ mb: 3, display: 'flex', flexDirection: 'column', gap: 1 }}>
-            {aiJobError && <Alert severity="error">{aiJobError}</Alert>}
+            {displayedAiError && <Alert severity="error">{displayedAiError}</Alert>}
             {video.transcription_status === 'failed' && (
               <Alert severity="error">Échec de la transcription. Vous pouvez relancer.</Alert>
             )}
