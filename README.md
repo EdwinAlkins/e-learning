@@ -4,7 +4,7 @@
 formations vidéo et audio, suivez la progression, prenez des notes liées au passage de la vidéo ;
 l'IA transcrit les leçons, rédige des résumés et répond aux questions en citant les passages utilisés.
 
-[![Licence](https://img.shields.io/badge/licence-Apache%202.0-blue)](LICENSE)
+[![Licence](https://img.shields.io/badge/licence-AGPL%20v3-blue)](LICENSE)
 [![Documentation](https://img.shields.io/badge/docs-edwinalkins.github.io-informational)](https://edwinalkins.github.io/e-learning/)
 [![Déploiement](https://img.shields.io/badge/d%C3%A9ploiement-Docker%20Compose-2496ED)](#démarrage-rapide)
 [![IA](https://img.shields.io/badge/IA-locale%20ou%20distante-success)](#lia-et-vos-données)
@@ -295,4 +295,4 @@ La valeur est intégrée au build : `docker compose build front && docker compos
 
 ## Licence
 
-[Apache 2.0](LICENSE).
+[GNU AGPL v3](LICENSE).

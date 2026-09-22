@@ -107,4 +107,4 @@ docker run -p 3000:3000 e-learning-front
 
 ## Licence
 
-Projet privé.
+[GNU AGPL v3](../LICENSE), comme le reste du projet.
