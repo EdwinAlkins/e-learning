@@ -31,7 +31,7 @@ class StartSummaryGeneration:
         self._jobs = jobs
         self._publisher = publisher
 
-    async def execute(self, video_id: str) -> VideoDTO:
+    async def execute(self, video_id: str, *, user_id: str | None = None) -> VideoDTO:
         video = await self._videos.get(VideoId.from_string(video_id))
         if video.processing_status != Video.STATUS_READY:
             raise MediaNotReady(video_id, video.processing_status)
@@ -76,6 +76,7 @@ class StartSummaryGeneration:
             self._jobs,
             kind=Job.KIND_SUMMARY,
             video_id=str(video.id),
+            user_id=user_id,
             message="Résumé en file d'attente",
         )
         await publish_compute_job(self._publisher, job)

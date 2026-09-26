@@ -26,6 +26,7 @@ class TranscribeCommand:
 @dataclass(frozen=True, slots=True)
 class GenerateSummaryCommand:
     video_id: str
+    user_id: str | None = None
 
 
 @dataclass(frozen=True, slots=True)
@@ -59,6 +60,7 @@ class IndexFormationCommand:
 class AskFormationCommand:
     formation_id: str
     question: str
+    user_id: str | None = None
 
 
 @dataclass(frozen=True, slots=True)

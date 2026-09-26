@@ -9,8 +9,11 @@ from e_learning.application.content.dto import (
 )
 from e_learning.application.shared.errors import RagEmptyIndexError
 from e_learning.application.shared.rag import ChatPort, EmbeddingPort, VectorStorePort
+from e_learning.application.usage.record import record_llm_usage
 from e_learning.domain.catalog.repository import FormationRepository
 from e_learning.domain.catalog.value_objects import FormationId
+from e_learning.domain.usage.entities import TokenUsage
+from e_learning.domain.usage.repository import TokenUsageRepository
 
 
 class AskFormation:
@@ -20,6 +23,7 @@ class AskFormation:
         embeddings: EmbeddingPort,
         vectors: VectorStorePort,
         chat: ChatPort,
+        usage: TokenUsageRepository,
         *,
         top_k: int,
     ) -> None:
@@ -27,6 +31,7 @@ class AskFormation:
         self._embeddings = embeddings
         self._vectors = vectors
         self._chat = chat
+        self._usage = usage
         self._top_k = top_k
 
     async def execute(self, command: AskFormationCommand) -> AskFormationResult:
@@ -72,8 +77,14 @@ class AskFormation:
                 )
             )
 
-        answer = await self._chat.answer(
+        completion = await self._chat.answer(
             question=question,
             context="\n\n---\n\n".join(context_parts),
         )
-        return AskFormationResult(answer=answer, citations=citations)
+        await record_llm_usage(
+            self._usage,
+            usage=completion.usage,
+            kind=TokenUsage.KIND_CHAT,
+            user_id=command.user_id,
+        )
+        return AskFormationResult(answer=completion.text, citations=citations)

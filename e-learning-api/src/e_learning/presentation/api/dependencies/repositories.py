@@ -14,6 +14,7 @@ from e_learning.domain.catalog.repository import (
     VideoRepository,
 )
 from e_learning.domain.learning.repository import NoteRepository, ProgressRepository
+from e_learning.domain.usage.repository import TokenUsageRepository
 from e_learning.domain.user.repository import UserRepository
 from e_learning.infrastructure.persistence.catalog.repository import (
     SqlAlchemyChapterRepository,
@@ -26,6 +27,7 @@ from e_learning.infrastructure.persistence.learning.repository import (
     SqlAlchemyNoteRepository,
     SqlAlchemyProgressRepository,
 )
+from e_learning.infrastructure.persistence.usage.repository import SqlAlchemyTokenUsageRepository
 from e_learning.infrastructure.persistence.user.repository import SqlAlchemyUserRepository
 from e_learning.presentation.api.dependencies.session import SessionDep
 
@@ -62,6 +64,10 @@ def get_progress_repository(session: SessionDep) -> ProgressRepository:
     return SqlAlchemyProgressRepository(session)
 
 
+def get_token_usage_repository(session: SessionDep) -> TokenUsageRepository:
+    return SqlAlchemyTokenUsageRepository(session)
+
+
 UserRepositoryDep = Annotated[UserRepository, Depends(get_user_repository)]
 FormationRepositoryDep = Annotated[FormationRepository, Depends(get_formation_repository)]
 ChapterRepositoryDep = Annotated[ChapterRepository, Depends(get_chapter_repository)]
@@ -70,3 +76,4 @@ DocumentRepositoryDep = Annotated[DocumentRepository, Depends(get_document_repos
 JobRepositoryDep = Annotated[JobRepository, Depends(get_job_repository)]
 NoteRepositoryDep = Annotated[NoteRepository, Depends(get_note_repository)]
 ProgressRepositoryDep = Annotated[ProgressRepository, Depends(get_progress_repository)]
+TokenUsageRepositoryDep = Annotated[TokenUsageRepository, Depends(get_token_usage_repository)]

@@ -36,6 +36,7 @@ The API client (`src/services/api.ts`) falls back to `http://localhost:8000` if 
 | `/studio` | Liste formations (édition) |
 | `/studio/formation/new` | Créer une formation |
 | `/studio/formation/[id]` | Éditeur formation / chapitres / vidéos |
+| `/usage` | Consommation IA de l'utilisateur (`GET /usage?days=`) |
 
 All pages are Client Components (`'use client'`). There is no server-side rendering in practice.
 

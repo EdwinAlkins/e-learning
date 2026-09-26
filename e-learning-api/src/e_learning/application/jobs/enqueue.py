@@ -17,6 +17,7 @@ async def publish_compute_job(publisher: JobPublisherPort, job: JobDTO) -> None:
         kind=job.kind,
         video_id=job.video_id,
         formation_id=job.formation_id,
+        user_id=job.user_id,
     )
     logger.debug(
         "Enqueue job %s kind=%s routing_key=%s video_id=%s formation_id=%s",

@@ -22,6 +22,7 @@ import {
   LightMode as LightModeIcon,
   DarkMode as DarkModeIcon,
   SettingsBrightness as SettingsBrightnessIcon,
+  Insights as InsightsIcon,
 } from '@mui/icons-material';
 import { useAuthStore } from '../stores/auth.store';
 import { useThemeStore, type ThemeMode } from '../stores/theme.store';
@@ -120,6 +121,21 @@ export default function Header() {
             <Button color="inherit" onClick={() => router.push('/studio')}>
               Studio
             </Button>
+            <Button
+              color="inherit"
+              onClick={() => router.push('/usage')}
+              sx={{ display: { xs: 'none', sm: 'inline-flex' } }}
+            >
+              Consommation
+            </Button>
+            <IconButton
+              color="inherit"
+              onClick={() => router.push('/usage')}
+              aria-label="Consommation IA"
+              sx={{ display: { xs: 'inline-flex', sm: 'none' } }}
+            >
+              <InsightsIcon />
+            </IconButton>
             <IconButton color="inherit" onClick={handleThemeMenuOpen} aria-label="Changer le thème">
               {getThemeIcon()}
             </IconButton>

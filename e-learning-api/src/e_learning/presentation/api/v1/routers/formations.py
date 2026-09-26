@@ -52,6 +52,7 @@ from e_learning.presentation.api.dependencies import (
     get_reorder_videos,
     get_start_formation_index,
 )
+from e_learning.presentation.api.dependencies.auth import CurrentUserIdDep
 from e_learning.presentation.api.dependencies.queries import CatalogQueryDep
 from e_learning.presentation.api.uploads import read_upload_limited
 from e_learning.presentation.api.v1.schemas.common import (
@@ -95,10 +96,11 @@ async def get_formation(
 async def ask_formation(
     formation_id: str,
     payload: AskFormationRequest,
+    user_id: CurrentUserIdDep,
     use_case: Annotated[AskFormation, Depends(get_ask_formation)],
 ) -> AskFormationResponse:
     result = await use_case.execute(
-        AskFormationCommand(formation_id=formation_id, question=payload.question)
+        AskFormationCommand(formation_id=formation_id, question=payload.question, user_id=user_id)
     )
     return AskFormationResponse(
         answer=result.answer,

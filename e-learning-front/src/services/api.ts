@@ -23,6 +23,7 @@ import type {
   PatchChapterPayload,
   PatchVideoPayload,
   MoveVideoRequest,
+  UserTokenUsage,
 } from '../types';
 
 export const API_BASE_URL = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:8000';
@@ -147,6 +148,11 @@ export const apiService = {
   getFormationsProgress: async (): Promise<Record<string, FormationProgress>> => {
     const response = await api.get<FormationsProgressResponse>('/progress/formations');
     return response.data.progress ?? {};
+  },
+
+  getTokenUsage: async (days: number): Promise<UserTokenUsage> => {
+    const response = await api.get<UserTokenUsage>('/usage', { params: { days } });
+    return response.data;
   },
 
   getNotes: async (videoId: string): Promise<Note[]> => {

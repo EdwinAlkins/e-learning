@@ -32,6 +32,8 @@ from e_learning.domain.learning.entities import Note, Progress
 from e_learning.domain.learning.exceptions import NoteNotFound
 from e_learning.domain.learning.repository import NoteRepository, ProgressRepository
 from e_learning.domain.learning.value_objects import NoteId, ProgressId
+from e_learning.domain.usage.entities import TokenUsage
+from e_learning.domain.usage.repository import TokenUsageRepository
 from e_learning.domain.user.entities import User
 from e_learning.domain.user.exceptions import UserNotFound
 from e_learning.domain.user.repository import UserRepository
@@ -46,6 +48,14 @@ class RecordingPublisher(JobPublisherPort):
 
     async def publish(self, message: ComputeJobMessage) -> None:
         self.published.append(message)
+
+
+class FakeTokenUsageRepository(TokenUsageRepository):
+    def __init__(self) -> None:
+        self.items: list[TokenUsage] = []
+
+    async def add(self, usage: TokenUsage) -> None:
+        self.items.append(usage)
 
 
 class FakeUserRepository(UserRepository):

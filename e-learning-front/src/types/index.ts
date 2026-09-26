@@ -118,3 +118,27 @@ export interface AskFormationResponse {
   answer: string;
   citations: RagCitation[];
 }
+
+export interface TokenTotals {
+  calls: number;
+  prompt_tokens: number;
+  completion_tokens: number;
+  total_tokens: number;
+}
+
+export interface TokenBreakdown extends TokenTotals {
+  key: string;
+}
+
+export interface DailyTokenUsage extends TokenTotals {
+  day: string;
+}
+
+export interface UserTokenUsage {
+  days: number;
+  period: TokenTotals;
+  all_time: TokenTotals;
+  by_kind: TokenBreakdown[];
+  by_model: TokenBreakdown[];
+  daily: DailyTokenUsage[];
+}

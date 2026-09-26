@@ -12,6 +12,7 @@ from e_learning.infrastructure.ai.media_files import FilesystemMediaFiles
 from e_learning.infrastructure.ai.summary import GeminiSummaryAdapter, OpenAPISummaryAdapter
 from e_learning.infrastructure.config import SummaryStrategyName, get_settings
 from e_learning.infrastructure.persistence.catalog.repository import SqlAlchemyVideoRepository
+from e_learning.infrastructure.persistence.usage.repository import SqlAlchemyTokenUsageRepository
 from e_learning.presentation.cli.session import transactional_session
 
 
@@ -39,7 +40,13 @@ async def _summary(video_id: str) -> None:
         else OpenAPISummaryAdapter(settings)
     )
     async with transactional_session() as session:
-        use_case = GenerateSummary(SqlAlchemyVideoRepository(session), media, summary_port)
+        # Pas d'utilisateur en CLI : consommation journalisée sans attribution
+        use_case = GenerateSummary(
+            SqlAlchemyVideoRepository(session),
+            media,
+            summary_port,
+            SqlAlchemyTokenUsageRepository(session),
+        )
         dto = await use_case.execute(GenerateSummaryCommand(video_id=video_id))
     preview = dto.summary[:500] + ("…" if len(dto.summary) > 500 else "")
     click.echo(preview)

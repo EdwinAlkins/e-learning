@@ -29,6 +29,7 @@ from e_learning.presentation.api.dependencies import (
     get_start_transcription,
     get_update_summary,
 )
+from e_learning.presentation.api.dependencies.auth import CurrentUserIdDep
 from e_learning.presentation.api.http_range import parse_bytes_range
 from e_learning.presentation.api.v1.schemas.common import (
     SummaryResponse,
@@ -132,9 +133,10 @@ async def update_summary(
 )
 async def generate_summary(
     video_id: str,
+    user_id: CurrentUserIdDep,
     use_case: Annotated[StartSummaryGeneration, Depends(get_start_summary_generation)],
 ) -> VideoResponse:
-    dto = await use_case.execute(video_id)
+    dto = await use_case.execute(video_id, user_id=user_id)
     return VideoResponse.from_dto(dto)
 
 

@@ -19,6 +19,9 @@ from sqlalchemy.orm import Mapped, mapped_column
 
 from e_learning.infrastructure.persistence.database import Base
 
+# Enregistre la table cible des FK ``users.id`` quel que soit le process (worker, CLI)
+from e_learning.infrastructure.persistence.user import models as _user_models  # noqa: F401
+
 
 class NoteModel(Base):
     __tablename__ = "notes"

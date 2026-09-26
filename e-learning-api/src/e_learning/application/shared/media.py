@@ -6,6 +6,8 @@ from abc import ABC, abstractmethod
 from collections.abc import Callable
 from pathlib import Path
 
+from e_learning.application.shared.llm import LlmCompletion
+
 
 class MediaFilePort(ABC):
     """Lecture/écriture des sidecars (``.md``, ``.txt``) à côté d'une vidéo."""
@@ -37,7 +39,7 @@ class TranscriptionPort(ABC):
 
 class SummaryPort(ABC):
     @abstractmethod
-    async def generate(self, transcription: str) -> str: ...
+    async def generate(self, transcription: str) -> LlmCompletion: ...
 
 
 class MediaConvertPort(ABC):

@@ -5,6 +5,7 @@ from __future__ import annotations
 from datetime import UTC, datetime
 
 from e_learning.domain.catalog.value_objects import FormationId, JobId, VideoId
+from e_learning.domain.user.value_objects import UserId
 
 
 def _now() -> datetime:
@@ -41,6 +42,7 @@ class Job:
         started_at: datetime | None,
         finished_at: datetime | None,
         updated_at: datetime,
+        user_id: UserId | None = None,
     ) -> None:
         self.id = id
         self.kind = kind
@@ -54,6 +56,7 @@ class Job:
         self.started_at = started_at
         self.finished_at = finished_at
         self.updated_at = updated_at
+        self.user_id = user_id
 
     @classmethod
     def create(
@@ -62,6 +65,7 @@ class Job:
         kind: str,
         video_id: VideoId | None = None,
         formation_id: FormationId | None = None,
+        user_id: UserId | None = None,
         message: str = "",
     ) -> Job:
         now = _now()
@@ -78,6 +82,7 @@ class Job:
             started_at=None,
             finished_at=None,
             updated_at=now,
+            user_id=user_id,
         )
 
     @property

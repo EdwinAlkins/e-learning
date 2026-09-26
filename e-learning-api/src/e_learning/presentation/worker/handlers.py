@@ -52,6 +52,7 @@ from e_learning.infrastructure.persistence.catalog.repository import (
     SqlAlchemyJobRepository,
     SqlAlchemyVideoRepository,
 )
+from e_learning.infrastructure.persistence.usage.repository import SqlAlchemyTokenUsageRepository
 
 logger = logging.getLogger("e_learning.worker")
 
@@ -216,8 +217,16 @@ async def handle_summary(deps: WorkerDeps, message: ComputeJobMessage) -> None:
     async with session_factory() as session:
         videos = SqlAlchemyVideoRepository(session)
         try:
-            use_case = GenerateSummary(videos, deps.media_files, summary_port)
-            await use_case.execute(GenerateSummaryCommand(video_id=video_id), progress=reporter)
+            use_case = GenerateSummary(
+                videos,
+                deps.media_files,
+                summary_port,
+                SqlAlchemyTokenUsageRepository(session),
+            )
+            await use_case.execute(
+                GenerateSummaryCommand(video_id=video_id, user_id=message.user_id),
+                progress=reporter,
+            )
             video = await videos.get(VideoId.from_string(video_id))
             video.set_summary_status(Video.AI_READY)
             if video.transcription_status != Video.AI_READY:
@@ -555,6 +564,7 @@ async def recover_and_republish(deps: WorkerDeps) -> None:
                         kind=job.kind,
                         video_id=str(job.video_id) if job.video_id else None,
                         formation_id=str(job.formation_id) if job.formation_id else None,
+                        user_id=str(job.user_id) if job.user_id else None,
                     )
                 )
 

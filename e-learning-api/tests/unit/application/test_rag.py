@@ -18,6 +18,7 @@ from e_learning.application.content.use_cases.index_formation import IndexFormat
 from e_learning.application.content.use_cases.index_video_content import IndexVideoContent
 from e_learning.application.shared.document_text import DocumentTextExtractor
 from e_learning.application.shared.errors import RagEmptyIndexError
+from e_learning.application.shared.llm import LlmCompletion, LlmUsage
 from e_learning.application.shared.media import MediaFilePort
 from e_learning.application.shared.rag import (
     ChatPort,
@@ -41,6 +42,7 @@ from tests.unit.application._fakes import (
     FakeChapterRepository,
     FakeDocumentRepository,
     FakeFormationRepository,
+    FakeTokenUsageRepository,
     FakeVideoRepository,
 )
 from tests.unit.application.test_use_cases import FakeCatalogStorage
@@ -110,8 +112,14 @@ class FakeVectors(VectorStorePort):
 
 
 class FakeChat(ChatPort):
-    async def answer(self, *, question: str, context: str) -> str:
-        return f"Réponse à « {question} » avec {len(context)} chars de contexte"
+    def __init__(self, usage: LlmUsage | None = None) -> None:
+        self._usage = usage
+
+    async def answer(self, *, question: str, context: str) -> LlmCompletion:
+        return LlmCompletion(
+            text=f"Réponse à « {question} » avec {len(context)} chars de contexte",
+            usage=self._usage,
+        )
 
 
 class FakeMediaFiles(MediaFilePort):
@@ -190,6 +198,7 @@ async def test_ask_formation_returns_citations_filtered() -> None:
         FakeEmbeddings(),
         FakeVectors(hits=hits, count=2),
         FakeChat(),
+        FakeTokenUsageRepository(),
         top_k=6,
     )
     result = await use_case.execute(
@@ -233,6 +242,7 @@ async def test_ask_formation_mixed_video_and_document_citations() -> None:
         FakeEmbeddings(),
         FakeVectors(hits=hits, count=2),
         FakeChat(),
+        FakeTokenUsageRepository(),
         top_k=6,
     ).execute(AskFormationCommand(formation_id=fid, question="Explique"))
     assert len(result.citations) == 2
@@ -250,6 +260,7 @@ async def test_ask_formation_empty_index_raises() -> None:
         FakeEmbeddings(),
         FakeVectors(count=0),
         FakeChat(),
+        FakeTokenUsageRepository(),
         top_k=6,
     )
     with pytest.raises(RagEmptyIndexError, match="Aucun contenu indexé"):

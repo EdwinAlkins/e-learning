@@ -3,7 +3,9 @@
 from __future__ import annotations
 
 from e_learning.application.shared.errors import RagError
+from e_learning.application.shared.llm import LlmCompletion
 from e_learning.application.shared.rag import ChatPort
+from e_learning.infrastructure.ai.usage import usage_from_response
 from e_learning.infrastructure.config import Settings
 
 
@@ -11,7 +13,7 @@ class OpenAIChatAdapter(ChatPort):
     def __init__(self, settings: Settings) -> None:
         self._settings = settings
 
-    async def answer(self, *, question: str, context: str) -> str:
+    async def answer(self, *, question: str, context: str) -> LlmCompletion:
         try:
             from openai import AsyncOpenAI
         except ImportError as exc:
@@ -42,7 +44,10 @@ class OpenAIChatAdapter(ChatPort):
             content = response.choices[0].message.content
             if not content:
                 raise RagError("Réponse LLM vide.")
-            return content.strip()
+            return LlmCompletion(
+                text=content.strip(),
+                usage=usage_from_response(response, fallback_model=self._settings.openai_model),
+            )
         except RagError:
             raise
         except Exception as exc:  # noqa: BLE001

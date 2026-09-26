@@ -25,6 +25,7 @@ from e_learning.presentation.api.dependencies.repositories import (
     DocumentRepositoryDep,
     FormationRepositoryDep,
     JobRepositoryDep,
+    TokenUsageRepositoryDep,
     VideoRepositoryDep,
 )
 from e_learning.presentation.api.dependencies.storage import (
@@ -47,9 +48,12 @@ def get_update_summary(videos: VideoRepositoryDep, media_files: MediaFilesDep) -
 
 
 def get_generate_summary(
-    videos: VideoRepositoryDep, media_files: MediaFilesDep, summary: SummaryPortDep
+    videos: VideoRepositoryDep,
+    media_files: MediaFilesDep,
+    summary: SummaryPortDep,
+    usage: TokenUsageRepositoryDep,
 ) -> GenerateSummary:
-    return GenerateSummary(videos, media_files, summary)
+    return GenerateSummary(videos, media_files, summary, usage)
 
 
 def get_transcribe_video(
@@ -155,9 +159,7 @@ def get_index_formation(
     index_document = get_index_document_content(
         request, documents, chapters, formations, storage, embeddings, vectors
     )
-    return IndexFormation(
-        formations, videos, chapters, documents, index_video, index_document
-    )
+    return IndexFormation(formations, videos, chapters, documents, index_video, index_document)
 
 
 def get_ask_formation(
@@ -166,11 +168,13 @@ def get_ask_formation(
     embeddings: EmbeddingPortDep,
     vectors: VectorStoreDep,
     chat: ChatPortDep,
+    usage: TokenUsageRepositoryDep,
 ) -> AskFormation:
     return AskFormation(
         formations,
         embeddings,
         vectors,
         chat,
+        usage,
         top_k=request.app.state.settings.rag_top_k,
     )

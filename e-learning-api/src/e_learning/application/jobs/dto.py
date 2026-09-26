@@ -41,6 +41,8 @@ class ComputeJobMessage:
     kind: str
     video_id: str | None = None
     formation_id: str | None = None
+    user_id: str | None = None
+    """Utilisateur à l'origine du job (attribution de la consommation LLM)."""
 
     def __post_init__(self) -> None:
         if not self.job_id or not str(self.job_id).strip():
@@ -75,9 +77,11 @@ class ComputeJobMessage:
             raise ValueError(f"Payload job incomplet, champ manquant : {exc.args[0]}") from exc
         video_id = data.get("video_id")
         formation_id = data.get("formation_id")
+        user_id = data.get("user_id")
         return cls(
             job_id=str(job_id).strip(),
             kind=str(kind).strip(),
             video_id=str(video_id).strip() if video_id else None,
             formation_id=str(formation_id).strip() if formation_id else None,
+            user_id=str(user_id).strip() if user_id else None,
         )

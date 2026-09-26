@@ -5,6 +5,8 @@ from __future__ import annotations
 from abc import ABC, abstractmethod
 from dataclasses import dataclass
 
+from e_learning.application.shared.llm import LlmCompletion
+
 
 @dataclass(frozen=True, slots=True)
 class RagChunk:
@@ -66,4 +68,4 @@ class VectorStorePort(ABC):
 
 class ChatPort(ABC):
     @abstractmethod
-    async def answer(self, *, question: str, context: str) -> str: ...
+    async def answer(self, *, question: str, context: str) -> LlmCompletion: ...

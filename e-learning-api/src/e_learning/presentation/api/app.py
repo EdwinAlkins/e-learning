@@ -34,7 +34,15 @@ from e_learning.infrastructure.persistence.database import (
 )
 from e_learning.infrastructure.storage.filesystem_catalog import FilesystemCatalogStorage
 from e_learning.presentation.api.error_handlers import register_error_handlers
-from e_learning.presentation.api.v1.routers import auth, docs, formations, notes, progress, videos
+from e_learning.presentation.api.v1.routers import (
+    auth,
+    docs,
+    formations,
+    notes,
+    progress,
+    usage,
+    videos,
+)
 
 logger = logging.getLogger("e_learning")
 
@@ -143,6 +151,7 @@ def create_app(settings: Settings | None = None) -> FastAPI:
     app.include_router(videos.router)
     app.include_router(notes.router)
     app.include_router(progress.router)
+    app.include_router(usage.router)
     app.include_router(docs.router)
 
     @app.get("/", tags=["health"])

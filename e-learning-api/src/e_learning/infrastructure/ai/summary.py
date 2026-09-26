@@ -3,7 +3,9 @@
 from __future__ import annotations
 
 from e_learning.application.shared.errors import SummaryGenerationError
+from e_learning.application.shared.llm import LlmCompletion
 from e_learning.application.shared.media import SummaryPort
+from e_learning.infrastructure.ai.usage import usage_from_response
 from e_learning.infrastructure.config import Settings
 
 
@@ -11,7 +13,7 @@ class OpenAPISummaryAdapter(SummaryPort):
     def __init__(self, settings: Settings) -> None:
         self._settings = settings
 
-    async def generate(self, transcription: str) -> str:
+    async def generate(self, transcription: str) -> LlmCompletion:
         try:
             from openai import AsyncOpenAI
         except ImportError as exc:
@@ -42,7 +44,10 @@ class OpenAPISummaryAdapter(SummaryPort):
             content = response.choices[0].message.content
             if not content:
                 raise SummaryGenerationError("Réponse LLM vide.")
-            return content
+            return LlmCompletion(
+                text=content,
+                usage=usage_from_response(response, fallback_model=self._settings.openai_model),
+            )
         except SummaryGenerationError:
             raise
         except Exception as exc:  # noqa: BLE001
@@ -50,7 +55,7 @@ class OpenAPISummaryAdapter(SummaryPort):
 
 
 class GeminiSummaryAdapter(SummaryPort):
-    async def generate(self, transcription: str) -> str:
+    async def generate(self, transcription: str) -> LlmCompletion:
         import asyncio
         import tempfile
         from pathlib import Path
@@ -71,6 +76,7 @@ class GeminiSummaryAdapter(SummaryPort):
             stdout, stderr = await proc.communicate()
             if proc.returncode != 0:
                 raise SummaryGenerationError(stderr.decode() or "gemini-cli a échoué")
-            return stdout.decode().strip()
+            # gemini-cli ne remonte pas la consommation de tokens
+            return LlmCompletion(text=stdout.decode().strip())
         finally:
             tmp_path.unlink(missing_ok=True)

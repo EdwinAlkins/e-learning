@@ -5,7 +5,7 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 ## Overview
 
 API e-learning en **architecture hexagonale (ports & adapters)** et **DDD tactique**.
-Bounded contexts : `user`, `catalog`, `learning`, `content`.
+Bounded contexts : `user`, `catalog`, `learning`, `content`, `usage`.
 
 Stack: FastAPI · SQLAlchemy 2 async · PostgreSQL (asyncpg) · Pydantic v2 · pytest · ruff · mypy · uv · import-linter.
 Python **≥ 3.14** (UUIDv7 stdlib).
@@ -68,6 +68,7 @@ Package `src/e_learning/` :
 | `catalog` | Formation, Chapter, Video, Document, Job — `position` en base, slugs FS stables |
 | `learning` | Note, Progress (FK vers user + video) |
 | `content` | Transcription / résumé / conversion / RAG |
+| `usage` | TokenUsage — journal append-only des tokens LLM par utilisateur (`token_usage`) |
 
 ### Auth
 
@@ -86,6 +87,15 @@ OpenAPI UI : `/api-docs` (debug only).
 Les jobs lourds (conversion, transcription, résumé, index RAG) sont publiés sur RabbitMQ
 (`JobPublisherPort`) après commit HTTP, et exécutés par le process `e-learning-worker`
 (prefetch paramétrable via `APP_WORKER_PREFETCH`, défaut 3).
+
+### Consommation LLM
+
+`ChatPort.answer` / `SummaryPort.generate` renvoient un `LlmCompletion` (texte + `LlmUsage`
+optionnel). Les use cases `AskFormation` et `GenerateSummary` journalisent l'usage via
+`record_llm_usage` dans la même transaction. Le `user_id` du demandeur d'un résumé voyage
+dans `Job.user_id` et `ComputeJobMessage.user_id` jusqu'au worker. Les résumés lancés en CLI
+sont enregistrés avec `user_id = NULL`. Non comptés : gemini-cli (pas de décompte), embeddings.
+Lecture : `GET /usage?days=30` (1–365) — totaux fenêtre + cumul, détail par type / modèle / jour (UTC).
 
 ## Configuration (`APP_` prefix)
 

@@ -18,6 +18,7 @@ if str(_SRC) not in sys.path:
 
 import e_learning.infrastructure.persistence.catalog.models  # noqa: E402, F401
 import e_learning.infrastructure.persistence.learning.models  # noqa: E402, F401
+import e_learning.infrastructure.persistence.usage.models  # noqa: E402, F401
 import e_learning.infrastructure.persistence.user.models  # noqa: E402, F401
 from e_learning.infrastructure.config import get_settings  # noqa: E402
 from e_learning.infrastructure.persistence.database import Base  # noqa: E402

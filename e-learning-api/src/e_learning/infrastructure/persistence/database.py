@@ -45,6 +45,7 @@ async def init_db(engine: AsyncEngine) -> None:
     from e_learning.infrastructure.persistence.learning import (
         models as learning_models,  # noqa: F401
     )
+    from e_learning.infrastructure.persistence.usage import models as usage_models  # noqa: F401
     from e_learning.infrastructure.persistence.user import models as user_models  # noqa: F401
 
     async with engine.begin() as conn:

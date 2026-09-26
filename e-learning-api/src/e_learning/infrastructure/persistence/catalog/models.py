@@ -22,6 +22,9 @@ from sqlalchemy.orm import Mapped, mapped_column, relationship
 
 from e_learning.infrastructure.persistence.database import Base
 
+# Enregistre la table cible des FK ``users.id`` quel que soit le process (worker, CLI)
+from e_learning.infrastructure.persistence.user import models as _user_models  # noqa: F401
+
 if TYPE_CHECKING:
     pass
 
@@ -150,6 +153,9 @@ class JobModel(Base):
     )
     formation_id: Mapped[uuid.UUID | None] = mapped_column(
         Uuid, ForeignKey("formations.id", ondelete="SET NULL"), nullable=True, index=True
+    )
+    user_id: Mapped[uuid.UUID | None] = mapped_column(
+        Uuid, ForeignKey("users.id", ondelete="SET NULL"), nullable=True
     )
     created_at: Mapped[datetime] = mapped_column(
         DateTime(timezone=True), nullable=False, server_default=func.now()

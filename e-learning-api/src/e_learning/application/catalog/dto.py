@@ -17,6 +17,7 @@ class JobDTO:
     message: str
     video_id: str | None = None
     formation_id: str | None = None
+    user_id: str | None = None
 
     @classmethod
     def from_entity(cls, job: Job) -> JobDTO:
@@ -28,6 +29,7 @@ class JobDTO:
             message=job.message,
             video_id=str(job.video_id) if job.video_id else None,
             formation_id=str(job.formation_id) if job.formation_id else None,
+            user_id=str(job.user_id) if job.user_id else None,
         )
 
 

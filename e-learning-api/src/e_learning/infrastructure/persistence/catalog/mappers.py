@@ -19,6 +19,7 @@ from e_learning.domain.catalog.value_objects import (
     VideoId,
     VideoTitle,
 )
+from e_learning.domain.user.value_objects import UserId
 from e_learning.infrastructure.persistence.catalog.models import (
     ChapterModel,
     DocumentModel,
@@ -188,6 +189,7 @@ def job_to_model(entity: Job) -> JobModel:
         error=entity.error,
         video_id=entity.video_id.value if entity.video_id else None,
         formation_id=entity.formation_id.value if entity.formation_id else None,
+        user_id=entity.user_id.value if entity.user_id else None,
         created_at=entity.created_at,
         started_at=entity.started_at,
         finished_at=entity.finished_at,
@@ -203,6 +205,7 @@ def apply_job(model: JobModel, entity: Job) -> None:
     model.error = entity.error
     model.video_id = entity.video_id.value if entity.video_id else None
     model.formation_id = entity.formation_id.value if entity.formation_id else None
+    model.user_id = entity.user_id.value if entity.user_id else None
     model.started_at = entity.started_at
     model.finished_at = entity.finished_at
     model.updated_at = entity.updated_at
@@ -222,4 +225,5 @@ def job_to_domain(model: JobModel) -> Job:
         started_at=as_utc(model.started_at) if model.started_at else None,
         finished_at=as_utc(model.finished_at) if model.finished_at else None,
         updated_at=as_utc(model.updated_at),
+        user_id=UserId(model.user_id) if model.user_id else None,
     )
