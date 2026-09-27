@@ -1,4 +1,4 @@
-"""Adaptateurs de génération de résumé."""
+"""Adaptateur de génération de résumé (API OpenAI-compatible)."""
 
 from __future__ import annotations
 
@@ -52,31 +52,3 @@ class OpenAPISummaryAdapter(SummaryPort):
             raise
         except Exception as exc:  # noqa: BLE001
             raise SummaryGenerationError(str(exc)) from exc
-
-
-class GeminiSummaryAdapter(SummaryPort):
-    async def generate(self, transcription: str) -> LlmCompletion:
-        import asyncio
-        import tempfile
-        from pathlib import Path
-
-        with tempfile.NamedTemporaryFile("w", suffix=".txt", delete=False, encoding="utf-8") as tmp:
-            tmp.write(transcription)
-            tmp_path = Path(tmp.name)
-        try:
-            proc = await asyncio.create_subprocess_exec(
-                "npx",
-                "-y",
-                "@google/gemini-cli",
-                "-p",
-                f"Résume en markdown pédagogique le fichier {tmp_path}",
-                stdout=asyncio.subprocess.PIPE,
-                stderr=asyncio.subprocess.PIPE,
-            )
-            stdout, stderr = await proc.communicate()
-            if proc.returncode != 0:
-                raise SummaryGenerationError(stderr.decode() or "gemini-cli a échoué")
-            # gemini-cli ne remonte pas la consommation de tokens
-            return LlmCompletion(text=stdout.decode().strip())
-        finally:
-            tmp_path.unlink(missing_ok=True)

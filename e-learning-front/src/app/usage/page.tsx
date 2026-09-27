@@ -434,8 +434,8 @@ export default function UsagePage() {
 
             <Typography variant="caption" color="text.secondary">
               Seuls les appels qui renvoient un décompte de tokens sont comptés : l&apos;assistant
-              et les résumés via l&apos;API OpenAI-compatible. Les résumés Gemini CLI et les
-              embeddings ne sont pas comptabilisés.
+              et les résumés via l&apos;API OpenAI-compatible. Les embeddings ne sont pas
+              comptabilisés.
             </Typography>
           </Box>
         )}

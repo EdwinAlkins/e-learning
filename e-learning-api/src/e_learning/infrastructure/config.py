@@ -18,11 +18,6 @@ class LogLevel(StrEnum):
     CRITICAL = "CRITICAL"
 
 
-class SummaryStrategyName(StrEnum):
-    OPENAPI = "openapi"
-    GEMINI = "gemini"
-
-
 # Valeur d'exemple de ``.env.template`` : refusée hors mode debug.
 INSECURE_DEFAULT_SECRET = "changethis"
 SECRET_KEY_MIN_LENGTH = 32
@@ -56,7 +51,6 @@ class Settings(BaseSettings):
     openai_base_url: str = "http://localhost:1234/v1"
     openai_api_key: SecretStr = SecretStr("lm-studio")
     openai_model: str = "openapi/gpt-oss-20b"
-    summary_strategy: SummaryStrategyName = SummaryStrategyName.OPENAPI
     max_upload_size: int = 500 * 1024 * 1024
     # RAG (Qdrant + embeddings)
     qdrant_url: str = "http://localhost:6333"

@@ -14,7 +14,7 @@ class LlmUsage:
 
 @dataclass(frozen=True, slots=True)
 class LlmCompletion:
-    """``usage`` vaut ``None`` quand le fournisseur ne remonte pas les tokens (gemini-cli)."""
+    """``usage`` vaut ``None`` quand le serveur ne renvoie pas le bloc ``usage``."""
 
     text: str
     usage: LlmUsage | None = None

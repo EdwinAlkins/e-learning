@@ -111,7 +111,7 @@ Les jobs lourds (conversion, transcription, résumé, index RAG) sont publiés s
 optionnel). Les use cases `AskFormation` et `GenerateSummary` journalisent l'usage via
 `record_llm_usage` dans la même transaction. Le `user_id` du demandeur d'un résumé voyage
 dans `Job.user_id` et `ComputeJobMessage.user_id` jusqu'au worker. Les résumés lancés en CLI
-sont enregistrés avec `user_id = NULL`. Non comptés : gemini-cli (pas de décompte), embeddings.
+sont enregistrés avec `user_id = NULL`. Non comptés : embeddings, et les appels dont le serveur ne renvoie pas `usage`.
 Lecture : `GET /usage?days=30` (1–365) — totaux fenêtre + cumul, détail par type / modèle / jour (UTC).
 
 ## Configuration (`APP_` prefix)
@@ -123,7 +123,6 @@ Lecture : `GET /usage?days=30` (1–365) — totaux fenêtre + cumul, détail pa
 | `APP_DEBUG` | `false` | docs UI ; tolère les secrets d'exemple (avertissement) |
 | `APP_INIT_DB` | `false` | `create_all` au boot |
 | `APP_RECONCILE_ON_STARTUP` | `false` | reconcile FS↔DB au boot (sinon `e-learning-cli reconcile`) |
-| `APP_SUMMARY_STRATEGY` | `openapi` | `openapi` \| `gemini` |
 | `APP_RABBITMQ_URL` | `amqp://guest:guest@localhost:5672/` | Broker jobs |
 | `APP_RABBITMQ_EXCHANGE` | `elearning_jobs` | Exchange DIRECT |
 | `APP_WORKER_PREFETCH` | `3` | Concurrence max par process worker |

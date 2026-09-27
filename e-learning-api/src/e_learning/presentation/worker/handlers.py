@@ -36,9 +36,9 @@ from e_learning.domain.catalog.entities import Video
 from e_learning.domain.catalog.job import Job
 from e_learning.domain.catalog.value_objects import JobId, VideoId
 from e_learning.infrastructure.ai.document_text import FilesystemDocumentTextExtractor
-from e_learning.infrastructure.ai.summary import GeminiSummaryAdapter, OpenAPISummaryAdapter
+from e_learning.infrastructure.ai.summary import OpenAPISummaryAdapter
 from e_learning.infrastructure.ai.whisper_transcription import WhisperTranscriptionAdapter
-from e_learning.infrastructure.config import Settings, SummaryStrategyName
+from e_learning.infrastructure.config import Settings
 from e_learning.infrastructure.jobs.progress import (
     DbJobProgressReporter,
     mark_job_failed,
@@ -205,11 +205,7 @@ async def handle_summary(deps: WorkerDeps, message: ComputeJobMessage) -> None:
     video_id = message.video_id
     job_id = message.job_id
 
-    summary_port: SummaryPort
-    if settings.summary_strategy is SummaryStrategyName.GEMINI:
-        summary_port = GeminiSummaryAdapter()
-    else:
-        summary_port = OpenAPISummaryAdapter(settings)
+    summary_port: SummaryPort = OpenAPISummaryAdapter(settings)
 
     await mark_job_running(session_factory, job_id, message="Génération du résumé…")
     reporter = DbJobProgressReporter(session_factory, job_id)

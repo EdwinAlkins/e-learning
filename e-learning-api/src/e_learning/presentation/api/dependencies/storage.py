@@ -14,9 +14,8 @@ from e_learning.application.shared.media import (
 )
 from e_learning.application.shared.rag import ChatPort, EmbeddingPort, VectorStorePort
 from e_learning.application.shared.storage import CatalogStoragePort
-from e_learning.infrastructure.ai.summary import GeminiSummaryAdapter, OpenAPISummaryAdapter
+from e_learning.infrastructure.ai.summary import OpenAPISummaryAdapter
 from e_learning.infrastructure.ai.whisper_transcription import WhisperTranscriptionAdapter
-from e_learning.infrastructure.config import SummaryStrategyName
 
 
 def get_catalog_storage(request: Request) -> CatalogStoragePort:
@@ -36,10 +35,7 @@ def get_transcription_port() -> TranscriptionPort:
 
 
 def get_summary_port(request: Request) -> SummaryPort:
-    settings = request.app.state.settings
-    if settings.summary_strategy is SummaryStrategyName.GEMINI:
-        return GeminiSummaryAdapter()
-    return OpenAPISummaryAdapter(settings)
+    return OpenAPISummaryAdapter(request.app.state.settings)
 
 
 def get_embedding_port(request: Request) -> EmbeddingPort:

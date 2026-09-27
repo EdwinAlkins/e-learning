@@ -9,8 +9,8 @@ import click
 from e_learning.application.content.dto import GenerateSummaryCommand
 from e_learning.application.content.use_cases.generate_summary import GenerateSummary
 from e_learning.infrastructure.ai.media_files import FilesystemMediaFiles
-from e_learning.infrastructure.ai.summary import GeminiSummaryAdapter, OpenAPISummaryAdapter
-from e_learning.infrastructure.config import SummaryStrategyName, get_settings
+from e_learning.infrastructure.ai.summary import OpenAPISummaryAdapter
+from e_learning.infrastructure.config import get_settings
 from e_learning.infrastructure.persistence.catalog.repository import SqlAlchemyVideoRepository
 from e_learning.infrastructure.persistence.usage.repository import SqlAlchemyTokenUsageRepository
 from e_learning.presentation.cli.session import transactional_session
@@ -34,11 +34,7 @@ def resume_cmd(video_id: str) -> None:
 async def _summary(video_id: str) -> None:
     settings = get_settings()
     media = FilesystemMediaFiles(settings.videos_path)
-    summary_port = (
-        GeminiSummaryAdapter()
-        if settings.summary_strategy is SummaryStrategyName.GEMINI
-        else OpenAPISummaryAdapter(settings)
-    )
+    summary_port = OpenAPISummaryAdapter(settings)
     async with transactional_session() as session:
         # Pas d'utilisateur en CLI : consommation journalisée sans attribution
         use_case = GenerateSummary(

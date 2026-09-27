@@ -38,7 +38,7 @@
   <thead><tr><th>Étape</th><th>Moteur</th><th>Tourne où</th><th>Produit</th></tr></thead>
   <tbody>
     <tr><td>Transcription</td><td>Whisper (<code>openai-whisper</code>, modèle <code>base</code>)</td><td>Worker, en local</td><td><code>leçon.txt</code> à côté du média</td></tr>
-    <tr><td>Résumé</td><td>LLM compatible OpenAI, ou <code>gemini-cli</code></td><td>Là où pointe <code>APP_OPENAI_BASE_URL</code></td><td><code>leçon.md</code> à côté du média</td></tr>
+    <tr><td>Résumé</td><td>LLM compatible OpenAI</td><td>Là où pointe <code>APP_OPENAI_BASE_URL</code></td><td><code>leçon.md</code> à côté du média</td></tr>
     <tr><td>Indexation</td><td><code>sentence-transformers</code> ou API d'embeddings</td><td>Worker, en local par défaut</td><td>Vecteurs dans Qdrant</td></tr>
     <tr><td>Question</td><td>Embeddings + LLM</td><td>API</td><td>Réponse et citations</td></tr>
   </tbody>
@@ -75,10 +75,6 @@ et une consigne : un résumé pédagogique, structuré en Markdown, en français
 Un administrateur peut corriger le texte depuis le lecteur.</p>
 
 <div class="snippet" data-lang="bash"><pre><code>docker compose exec api e-learning-cli summary -v &lt;uuid&gt;</code></pre></div>
-
-<p><code>APP_SUMMARY_STRATEGY=gemini</code> passe par
-<code>npx @google/gemini-cli</code> au lieu du point d'accès OpenAI ; il faut
-alors Node et une authentification Gemini dans l'environnement de l'API.</p>
 
 <h2 id="assistant">Assistant de formation<a class="anchor" href="#assistant" aria-label="Lien vers cette section">#</a></h2>
 
@@ -129,7 +125,7 @@ docker compose exec api e-learning-cli index-rag --formation-id &lt;uuid&gt;</co
     <tr><td>Fichiers vidéo, audio, documents</td><td>Restent sur le serveur</td><td>Restent sur le serveur</td></tr>
     <tr><td>Transcription (Whisper)</td><td>Calculée dans le worker</td><td>Calculée dans le worker</td></tr>
     <tr><td>Embeddings</td><td>Calculés localement (<code>sentence-transformers</code>)</td><td>Texte des passages envoyé si <code>APP_EMBEDDING_BASE_URL</code> est renseignée</td></tr>
-    <tr><td>Résumé</td><td>Transcription envoyée à <code>APP_OPENAI_BASE_URL</code> (LM Studio local dans le template)</td><td>Transcription envoyée au fournisseur ; à Google avec <code>APP_SUMMARY_STRATEGY=gemini</code></td></tr>
+    <tr><td>Résumé</td><td>Transcription envoyée à <code>APP_OPENAI_BASE_URL</code> (LM Studio local dans le template)</td><td>Transcription envoyée au fournisseur</td></tr>
     <tr><td>Question à l'assistant</td><td>Question et passages retrouvés envoyés à <code>APP_OPENAI_BASE_URL</code></td><td>Question et passages envoyés au fournisseur</td></tr>
   </tbody>
 </table>

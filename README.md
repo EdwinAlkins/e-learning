@@ -58,7 +58,7 @@ pas d'inscription libre, pas de SSO, pas de droits par formation.
 | Vidéo | MP4, WebM, MKV, AVI, MOV, M4V, WMV, FLV — hors MP4, converti en MP4 H.264/AAC |
 | Audio | MP3, WAV, M4A, AAC, OGG, FLAC, WMA, Opus — hors MP3, converti en MP3 |
 | Documents | PDF, DOC(X), PPT(X), XLS(X), ODT/ODS/ODP, Markdown, texte, CSV, images |
-| Modèle de langage | Tout point d'accès `/v1/chat/completions` compatible OpenAI, ou `gemini-cli` |
+| Modèle de langage | Tout point d'accès `/v1/chat/completions` compatible OpenAI |
 | Mobile | Flutter 3.47+ ; Android (SDK 37 pour compiler), iOS, Linux desktop |
 | Navigateurs | Firefox, Chrome et Safari récents |
 
@@ -127,7 +127,6 @@ Tout passe par `.env` (voir [`.env.template`](.env.template)). Les variables pri
 | `NEXT_PUBLIC_API_URL` | URL de l'API vue par le navigateur — **figée au build** du front |
 | `APP_CORS_ORIGINS` | Adresses du front, liste JSON ; `"*"` refusé |
 | `APP_OPENAI_BASE_URL` / `_API_KEY` / `_MODEL` | Modèle de langage (résumés, assistant) |
-| `APP_SUMMARY_STRATEGY` | `openapi` ou `gemini` |
 | `APP_EMBEDDING_BASE_URL` | Vide : embeddings locaux (`sentence-transformers`) ; renseignée : API distante |
 | `APP_WORKER_PREFETCH` | Jobs en parallèle par worker (défaut `3`) |
 | `APP_MAX_UPLOAD_SIZE` | Taille maximale d'un téléversement, en octets |
@@ -140,7 +139,7 @@ Référence complète : [Configuration](https://edwinalkins.github.io/e-learning
 | Étape | Moteur | Où ça tourne | Résultat |
 | --- | --- | --- | --- |
 | Transcription | Whisper (`base` par défaut) | Worker, en local | `leçon.txt` à côté du média |
-| Résumé | LLM compatible OpenAI, ou `gemini-cli` | Là où pointe `APP_OPENAI_BASE_URL` | `leçon.md` à côté du média |
+| Résumé | LLM compatible OpenAI | Là où pointe `APP_OPENAI_BASE_URL` | `leçon.md` à côté du média |
 | Indexation | `sentence-transformers` ou API d'embeddings | Worker, en local par défaut | Vecteurs dans Qdrant |
 | Question | Embeddings + LLM | API | Réponse et sources |
 
