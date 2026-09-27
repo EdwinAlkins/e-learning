@@ -30,6 +30,8 @@ import {
   updateChapterInFormation,
   updateVideoInFormation,
 } from '../../../utils/studio-mutations';
+import { formationProgressKeys } from '../../formation/queries/progress.queries';
+import { playerKeys } from '../../player/queries/player.queries';
 import { studioApi } from '../api/studio.api';
 
 const uploadKeyForCreate = (chapterId: string): string => `create:${chapterId}`;
@@ -47,6 +49,16 @@ const mutateFormation = (
 
 export function useStudioMutations() {
   const queryClient = useQueryClient();
+  // Le catalogue est mis à jour localement, mais les vues apprenant qui en dérivent doivent être relues.
+  const invalidateLearnerViews = useCallback(() => {
+    for (const queryKey of [
+      formationProgressKeys.all,
+      playerKeys.allDocuments,
+      playerKeys.allSummaries,
+    ]) {
+      void queryClient.invalidateQueries({ queryKey });
+    }
+  }, [queryClient]);
   const [uploadProgressByKey, setUploadProgressByKey] = useState<Record<string, number>>({});
 
   const setUploadProgress = useCallback((key: string, progress?: number) => {
@@ -59,8 +71,12 @@ export function useStudioMutations() {
   }, []);
 
   const refreshFormation = useCallback(
-    (formationId: string) => fetchFormationIntoCache(queryClient, formationId),
-    [queryClient]
+    async (formationId: string) => {
+      const formation = await fetchFormationIntoCache(queryClient, formationId);
+      invalidateLearnerViews();
+      return formation;
+    },
+    [queryClient, invalidateLearnerViews]
   );
 
   const createFormation = useCallback(
@@ -68,26 +84,29 @@ export function useStudioMutations() {
       const formation = await studioApi.createFormation(name);
       setFormationInCache(queryClient, formation);
       await queryClient.invalidateQueries({ queryKey: formationKeys.all });
+      invalidateLearnerViews();
       return formation;
     },
-    [queryClient]
+    [queryClient, invalidateLearnerViews]
   );
 
   const patchFormation = useCallback(
     async (id: string, payload: PatchFormationPayload): Promise<Formation> => {
       const formation = await studioApi.patchFormation(id, payload);
       setFormationInCache(queryClient, formation);
+      invalidateLearnerViews();
       return formation;
     },
-    [queryClient]
+    [queryClient, invalidateLearnerViews]
   );
 
   const deleteFormation = useCallback(
     async (id: string): Promise<void> => {
       await studioApi.deleteFormation(id);
       removeFormationFromCache(queryClient, id);
+      invalidateLearnerViews();
     },
-    [queryClient]
+    [queryClient, invalidateLearnerViews]
   );
 
   const createChapter = useCallback(
@@ -98,9 +117,10 @@ export function useStudioMutations() {
           addChapterToFormation(formations, formationId, chapter)
         )
       );
+      invalidateLearnerViews();
       return chapter;
     },
-    [queryClient]
+    [queryClient, invalidateLearnerViews]
   );
 
   const patchChapter = useCallback(
@@ -115,9 +135,10 @@ export function useStudioMutations() {
           updateChapterInFormation(formations, formationId, chapterId, chapter)
         )
       );
+      invalidateLearnerViews();
       return chapter;
     },
-    [queryClient]
+    [queryClient, invalidateLearnerViews]
   );
 
   const deleteChapter = useCallback(
@@ -128,8 +149,9 @@ export function useStudioMutations() {
           removeChapterFromFormation(formations, formationId, chapterId)
         )
       );
+      invalidateLearnerViews();
     },
-    [queryClient]
+    [queryClient, invalidateLearnerViews]
   );
 
   const createVideo = useCallback(
@@ -149,12 +171,13 @@ export function useStudioMutations() {
             addVideoToChapter(formations, formationId, chapterId, video)
           )
         );
+        invalidateLearnerViews();
         return video;
       } finally {
         setUploadProgress(uploadKey);
       }
     },
-    [queryClient, setUploadProgress]
+    [queryClient, setUploadProgress, invalidateLearnerViews]
   );
 
   const patchVideo = useCallback(
@@ -181,12 +204,13 @@ export function useStudioMutations() {
             )
           );
         }
+        invalidateLearnerViews();
         return video;
       } finally {
         if (payload.file) setUploadProgress(uploadKey);
       }
     },
-    [queryClient, setUploadProgress]
+    [queryClient, setUploadProgress, invalidateLearnerViews]
   );
 
   const deleteVideo = useCallback(
@@ -197,8 +221,9 @@ export function useStudioMutations() {
           removeVideoFromFormation(formations, formationId, chapterId, videoId)
         )
       );
+      invalidateLearnerViews();
     },
-    [queryClient]
+    [queryClient, invalidateLearnerViews]
   );
 
   const reorderVideos = useCallback(
@@ -230,13 +255,14 @@ export function useStudioMutations() {
             updateChapterInFormation(formations, formationId, chapterId, updated)
           )
         );
+        invalidateLearnerViews();
         return updated;
       } catch (error) {
         setFormationInCache(queryClient, previous);
         throw error;
       }
     },
-    [queryClient]
+    [queryClient, invalidateLearnerViews]
   );
 
   const reorderChapters = useCallback(
@@ -259,13 +285,14 @@ export function useStudioMutations() {
           ? previous
           : await studioApi.reorderChapters(formationId, orderedChapterIds);
         setFormationInCache(queryClient, updated);
+        invalidateLearnerViews();
         return updated;
       } catch (error) {
         setFormationInCache(queryClient, previous);
         throw error;
       }
     },
-    [queryClient]
+    [queryClient, invalidateLearnerViews]
   );
 
   const moveVideo = useCallback(
@@ -283,9 +310,10 @@ export function useStudioMutations() {
         toIndex
       );
       setFormationInCache(queryClient, formation);
+      invalidateLearnerViews();
       return formation;
     },
-    [queryClient]
+    [queryClient, invalidateLearnerViews]
   );
 
   const createDocument = useCallback(
@@ -296,9 +324,10 @@ export function useStudioMutations() {
     ): Promise<Document> => {
       const document = await studioApi.createDocument(chapterId, data);
       await fetchFormationIntoCache(queryClient, formationId);
+      invalidateLearnerViews();
       return document;
     },
-    [queryClient]
+    [queryClient, invalidateLearnerViews]
   );
 
   const patchDocument = useCallback(
@@ -309,17 +338,19 @@ export function useStudioMutations() {
     ): Promise<Document> => {
       const document = await studioApi.patchDocument(documentId, payload);
       await fetchFormationIntoCache(queryClient, formationId);
+      invalidateLearnerViews();
       return document;
     },
-    [queryClient]
+    [queryClient, invalidateLearnerViews]
   );
 
   const deleteDocument = useCallback(
     async (formationId: string, documentId: string): Promise<void> => {
       await studioApi.deleteDocument(documentId);
       await fetchFormationIntoCache(queryClient, formationId);
+      invalidateLearnerViews();
     },
-    [queryClient]
+    [queryClient, invalidateLearnerViews]
   );
 
   const runVideoJob = useCallback(
@@ -330,9 +361,10 @@ export function useStudioMutations() {
     ): Promise<Video> => {
       const video = await operation(videoId);
       await fetchFormationIntoCache(queryClient, formationId);
+      invalidateLearnerViews();
       return video;
     },
-    [queryClient]
+    [queryClient, invalidateLearnerViews]
   );
 
   const startTranscription = useCallback(

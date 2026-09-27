@@ -1,7 +1,6 @@
 import { create } from 'zustand';
-import { debounce } from '../utils/debounce';
 import { playerApi } from '../features/player/api/player.api';
-import { PROGRESS_SAVE_DEBOUNCE_MS } from '../constants';
+import { PROGRESS_SAVE_INTERVAL_MS } from '../constants';
 
 interface PlayerState {
   currentVideoId: string | null;
@@ -13,22 +12,47 @@ interface PlayerState {
   updateProgress: (time: number) => void;
 }
 
-type DebouncedSave = (videoId: string, position: number) => void;
+/** Positions en attente, par videoId pour ne jamais enregistrer sur la mauvaise vidéo. */
+const pendingSaves = new Map<string, { position: number; timer: ReturnType<typeof setTimeout> }>();
+const inFlightSaves = new Set<Promise<void>>();
 
-/** Un debounce par videoId pour éviter d'enregistrer la progression sur la mauvaise vidéo. */
-const debouncedSaveByVideoId = new Map<string, DebouncedSave>();
+const sendProgress = (videoId: string, position: number) => {
+  const request = playerApi.saveProgress(videoId, position).catch((error) => {
+    console.error('Failed to save progress:', error);
+  });
+  inFlightSaves.add(request);
+  void request.finally(() => inFlightSaves.delete(request));
+};
 
-const getDebouncedSave = (videoId: string): DebouncedSave => {
-  let fn = debouncedSaveByVideoId.get(videoId);
-  if (!fn) {
-    fn = debounce((id: string, position: number) => {
-      playerApi.saveProgress(id, position).catch((error) => {
-        console.error('Failed to save progress:', error);
-      });
-    }, PROGRESS_SAVE_DEBOUNCE_MS);
-    debouncedSaveByVideoId.set(videoId, fn);
+// Throttle et non debounce : timeupdate tire toutes les ~250 ms, un debounce ne partirait qu'à la pause.
+const scheduleProgressSave = (videoId: string, position: number) => {
+  const pending = pendingSaves.get(videoId);
+  if (pending) {
+    pending.position = position;
+    return;
   }
-  return fn;
+  const timer = setTimeout(() => {
+    const latest = pendingSaves.get(videoId);
+    pendingSaves.delete(videoId);
+    if (latest) sendProgress(videoId, latest.position);
+  }, PROGRESS_SAVE_INTERVAL_MS);
+  pendingSaves.set(videoId, { position, timer });
+};
+
+/** Envoie immédiatement les positions en attente et attend la fin des sauvegardes en cours. */
+export const flushProgressSaves = async (): Promise<void> => {
+  for (const [videoId, { position, timer }] of pendingSaves) {
+    clearTimeout(timer);
+    sendProgress(videoId, position);
+  }
+  pendingSaves.clear();
+  await Promise.all(inFlightSaves);
+};
+
+/** Abandonne les positions en attente : sans session valide, elles partiraient sous le mauvais compte. */
+export const discardProgressSaves = (): void => {
+  for (const { timer } of pendingSaves.values()) clearTimeout(timer);
+  pendingSaves.clear();
 };
 
 export const usePlayerStore = create<PlayerState>((set, get) => ({
@@ -48,7 +72,7 @@ export const usePlayerStore = create<PlayerState>((set, get) => ({
     const { currentVideoId } = get();
     set({ currentTime: time });
     if (currentVideoId) {
-      getDebouncedSave(currentVideoId)(currentVideoId, time);
+      scheduleProgressSave(currentVideoId, time);
     }
   },
 }));

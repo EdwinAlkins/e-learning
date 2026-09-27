@@ -1,7 +1,6 @@
 'use client';
 
 import { useState } from 'react';
-import { useQueryClient } from '@tanstack/react-query';
 import Image from 'next/image';
 import { useRouter } from 'next/navigation';
 import {
@@ -29,6 +28,7 @@ import {
 } from '@mui/icons-material';
 import { useAuthStore } from '../stores/auth.store';
 import { useThemeStore, type ThemeMode } from '../stores/theme.store';
+import { flushProgressSaves } from '../stores/player.store';
 import { SNACKBAR_DURATION_MS } from '../constants';
 import ChangePasswordDialog from './ChangePasswordDialog';
 
@@ -36,7 +36,6 @@ export default function Header() {
   const { user, logout } = useAuthStore();
   const { mode, setMode } = useThemeStore();
   const router = useRouter();
-  const queryClient = useQueryClient();
   const [passwordChanged, setPasswordChanged] = useState(false);
   const [passwordDialogOpen, setPasswordDialogOpen] = useState(false);
   const [themeMenuAnchor, setThemeMenuAnchor] = useState<null | HTMLElement>(null);
@@ -45,10 +44,9 @@ export default function Header() {
   const handleLogout = async () => {
     setAccountMenuAnchor(null);
     try {
+      await flushProgressSaves();
       await logout();
     } finally {
-      // Le catalogue embarque la progression du compte : ne pas la montrer au suivant.
-      queryClient.clear();
       router.replace('/auth');
     }
   };

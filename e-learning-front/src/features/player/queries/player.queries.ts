@@ -5,6 +5,8 @@ import type { Note } from '../../../types';
 import { playerApi } from '../api/player.api';
 
 export const playerKeys = {
+  allSummaries: ['video-summary'] as const,
+  allDocuments: ['chapter-documents'] as const,
   summary: (videoId: string) => ['video-summary', videoId] as const,
   documents: (chapterId: string) => ['chapter-documents', chapterId] as const,
   progress: (videoId: string) => ['video-progress', videoId] as const,

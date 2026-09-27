@@ -2,6 +2,7 @@
 
 import { useEffect, useMemo, useRef } from 'react';
 import { useParams, useRouter } from 'next/navigation';
+import { useQueryClient } from '@tanstack/react-query';
 import {
   Container,
   Box,
@@ -9,7 +10,8 @@ import {
   Alert,
 } from '@mui/material';
 import type { VideoPlayerRef } from '../../../components/VideoPlayer';
-import { usePlayerStore } from '../../../stores/player.store';
+import { flushProgressSaves, usePlayerStore } from '../../../stores/player.store';
+import { formationProgressKeys } from '../../../features/formation/queries/progress.queries';
 import PlayerMediaPanel, {
   PlayerJobNotices,
 } from '../../../features/player/components/PlayerMediaPanel';
@@ -20,6 +22,7 @@ import { usePlayerCatalog } from '../../../features/player/hooks/usePlayerCatalo
 import { usePlayerJobs } from '../../../features/player/hooks/usePlayerJobs';
 import { useVideoSummary } from '../../../features/player/hooks/useVideoSummary';
 import {
+  playerKeys,
   useChapterDocumentsQuery,
   useVideoProgressQuery,
 } from '../../../features/player/queries/player.queries';
@@ -85,9 +88,21 @@ function PlayerSession({ videoId }: PlayerSessionProps) {
         : null;
   const displayedAiError = statusAiError ?? jobs.error;
 
+  const queryClient = useQueryClient();
+
   useEffect(() => {
     if (videoId) setPlayerVideo(videoId);
   }, [videoId, setPlayerVideo]);
+
+  useEffect(
+    () => () => {
+      void flushProgressSaves().then(() => {
+        void queryClient.invalidateQueries({ queryKey: formationProgressKeys.all });
+        void queryClient.invalidateQueries({ queryKey: playerKeys.progress(videoId) });
+      });
+    },
+    [videoId, queryClient]
+  );
 
   const visibleDocuments = useMemo(() => {
     const docs = catalogDocuments ?? documentsQuery.data ?? [];

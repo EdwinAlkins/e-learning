@@ -13,6 +13,8 @@ export function useAllFormationProgressQuery(enabled = true) {
     queryKey: formationProgressKeys.all,
     queryFn: formationApi.getAllProgress,
     enabled,
+    staleTime: 0,
+    refetchOnWindowFocus: true,
   });
 }
 
@@ -21,5 +23,7 @@ export function useFormationProgressQuery(formationId: string) {
     queryKey: formationProgressKeys.detail(formationId),
     queryFn: () => formationApi.getProgress(formationId),
     enabled: Boolean(formationId),
+    staleTime: 0,
+    refetchOnWindowFocus: true,
   });
 }

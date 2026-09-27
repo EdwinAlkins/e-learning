@@ -4,8 +4,8 @@ export const POLLING_INTERVAL_MS = 3000;
 /** Durée d'affichage des snackbars de feedback. */
 export const SNACKBAR_DURATION_MS = 2000;
 
-/** Délai de debounce pour la sauvegarde de progression lecteur. */
-export const PROGRESS_SAVE_DEBOUNCE_MS = 500;
+/** Intervalle maximal entre deux sauvegardes de progression lecteur. */
+export const PROGRESS_SAVE_INTERVAL_MS = 5000;
 
 /** Extensions documents acceptées (aligné API ``DOCUMENT_EXTS``). */
 export const DOCUMENT_ACCEPT_EXTENSIONS = [

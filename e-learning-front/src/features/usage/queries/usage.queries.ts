@@ -11,5 +11,7 @@ export function useUsageQuery(days: number) {
   return useQuery({
     queryKey: usageKeys.detail(days),
     queryFn: () => usageApi.get(days),
+    staleTime: 0,
+    refetchOnWindowFocus: true,
   });
 }
