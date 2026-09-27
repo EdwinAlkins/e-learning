@@ -49,6 +49,21 @@ async def test_login_returns_token_and_sets_httponly_cookie(app: Any, client: As
     assert f"max-age={body['expires_in']}" in cookie
 
 
+async def test_login_cookie_not_secure_on_configured_http_host(
+    app: Any, client: AsyncClient
+) -> None:
+    # Serveur LAN servi en HTTP : un cookie ``Secure`` y serait rejeté par le navigateur.
+    app.state.settings.insecure_cookie_hosts = ["test"]
+    email = await create_account(app)
+
+    response = await client.post("/auth/login", data={"username": email, "password": PASSWORD})
+
+    assert response.status_code == 200
+    cookie = response.headers["set-cookie"].lower()
+    assert cookie.startswith("access_token=")
+    assert "secure" not in cookie
+
+
 async def test_login_failure_does_not_reveal_which_field_is_wrong(
     app: Any, client: AsyncClient
 ) -> None:

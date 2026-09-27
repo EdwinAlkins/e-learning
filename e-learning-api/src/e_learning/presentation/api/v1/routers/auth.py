@@ -26,12 +26,11 @@ from e_learning.presentation.api.v1.schemas.auth import (
 router = APIRouter(prefix="/auth", tags=["auth"])
 me_router = APIRouter(prefix="/auth", tags=["auth"], dependencies=[Depends(get_current_user)])
 
-_LOCAL_HOSTS = frozenset({"localhost", "127.0.0.1", "::1"})
-
 
 def _cookie_secure(request: Request) -> bool:
-    # ``Secure`` partout sauf en développement local servi en HTTP.
-    return request.url.scheme == "https" or request.url.hostname not in _LOCAL_HOSTS
+    # ``Secure`` partout sauf en HTTP sur un hôte de ``APP_INSECURE_COOKIE_HOSTS``.
+    insecure_hosts = request.app.state.settings.insecure_cookie_hosts
+    return request.url.scheme == "https" or request.url.hostname not in insecure_hosts
 
 
 @router.post("/login", response_model=TokenResponse)

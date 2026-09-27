@@ -132,6 +132,7 @@ Lecture : `GET /usage?days=30` (1–365) — totaux fenêtre + cumul, détail pa
 | `APP_FIRST_ADMIN_EMAIL` | `admin@example.com` | Premier admin créé au démarrage |
 | `APP_FIRST_ADMIN_PASSWORD` | `changethis` | Son mot de passe initial (refusé hors debug) |
 | `APP_LOGIN_MAX_FAILURES` / `APP_LOGIN_WINDOW_MINUTES` | `5` / `15` | Anti-bruteforce login → 429 |
+| `APP_INSECURE_COOKIE_HOSTS` | `["localhost","127.0.0.1","::1"]` | Hôtes où le cookie n'est pas `Secure` en HTTP (ex. IP d'un serveur LAN) |
 
 ## Docker
 

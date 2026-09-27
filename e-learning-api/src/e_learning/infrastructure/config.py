@@ -81,6 +81,11 @@ class Settings(BaseSettings):
     # Anti-bruteforce : N échecs par email ou par IP sur la fenêtre → 429
     login_max_failures: int = 5
     login_window_minutes: int = 15
+    # Hôtes où le cookie de session est posé sans ``Secure`` quand l'API est
+    # servie en HTTP (sinon le navigateur le rejette). Ex. : IP d'un serveur LAN.
+    insecure_cookie_hosts: list[str] = Field(
+        default_factory=lambda: ["localhost", "127.0.0.1", "::1"]
+    )
 
     def security_problems(self) -> list[str]:
         """Réglages dangereux en production (bloquants hors mode debug)."""

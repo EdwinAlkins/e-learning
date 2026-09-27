@@ -85,6 +85,7 @@ elle lit <code>.env.template</code> puis <code>.env</code> dans son dossier.</p>
     <tr><td><code>APP_FIRST_ADMIN_EMAIL</code></td><td><code>admin@example.com</code></td><td>Premier administrateur, créé au démarrage s'il n'existe pas</td></tr>
     <tr><td><code>APP_FIRST_ADMIN_PASSWORD</code></td><td><code>changethis</code></td><td>Son mot de passe initial ; jamais réécrit ensuite, même si la variable change</td></tr>
     <tr><td><code>APP_LOGIN_MAX_FAILURES</code> / <code>APP_LOGIN_WINDOW_MINUTES</code></td><td><code>5</code> / <code>15</code></td><td>Échecs de connexion tolérés par email ou par IP sur la fenêtre, avant <code>429</code></td></tr>
+    <tr><td><code>APP_INSECURE_COOKIE_HOSTS</code></td><td><code>["localhost","127.0.0.1","::1"]</code></td><td>Hôtes de l'API où le cookie de session n'est pas marqué <code>Secure</code> en HTTP. Ajoutez-y l'IP d'un serveur de réseau local sans HTTPS ; le jeton circule alors en clair</td></tr>
   </tbody>
 </table>
 </div>
@@ -182,7 +183,10 @@ trois transcriptions Whisper en même temps.</p>
   <code>learn.example.com</code> et <code>api.example.com</code>. Ouvrir le front sur
   <code>127.0.0.1</code> alors que la liste contient <code>localhost</code> échoue avec une
   erreur CORS. Le cookie est marqué <code>Secure</code> dès que l'hôte de l'API n'est pas
-  <code>localhost</code> : servez alors l'API en HTTPS.
+  dans <code>APP_INSECURE_COOKIE_HOSTS</code> (<code>localhost</code> par défaut) : servez
+  alors l'API en HTTPS, sinon le navigateur ignore le cookie et chaque appel renvoie
+  <code>401</code>. Sur un réseau local de confiance, vous pouvez à la place ajouter l'IP du
+  serveur à cette liste.
 </div>
 
 <p>L'application mobile a sa propre configuration (<code>API_URL</code>) : voir
