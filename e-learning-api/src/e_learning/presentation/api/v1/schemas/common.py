@@ -17,19 +17,6 @@ from e_learning.application.learning.dto import (
     FormationProgressDTO,
     NoteDTO,
 )
-from e_learning.application.user.dto import UserDTO
-
-
-class UIDResponse(BaseModel):
-    uid: str
-
-    @classmethod
-    def from_dto(cls, dto: UserDTO) -> UIDResponse:
-        return cls(uid=dto.id)
-
-
-class RestoreRequest(BaseModel):
-    uid: str
 
 
 class JobResponse(BaseModel):

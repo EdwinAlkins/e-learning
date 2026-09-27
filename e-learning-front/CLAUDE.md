@@ -29,11 +29,12 @@ The API client (`src/services/api.ts`) falls back to `http://localhost:8000` if 
 
 | Route | Rôle |
 |-------|------|
-| `/` | Catalogue formations (`AuthGuard`) |
-| `/auth` | Génération / saisie UID |
+| `/` | Catalogue formations |
+| `/auth` | Connexion email + mot de passe (seule page publique ; `?next=` = retour après login) |
 | `/formation/[formationId]` | Détail formation (id entier stringifié ; fallback nom legacy) |
 | `/player/[videoId]` | Lecteur vidéo, notes, résumé |
-| `/studio` | Liste formations (édition) |
+| `/studio` | Liste formations (édition) — `/studio/*` réservé aux admins (`app/studio/layout.tsx`) |
+| `/studio/users` | Gestion des comptes (création, rôle, activation, suppression) |
 | `/studio/formation/new` | Créer une formation |
 | `/studio/formation/[id]` | Éditeur formation / chapitres / vidéos |
 | `/usage` | Consommation IA de l'utilisateur (`GET /usage?days=`) |
@@ -44,7 +45,7 @@ All pages are Client Components (`'use client'`). There is no server-side render
 
 Stores in `src/stores/`:
 
-- `auth.store.ts` — UID ; `localStorage` key `user_uid`
+- `auth.store.ts` — utilisateur courant (`GET /auth/me`), `status` `unknown`/`authenticated`/`anonymous`, `accessDenied` (dernier 403)
 - `catalog.store.ts` — Formations apprenant via `apiService.getFormations()`
 - `studio.store.ts` — CRUD studio via `studio.api.ts` → `apiService`
 - `theme.store.ts` — `'light' | 'dark' | 'system'`
@@ -52,7 +53,7 @@ Stores in `src/stores/`:
 
 ### API Layer
 
-- [`src/services/api.ts`](src/services/api.ts) — Axios + `X-User-UID` ; normalisation ids API (`normalizeApiFormation`)
+- [`src/services/api.ts`](src/services/api.ts) — Axios `withCredentials` + header `X-Requested-With` (anti-CSRF exigé par l'API sur les écritures par cookie) ; 401 → session effacée, 403 → « accès refusé » sans déconnexion ; normalisation ids API (`normalizeApiFormation`)
 - [`src/services/studio.api.ts`](src/services/studio.api.ts) — Façade studio (pas de mock)
 
 **Studio — endpoints utilisés :**
@@ -80,7 +81,18 @@ MUI (`@mui/material` v7) only — no Tailwind. Theme in `src/app/theme-provider.
 
 ### Authentication
 
-UUID in `localStorage`. No JWT. `AuthGuard` redirects to `/auth` if missing.
+`POST /auth/login` pose un cookie `HttpOnly` `access_token` (illisible en JS) : la session est
+connue en appelant `GET /auth/me`. Aucun jeton n'est stocké côté front.
+
+- `SessionGate` (layout racine) : charge la session, redirige vers `/auth?next=…` toute page non
+  publique sans session, affiche la snackbar « accès refusé ».
+- `AuthGuard` : cadre des pages connectées (header).
+- `app/studio/layout.tsx` : un apprenant est renvoyé à `/` ; le lien Studio n'apparaît que si
+  `is_admin`. Confort seulement : l'API renvoie 403.
+- Médias (`VideoPlayer`, `AudioPlayer`, `VideoUploadDialog`, `documentFileUrl`) : URL directes,
+  le navigateur envoie le cookie. Front et API doivent donc être sur le **même site**
+  (ex. `app.example.com` / `api.example.com`, ou `localhost:3000` / `localhost:8000`) et les
+  balises média ne doivent pas porter `crossOrigin="anonymous"`.
 
 ### Path Alias
 

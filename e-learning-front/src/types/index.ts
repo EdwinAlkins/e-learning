@@ -84,8 +84,38 @@ export interface FormationsProgressResponse {
   progress: Record<string, FormationProgress>;
 }
 
-export interface AuthResponse {
-  uid: string;
+/** `GET /auth/me` */
+export interface CurrentUser {
+  id: string;
+  email: string;
+  full_name: string | null;
+  is_admin: boolean;
+}
+
+/** Compte vu par un admin (`/admin/users`). Jamais de mot de passe ni de hash. */
+export interface AdminUser extends CurrentUser {
+  is_active: boolean;
+  created_at: string;
+}
+
+export interface UserListResponse {
+  items: AdminUser[];
+  total: number;
+}
+
+export interface CreateUserPayload {
+  email: string;
+  password: string;
+  full_name?: string | null;
+  is_admin?: boolean;
+}
+
+/** Champ absent = inchangé ; `full_name: null` efface le nom. */
+export interface UpdateUserPayload {
+  full_name?: string | null;
+  is_admin?: boolean;
+  is_active?: boolean;
+  password?: string;
 }
 
 export interface VideoProgress {

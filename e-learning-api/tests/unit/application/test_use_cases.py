@@ -29,7 +29,6 @@ from e_learning.application.shared.storage import (
     ScannedFormation,
     ScannedVideo,
 )
-from e_learning.application.user.use_cases.generate_user import GenerateUser
 from e_learning.domain.catalog.entities import Chapter, Document, Formation, Video
 from e_learning.domain.catalog.value_objects import (
     ChapterName,
@@ -50,6 +49,7 @@ from tests.unit.application._fakes import (
     FakeNoteRepository,
     FakeUserRepository,
     FakeVideoRepository,
+    make_user,
 )
 
 
@@ -109,17 +109,12 @@ class FakeCatalogStorage(CatalogStoragePort):
         return 0.0
 
 
-async def test_generate_user() -> None:
-    users = FakeUserRepository()
-    dto = await GenerateUser(users).execute()
-    assert dto.id in users.items
-
-
 async def test_create_note() -> None:
     users = FakeUserRepository()
     videos = FakeVideoRepository()
     notes = FakeNoteRepository()
-    user = await GenerateUser(users).execute()
+    user = make_user()
+    await users.save(user)
     chapter = Chapter.create(
         formation_id=FormationId.generate(),
         name=ChapterName("C1"),
@@ -136,7 +131,7 @@ async def test_create_note() -> None:
     await videos.save(video)
     dto = await CreateNote(notes, users, videos).execute(
         CreateNoteCommand(
-            user_id=user.id,
+            user_id=str(user.id),
             video_id=str(video.id),
             timecode=12.5,
             content="Point clé",

@@ -57,9 +57,10 @@
 <h2 id="pour-qui">Pour qui<a class="anchor" href="#pour-qui" aria-label="Lien vers cette section">#</a></h2>
 
 <p>Pour un <strong>usage personnel</strong> (suivre sa bibliothèque de cours)
-ou une <strong>équipe de confiance</strong> (formations internes, onboarding) sur
-un réseau privé. Ce n'est pas un LMS commercial : pas de comptes avec mot de
-passe, pas de rôles, pas de vente ni de certification. Le détail est sur
+ou une <strong>équipe</strong> (formations internes, onboarding). Chaque personne a
+un compte avec mot de passe, créé par un administrateur ; seuls les administrateurs
+accèdent au studio. Ce n'est pas un LMS commercial : pas d'inscription libre, pas de
+SSO, pas de droits par formation, pas de vente ni de certification. Le détail est sur
 <a href="./index.html#pour-qui">la page d'accueil</a>.</p>
 
 <p>Le projet se compose de trois applications et d'une poignée de services :</p>
@@ -101,8 +102,9 @@ passe, pas de rôles, pas de vente ni de certification. Le détail est sur
 <ul>
   <li><strong>Formation → Chapitre → Vidéo / Document.</strong> L'ordre est une
       colonne <code>position</code> en base : réordonner ne renomme aucun fichier.</li>
-  <li><strong>Un apprenant = un UID.</strong> Un UUID généré à la première visite,
-      envoyé dans l'en-tête <code>X-User-UID</code>. Il porte la progression et les notes.</li>
+  <li><strong>Un apprenant = un compte.</strong> Email et mot de passe, rôle apprenant
+      ou administrateur. Le compte porte la progression, les notes et la consommation IA ;
+      seuls les administrateurs modifient le catalogue.</li>
   <li><strong>Les traitements lourds sont des jobs.</strong> Conversion,
       transcription, résumé et indexation passent par RabbitMQ et un worker ;
       l'interface affiche leur avancement.</li>
@@ -116,16 +118,19 @@ passe, pas de rôles, pas de vente ni de certification. Le détail est sur
 <div class="snippet" data-lang="bash"><pre><code>git clone https://github.com/EdwinAlkins/e-learning.git
 cd e-learning
 cp .env.template .env
+# Dans .env : APP_SECRET_KEY (openssl rand -hex 32),
+# APP_FIRST_ADMIN_EMAIL et APP_FIRST_ADMIN_PASSWORD
 docker compose up -d --build
-# → http://localhost:3000</code></pre></div>
+# → http://localhost:3000, connexion avec le compte admin</code></pre></div>
 
-<p>Aucun modèle d'IA n'est requis pour démarrer ; résumés et assistant
+<p>L'API refuse de démarrer tant que la clé et le mot de passe admin gardent leur valeur
+d'exemple. Aucun modèle d'IA n'est requis pour démarrer ; résumés et assistant
 s'activent quand vous en branchez un.</p>
 
 <div class="note">
-  <strong>Une instance de confiance</strong>
-  Il n'y a ni mot de passe ni rôle : quiconque atteint le front peut ouvrir le
-  studio. Gardez l'instance en local ou derrière une authentification ; voir
+  <strong>Comptes et exposition</strong>
+  Toute page et toute route de l'API exigent une connexion, et le studio est réservé aux
+  administrateurs. Avant d'ouvrir l'instance sur Internet, servez-la en HTTPS : voir
   <a href="./installation.html#exposer">Exposer l'instance</a>.
 </div>
 

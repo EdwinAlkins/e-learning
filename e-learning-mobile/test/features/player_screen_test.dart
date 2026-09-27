@@ -1,4 +1,5 @@
 import 'package:e_learning_mobile/config/env.dart';
+import 'package:e_learning_mobile/core/auth/auth_controller.dart';
 import 'package:e_learning_mobile/data/models/models.dart';
 import 'package:e_learning_mobile/data/repositories/formation_repository.dart';
 import 'package:e_learning_mobile/data/repositories/note_repository.dart';
@@ -189,6 +190,7 @@ void main() {
     WidgetTester tester, {
     required String videoId,
     MediaController? media,
+    bool isAdmin = true,
   }) async {
     // Format téléphone en portrait : la surface de test par défaut (800×600)
     // basculerait sur la mise en page paysage à deux colonnes.
@@ -217,6 +219,7 @@ void main() {
           progressRepositoryProvider.overrideWithValue(progress),
           videoRepositoryProvider.overrideWithValue(videos),
           noteRepositoryProvider.overrideWithValue(_EmptyNoteRepository()),
+          authControllerProvider.overrideWith(() => _SignedIn(isAdmin)),
           if (media != null)
             mediaControllerProvider(_args).overrideWith((ref) async => media),
         ],
@@ -272,6 +275,24 @@ void main() {
     await tester.pumpAndSettle();
 
     expect(videos.conversionsStarted, ['v1']);
+  });
+
+  testWidgets('apprenant : ni relance de conversion ni action IA', (
+    tester,
+  ) async {
+    formations = _FakeFormationRepository(
+      _formation([
+        _video('v1', 'Ma vidéo', processingStatus: MediaStatus.failed),
+      ]),
+    );
+
+    await pumpPlayer(tester, videoId: 'v1', isAdmin: false);
+
+    // Ces actions sont des routes admin : l'API répondrait 403.
+    expect(find.text('La conversion du média a échoué.'), findsOneWidget);
+    expect(find.text('Relancer la conversion'), findsNothing);
+    expect(find.text('Transcrire'), findsNothing);
+    expect(find.text('Générer le résumé'), findsNothing);
   });
 
   testWidgets('la barre précédent/suivant navigue dans la formation', (
@@ -420,4 +441,16 @@ void main() {
     );
     expect(find.widgetWithText(FilledButton, 'Réessayer'), findsOneWidget);
   });
+}
+
+/// Session connectée, sans stockage sécurisé ni réseau.
+class _SignedIn extends AuthController {
+  _SignedIn(this.isAdmin);
+
+  final bool isAdmin;
+
+  @override
+  AuthState build() => AuthState(
+    user: CurrentUser(id: 'u1', email: 'u1@example.com', isAdmin: isAdmin),
+  );
 }

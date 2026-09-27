@@ -61,7 +61,15 @@ from e_learning.presentation.api.dependencies.storage import (
     CatalogStorageDep,
     MediaFilesDep,
 )
-from e_learning.presentation.api.dependencies.user import get_generate_user, get_restore_user
+from e_learning.presentation.api.dependencies.user import (
+    get_authenticate_user,
+    get_change_password,
+    get_create_user,
+    get_delete_user,
+    get_get_current_user,
+    get_list_users,
+    get_update_user,
+)
 
 __all__ = [
     "SessionDep",
@@ -75,8 +83,13 @@ __all__ = [
     "ProgressRepositoryDep",
     "CatalogStorageDep",
     "MediaFilesDep",
-    "get_generate_user",
-    "get_restore_user",
+    "get_authenticate_user",
+    "get_get_current_user",
+    "get_create_user",
+    "get_update_user",
+    "get_delete_user",
+    "get_list_users",
+    "get_change_password",
     "get_list_formations",
     "get_get_formation",
     "get_create_formation",

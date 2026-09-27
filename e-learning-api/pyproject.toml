@@ -19,6 +19,8 @@ dependencies = [
     "pydantic-settings>=2.15.0",
     "python-multipart>=0.0.32",
     "sqlalchemy[asyncio]>=2.0.54",
+    "pyjwt>=2.15.0",
+    "pwdlib[argon2]>=0.3.1",
 ]
 
 [dependency-groups]

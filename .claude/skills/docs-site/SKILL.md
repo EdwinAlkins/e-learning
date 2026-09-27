@@ -26,11 +26,13 @@ viennent de `dev-tools/media/`. Le README racine est la vitrine GitHub du même 
    - « pas de réponse inventée » → l'assistant peut se tromper, les sources servent à vérifier ;
    - « vos contenus ne sortent jamais » → les **médias** restent sur le serveur ; le **texte**
      part vers le LLM s'il est distant ;
-   - toute fonctionnalité absente (comptes, rôles, SSO, SCORM, pagination, changelog, instance de démo).
+   - toute fonctionnalité absente (SSO / OIDC, inscription libre, mot de passe oublié par email,
+     droits par formation, 2FA, SCORM, pagination du catalogue, changelog, instance de démo).
 5. **Positionnement fixé** : trois piliers, dans cet ordre — **e-learning** (le produit),
    **auto-hébergé** (le déploiement), **IA** (le différenciateur). « Pointer un dossier de
    vidéos » est un atout d'import, pas l'identité. Cible annoncée tôt : **usage personnel ou
-   équipe de confiance** (pas d'authentification intégrée).
+   équipe**, avec comptes (email + mot de passe) créés par un administrateur et studio réservé
+   aux administrateurs.
 6. **Ne jamais publier de contenu tiers** : pas de cours commercial, visage, filigrane ou
    nom de formation réelle dans `docs/assets/media/`. Les captures se font sur une formation
    dont l'utilisateur a les droits, ou sur le seed de démo.
@@ -105,19 +107,19 @@ Pipeline dans `dev-tools/media/` (voir son README) :
 
 ```bash
 cd dev-tools/media
-npm run seed                     # facultatif : formations de démo via l'API
-DEMO_UID=… FORMATION="…" LESSON="…" ASK="…" npm run shots
-DEMO_UID=… FORMATION="…" LESSON="…" ASK="…" npm run video   # → out/video/raw.webm
+ADMIN_EMAIL=… ADMIN_PASSWORD=… npm run seed   # formations, compte et consommation de démo
+FORMATION="…" LESSON="…" ASK="…" npm run shots   # compte de out/demo.json, ou DEMO_EMAIL/DEMO_PASSWORD
+FORMATION="…" LESSON="…" ASK="…" npm run video   # → out/video/raw.webm
 npm run encode                   # → demo.mp4 (H.264 CRF 30), poster.png, demo.gif
 npm run promote                  # → docs/assets/media/
 ```
 
 - **Un seul format vidéo publié : MP4 H.264** (`-preset veryslow -tune animation`, CRF 30,
-  ≈ 1,2 Mo), plus léger que VP9 et universel. Pas de WebM dans `docs/`.
+  ≈ 1,1 Mo), plus léger que VP9 et universel. Pas de WebM dans `docs/`.
 - `ASK` doit être une question pertinente pour la formation filmée, sinon l'assistant répond
   qu'il ne sait pas.
 - Noms publiés attendus par les pages : `auth, catalogue, formation, assistant, player, notes,
-  studio, builder` (`.png`), `demo.mp4`, `poster.png`, `demo.gif`, plus `launch.mp4` et
+  studio, builder, usage` (`.png`), `demo.mp4`, `poster.png`, `demo.gif`, plus `launch.mp4` et
   `launch-poster.jpg` (film de la landing, dérivé à la main de `brag-output/brag.mp4` : voir
   « Vidéo de lancement » dans `dev-tools/media/README.md`).
 - Répartition : landing = `launch.mp4` (sans son) ; page Présentation = `demo.mp4` avec
@@ -148,8 +150,19 @@ npm run promote                  # → docs/assets/media/
   dans les exemples.
 - `backup.sh` applique la rotation après chaque sauvegarde ; il ne sauvegarde pas les médias.
 - `NEXT_PUBLIC_API_URL` est figée au build du front.
-- Bug front connu : charger directement `/player/…` ou `/formation/…` renvoie au catalogue
-  (`AuthGuard` redirige avant de lire l'UID). Les scripts de capture naviguent donc dans
-  l'application au lieu d'utiliser `page.goto` sur ces routes.
-- L'application mobile ne sait pas passer une authentification HTTP ni un proxy SSO : seul un
-  VPN la protège.
+- Authentification (depuis la migration 007) : comptes email + mot de passe, rôles apprenant /
+  admin, créés par un admin (`Studio → Comptes`, `e-learning-cli create-admin`, ou premier admin
+  via `APP_FIRST_ADMIN_*`). Jeton JWT en `Authorization: Bearer` (mobile) ou cookie `HttpOnly`
+  (web). Toute route fermée sauf login/logout/santé/metrics. Les jobs IA (transcrire, résumer,
+  convertir, réindexer) et l'édition du résumé sont réservés aux admins.
+- L'API refuse de démarrer hors debug avec `APP_SECRET_KEY` / `APP_FIRST_ADMIN_PASSWORD` à
+  `changethis`, et toujours avec `"*"` dans `APP_CORS_ORIGINS` : tout démarrage rapide documenté
+  doit dire de les renseigner.
+- Cookie `Secure` dès que l'hôte de l'API n'est pas `localhost` : exposition = HTTPS obligatoire ;
+  front et API doivent être sur le même site.
+- L'application mobile gère la connexion par compte, mais ne sait pas passer un proxy SSO tiers :
+  derrière un tel proxy, seul un VPN la laisse passer.
+- Les scripts `dev-tools/media` se connectent par compte : le seed crée le compte admin
+  `demo@cladese.example` avec `ADMIN_EMAIL` / `ADMIN_PASSWORD` (jamais écrits), garde son mot
+  de passe dans `out/demo.json`, et écrit un historique de consommation fictif en base via
+  `docker exec psql`. Ne pas filmer `Studio → Comptes` (emails de tous les comptes).

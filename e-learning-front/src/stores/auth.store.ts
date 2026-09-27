@@ -1,27 +1,67 @@
 import { create } from 'zustand';
-import { getUID, setUID as setUIDStorage, clearUID as clearUIDStorage } from '../services/auth';
+import axios from 'axios';
+import { apiService, setAuthErrorHandlers } from '../services/api';
+import type { CurrentUser } from '../types';
+
+/** `unknown` tant que `GET /auth/me` n'a pas répondu (le cookie est illisible en JS). */
+export type SessionStatus = 'unknown' | 'authenticated' | 'anonymous';
 
 interface AuthState {
-  uid: string | null;
-  isAuthenticated: boolean;
-  setUID: (uid: string) => void;
-  clearUID: () => void;
-  checkAuth: () => void;
+  user: CurrentUser | null;
+  status: SessionStatus;
+  /** Dernier 403 reçu : affiché en « accès refusé », sans déconnexion. */
+  accessDenied: boolean;
+  loadSession: () => Promise<void>;
+  login: (email: string, password: string) => Promise<void>;
+  logout: () => Promise<void>;
+  clearSession: () => void;
+  setAccessDenied: (value: boolean) => void;
 }
 
+let pendingSession: Promise<void> | null = null;
+
 export const useAuthStore = create<AuthState>((set) => ({
-  uid: null,
-  isAuthenticated: false,
-  setUID: (uid: string) => {
-    setUIDStorage(uid);
-    set({ uid, isAuthenticated: true });
+  user: null,
+  status: 'unknown',
+  accessDenied: false,
+
+  loadSession: () => {
+    // Plusieurs composants peuvent demander la session au même moment.
+    pendingSession ??= apiService
+      .getMe()
+      .then((user) => set({ user, status: 'authenticated' }))
+      .catch((error: unknown) => {
+        if (!axios.isAxiosError(error) || error.response?.status !== 401) {
+          console.error('Session check failed:', error);
+        }
+        set({ user: null, status: 'anonymous' });
+      })
+      .finally(() => {
+        pendingSession = null;
+      });
+    return pendingSession;
   },
-  clearUID: () => {
-    clearUIDStorage();
-    set({ uid: null, isAuthenticated: false });
+
+  login: async (email, password) => {
+    await apiService.login(email, password);
+    const user = await apiService.getMe();
+    set({ user, status: 'authenticated', accessDenied: false });
   },
-  checkAuth: () => {
-    const uid = getUID();
-    set({ uid, isAuthenticated: uid !== null });
+
+  logout: async () => {
+    try {
+      await apiService.logout();
+    } finally {
+      set({ user: null, status: 'anonymous' });
+    }
   },
+
+  clearSession: () => set({ user: null, status: 'anonymous' }),
+
+  setAccessDenied: (value) => set({ accessDenied: value }),
 }));
+
+setAuthErrorHandlers({
+  onUnauthorized: () => useAuthStore.getState().clearSession(),
+  onForbidden: () => useAuthStore.getState().setAccessDenied(true),
+});

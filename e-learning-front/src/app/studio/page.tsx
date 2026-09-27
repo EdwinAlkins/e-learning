@@ -20,6 +20,7 @@ import {
   Edit as EditIcon,
   Delete as DeleteIcon,
   ArrowBack as ArrowBackIcon,
+  People as PeopleIcon,
 } from '@mui/icons-material';
 import AuthGuard from '../../components/AuthGuard';
 import ConfirmDeleteDialog from '../../components/studio/ConfirmDeleteDialog';
@@ -63,6 +64,13 @@ export default function StudioDashboard() {
           <Typography variant="h4" component="h1" sx={{ flexGrow: 1 }}>
             Studio
           </Typography>
+          <Button
+            variant="outlined"
+            startIcon={<PeopleIcon />}
+            onClick={() => router.push('/studio/users')}
+          >
+            Comptes
+          </Button>
           <Button
             variant="contained"
             startIcon={<AddIcon />}

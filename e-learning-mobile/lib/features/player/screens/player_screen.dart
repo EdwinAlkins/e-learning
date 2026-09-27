@@ -5,6 +5,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 
 import '../../../config/constants.dart';
+import '../../../core/auth/auth_controller.dart';
 import '../../../data/models/models.dart';
 import '../../../data/repositories/video_repository.dart';
 import '../../documents/widgets/documents_list.dart';
@@ -292,21 +293,27 @@ class _PlayerViewState extends ConsumerState<_PlayerView>
     );
   }
 
+  /// Les jobs IA et la reprise de conversion sont des routes admin : un
+  /// apprenant ne voit pas les boutons qui lui vaudraient un 403.
+  bool get _isAdmin =>
+      ref.watch(authControllerProvider.select((a) => a.user?.isAdmin ?? false));
+
   List<Widget> _mediaSection(MediaController? media) {
+    final isAdmin = _isAdmin;
     return [
       _MediaArea(
         video: _video,
         controller: media,
         busy: _aiBusy,
-        onRetryConversion: _retryConversion,
+        onRetryConversion: isAdmin ? _retryConversion : null,
       ),
       PlayerProgressBar(controller: media, fallbackDuration: _video.duration),
       AiActionBar(
         video: _video,
         busy: _aiBusy,
         errorMessage: _aiError,
-        onTranscribe: _transcribe,
-        onGenerateSummary: _generateSummary,
+        onTranscribe: isAdmin ? _transcribe : null,
+        onGenerateSummary: isAdmin ? _generateSummary : null,
         onOpenSummary: () => _tabs.animateTo(_summaryTab),
       ),
     ];
@@ -337,7 +344,7 @@ class _PlayerViewState extends ConsumerState<_PlayerView>
               SummaryPanel(
                 video: _video,
                 busy: _aiBusy,
-                onGenerate: _generateSummary,
+                onGenerate: _isAdmin ? _generateSummary : null,
               ),
               DocumentsList(
                 documents: documents,
@@ -357,13 +364,13 @@ class _MediaArea extends StatelessWidget {
     required this.video,
     required this.controller,
     required this.busy,
-    required this.onRetryConversion,
+    this.onRetryConversion,
   });
 
   final VideoItem video;
   final MediaController? controller;
   final bool busy;
-  final VoidCallback onRetryConversion;
+  final VoidCallback? onRetryConversion;
 
   @override
   Widget build(BuildContext context) {
@@ -384,11 +391,13 @@ class _MediaArea extends StatelessWidget {
         icon: Icons.error_outline,
         title: 'La conversion du média a échoué.',
         message: 'Le média n’est pas lisible pour le moment.',
-        action: FilledButton.tonalIcon(
-          onPressed: busy ? null : onRetryConversion,
-          icon: const Icon(Icons.refresh),
-          label: const Text('Relancer la conversion'),
-        ),
+        action: onRetryConversion == null
+            ? null
+            : FilledButton.tonalIcon(
+                onPressed: busy ? null : onRetryConversion,
+                icon: const Icon(Icons.refresh),
+                label: const Text('Relancer la conversion'),
+              ),
       );
     }
 

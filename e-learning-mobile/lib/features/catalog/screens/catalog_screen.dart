@@ -7,6 +7,7 @@ import '../../../core/auth/auth_controller.dart';
 import '../../../core/network/offline_banner.dart';
 import '../../../core/utils/time_format.dart';
 import '../../settings/widgets/settings_sheet.dart';
+import '../../usage/widgets/usage_sheet.dart';
 import '../providers/catalog_provider.dart';
 
 class CatalogScreen extends ConsumerWidget {
@@ -21,6 +22,7 @@ class CatalogScreen extends ConsumerWidget {
       appBar: AppBar(
         title: const Text('Formations'),
         actions: [
+          const UsageButton(),
           const SettingsButton(),
           IconButton(
             tooltip: 'Déconnexion',
@@ -101,7 +103,7 @@ class CatalogScreen extends ConsumerWidget {
                                       .textTheme
                                       .labelMedium,
                                 ),
-                                if (auth.uid != null) ...[
+                                if (auth.isAuthenticated) ...[
                                   const SizedBox(height: 4),
                                 ],
                               ],
@@ -135,11 +137,7 @@ class _CatalogSkeleton extends StatelessWidget {
       // Le reflet doit s'éclaircir en sombre et s'assombrir en clair, sinon
       // l'animation passe inaperçue.
       highlightColor: isDark
-          ? Color.lerp(
-              scheme.surfaceContainerHighest,
-              scheme.onSurface,
-              0.14,
-            )!
+          ? Color.lerp(scheme.surfaceContainerHighest, scheme.onSurface, 0.14)!
           : scheme.surfaceContainerLow,
       child: ListView.builder(
         padding: const EdgeInsets.all(16),

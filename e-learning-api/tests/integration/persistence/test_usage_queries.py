@@ -15,6 +15,7 @@ from e_learning.infrastructure.persistence.usage.repository import (
     SqlAlchemyTokenUsageRepository,
 )
 from e_learning.infrastructure.persistence.user.models import UserModel
+from tests.integration.conftest import bearer
 
 
 def _usage(user_id: Any, kind: str, model: str, prompt: int, completion: int, age: int):
@@ -33,7 +34,12 @@ async def test_usage_query_aggregates_window_and_all_time(app: Any) -> None:
     user_id = uuid4()
     other_id = uuid4()
     async with app.state.session_factory() as session:
-        session.add_all([UserModel(id=user_id), UserModel(id=other_id)])
+        session.add_all(
+            [
+                UserModel(id=uid, email=f"usage-{uid}@example.com", hashed_password="x")
+                for uid in (user_id, other_id)
+            ]
+        )
         await session.commit()
 
         repo = SqlAlchemyTokenUsageRepository(session)
@@ -70,11 +76,11 @@ async def test_usage_query_aggregates_window_and_all_time(app: Any) -> None:
 
 async def test_usage_endpoint_requires_user_and_returns_empty_series(
     client: AsyncClient,
+    learner_token: str,
 ) -> None:
     assert (await client.get("/usage")).status_code == 401
 
-    uid = (await client.post("/auth/generate")).json()["uid"]
-    response = await client.get("/usage", params={"days": 14}, headers={"X-User-UID": uid})
+    response = await client.get("/usage", params={"days": 14}, headers=bearer(learner_token))
 
     assert response.status_code == 200
     body = response.json()

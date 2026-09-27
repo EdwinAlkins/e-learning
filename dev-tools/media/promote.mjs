@@ -16,6 +16,7 @@ const SELECTION = [
   [SHOTS_DIR, '07-notes.png', 'notes.png'],
   [SHOTS_DIR, '09-studio.png', 'studio.png'],
   [SHOTS_DIR, '10-builder.png', 'builder.png'],
+  [SHOTS_DIR, '12-usage.png', 'usage.png'],
   [VIDEO_DIR, 'demo.mp4', 'demo.mp4'],
   [VIDEO_DIR, 'poster.png', 'poster.png'],
   [VIDEO_DIR, 'demo.gif', 'demo.gif'],

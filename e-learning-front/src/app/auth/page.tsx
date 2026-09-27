@@ -1,6 +1,6 @@
 'use client';
 
-import { useState, useEffect } from 'react';
+import { useEffect, useState } from 'react';
 import { useRouter } from 'next/navigation';
 import {
   Container,
@@ -10,74 +10,46 @@ import {
   Typography,
   Box,
   Alert,
+  CircularProgress,
 } from '@mui/material';
-import { VpnKey as KeyIcon, PlayArrow as PlayIcon } from '@mui/icons-material';
+import { Login as LoginIcon } from '@mui/icons-material';
+import axios from 'axios';
 import { useAuthStore } from '../../stores/auth.store';
-import { apiService } from '../../services/api';
+import { apiErrorMessage } from '../../services/api';
+
+/** Cible de retour après connexion : chemin interne uniquement (pas de redirection ouverte). */
+function nextPath(): string {
+  const next = new URLSearchParams(window.location.search).get('next');
+  return next && next.startsWith('/') && !next.startsWith('//') ? next : '/';
+}
 
 export default function Auth() {
-  const [uid, setUid] = useState('');
+  const [email, setEmail] = useState('');
+  const [password, setPassword] = useState('');
   const [error, setError] = useState<string | null>(null);
   const [loading, setLoading] = useState(false);
   const router = useRouter();
-  const { setUID, isAuthenticated, checkAuth } = useAuthStore();
+  const { status, login } = useAuthStore();
 
-  // Check if user is already authenticated on mount
   useEffect(() => {
-    checkAuth();
-  }, [checkAuth]);
-
-  // Redirect if already authenticated
-  useEffect(() => {
-    if (isAuthenticated) {
-      router.push('/');
+    if (status === 'authenticated') {
+      router.replace(nextPath());
     }
-  }, [isAuthenticated, router]);
+  }, [status, router]);
 
-  const handleGenerateUID = async () => {
-    setLoading(true);
+  const handleSubmit = async (event: React.FormEvent) => {
+    event.preventDefault();
     setError(null);
-    try {
-      const newUid = await apiService.generateUID();
-      setUID(newUid);
-      router.push('/');
-    } catch (err) {
-      setError(
-        err instanceof Error ? err.message : 'Failed to generate UID'
-      );
-    } finally {
-      setLoading(false);
-    }
-  };
-
-  const handleContinue = async () => {
-    setError(null);
-    const trimmedUid = uid.trim();
-
-    if (!trimmedUid) {
-      setError('UID is required');
-      return;
-    }
-
-    // UUID (backend actuel) ou hex 64 (legacy)
-    const isUuid =
-      /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(
-        trimmedUid
-      );
-    const isLegacyHex = /^[0-9a-f]{64}$/i.test(trimmedUid);
-    if (!isUuid && !isLegacyHex) {
-      setError('UID must be a valid UUID');
-      return;
-    }
-
     setLoading(true);
     try {
-      const restoredUid = await apiService.restoreUID(trimmedUid);
-      setUID(restoredUid);
-      router.push('/');
+      await login(email.trim(), password);
+      router.replace(nextPath());
     } catch (err) {
+      const status = axios.isAxiosError(err) ? err.response?.status : undefined;
       setError(
-        err instanceof Error ? err.message : 'Failed to restore UID'
+        status === 401
+          ? 'Email ou mot de passe incorrect.'
+          : apiErrorMessage(err, 'Connexion impossible.')
       );
     } finally {
       setLoading(false);
@@ -99,58 +71,59 @@ export default function Auth() {
             Cladèse
           </Typography>
           <Typography variant="body1" color="text.secondary" align="center" sx={{ mb: 4 }}>
-            Enter your UID or generate a new one
+            Connectez-vous pour accéder aux formations
           </Typography>
 
-          {error && (
-            <Alert severity="error" sx={{ mb: 2 }}>
-              {error}
-            </Alert>
-          )}
-
-          <Box sx={{ display: 'flex', flexDirection: 'column', gap: 2 }}>
-            <TextField
-              fullWidth
-              label="UID"
-              placeholder="Enter your UUID"
-              value={uid}
-              onChange={(e) => setUid(e.target.value)}
-              disabled={loading}
-              onKeyDown={(e) => {
-                if (e.key === 'Enter') {
-                  handleContinue();
-                }
-              }}
-            />
-
-            <Button
-              fullWidth
-              variant="contained"
-              size="large"
-              startIcon={<PlayIcon />}
-              onClick={handleContinue}
-              disabled={loading || !uid.trim()}
-            >
-              Continue
-            </Button>
-
-            <Box sx={{ display: 'flex', alignItems: 'center', my: 2 }}>
-              <Box sx={{ flex: 1, height: 1, bgcolor: 'divider' }} />
-              <Typography sx={{ px: 2, color: 'text.secondary' }}>OR</Typography>
-              <Box sx={{ flex: 1, height: 1, bgcolor: 'divider' }} />
+          {status === 'unknown' ? (
+            <Box sx={{ display: 'flex', justifyContent: 'center', py: 4 }}>
+              <CircularProgress />
             </Box>
-
-            <Button
-              fullWidth
-              variant="outlined"
-              size="large"
-              startIcon={<KeyIcon />}
-              onClick={handleGenerateUID}
-              disabled={loading}
+          ) : (
+            <Box
+              component="form"
+              onSubmit={handleSubmit}
+              sx={{ display: 'flex', flexDirection: 'column', gap: 2 }}
             >
-              Generate New UID
-            </Button>
-          </Box>
+              {error && <Alert severity="error">{error}</Alert>}
+
+              <TextField
+                fullWidth
+                label="Email"
+                type="email"
+                autoComplete="username"
+                autoFocus
+                required
+                value={email}
+                onChange={(e) => setEmail(e.target.value)}
+                disabled={loading}
+              />
+              <TextField
+                fullWidth
+                label="Mot de passe"
+                type="password"
+                autoComplete="current-password"
+                required
+                value={password}
+                onChange={(e) => setPassword(e.target.value)}
+                disabled={loading}
+              />
+
+              <Button
+                type="submit"
+                fullWidth
+                variant="contained"
+                size="large"
+                startIcon={<LoginIcon />}
+                disabled={loading || !email.trim() || !password}
+              >
+                Se connecter
+              </Button>
+
+              <Typography variant="body2" color="text.secondary" align="center">
+                Pas de compte ? Demandez-en un à votre administrateur.
+              </Typography>
+            </Box>
+          )}
         </Paper>
       </Box>
     </Container>

@@ -63,7 +63,7 @@
     <li>Open source, AGPL v3</li>
     <li>Docker Compose</li>
     <li>IA locale ou distante</li>
-    <li>Usage personnel ou équipe de confiance</li>
+    <li>Comptes et rôles intégrés</li>
   </ul>
 </header>
 
@@ -85,8 +85,13 @@
 <h2 id="installer">Installer en trois commandes<a class="anchor" href="#installer" aria-label="Lien vers cette section">#</a></h2>
 
 <div class="snippet" data-lang="bash"><pre><code>git clone https://github.com/EdwinAlkins/e-learning.git &amp;&amp; cd e-learning
-cp .env.template .env        # VIDEOS_HOST_PATH : dossier de vos médias
+cp .env.template .env        # à renseigner : clé secrète, compte admin, dossier des médias
 docker compose up -d --build # → http://localhost:3000</code></pre></div>
+
+<p>Dans <code>.env</code>, remplacez les valeurs d'exemple de <code>APP_SECRET_KEY</code>
+et du premier compte administrateur (<code>APP_FIRST_ADMIN_EMAIL</code>,
+<code>APP_FIRST_ADMIN_PASSWORD</code>) : la plateforme refuse de démarrer sans. Vous vous
+connectez ensuite avec ce compte, et créez ceux des apprenants depuis le studio.</p>
 
 <div class="note">
   <strong>Aucun modèle d'IA n'est nécessaire pour démarrer</strong>
@@ -98,9 +103,9 @@ docker compose up -d --build # → http://localhost:3000</code></pre></div>
 
 <h2 id="fonctionnalites">Une plateforme de formation complète<a class="anchor" href="#fonctionnalites" aria-label="Lien vers cette section">#</a></h2>
 
-<p>Formations, chapitres, leçons vidéo ou audio et documents : les apprenants
-retrouvent leur progression et leurs notes, les formateurs organisent le contenu
-depuis le studio.</p>
+<p>Formations, chapitres, leçons vidéo ou audio et documents : chaque apprenant se
+connecte à son compte et retrouve sa progression et ses notes ; les administrateurs
+organisent le contenu et ouvrent les accès depuis le studio.</p>
 
 <div class="split">
   <figure><img class="shot" src="./assets/media/player.png" loading="lazy"
@@ -192,20 +197,21 @@ réponses. Avec un modèle local, rien ne sort de la machine.
   <thead><tr><th>Si vous cherchez…</th><th>Cladèse</th><th>Précision</th></tr></thead>
   <tbody>
     <tr><td>Héberger et suivre vos propres formations vidéo</td><td class="yes">Oui</td><td>&mdash;</td></tr>
-    <tr><td>Une plateforme privée pour une petite équipe de confiance</td><td class="yes">Oui</td><td>Sur un réseau privé, ou derrière une authentification</td></tr>
+    <tr><td>Une plateforme privée pour une équipe</td><td class="yes">Oui</td><td>Comptes créés par un administrateur, studio réservé aux administrateurs</td></tr>
     <tr><td>Transcription, résumés et assistant sans service tiers imposé</td><td class="yes">Oui</td><td>Modèle local ou distant, à configurer</td></tr>
     <tr><td>Reprendre une bibliothèque de cours déjà rangée en dossiers</td><td class="yes">Oui</td><td>Import par réconciliation du dossier</td></tr>
-    <tr><td>Comptes avec mot de passe, SSO, rôles formateur / apprenant</td><td class="no">Non</td><td>Identité par identifiant anonyme ; <a href="./installation.html#exposer">authentification à placer devant</a></td></tr>
+    <tr><td>Comptes avec mot de passe, rôles administrateur / apprenant</td><td class="yes">Oui</td><td>Pas d'inscription libre ni de mot de passe oublié par email : un administrateur crée et réinitialise les comptes</td></tr>
+    <tr><td>Connexion avec Google, Microsoft ou l'annuaire de l'entreprise (SSO), droits par formation</td><td class="no">Non</td><td>Un seul niveau d'accès au catalogue ; <a href="./installation.html#choisir-auth">proxy d'authentification possible en amont</a></td></tr>
     <tr><td>Vendre des formations, gérer inscriptions ou certificats, SCORM</td><td class="no">Non</td><td>Moodle, Open edX</td></tr>
   </tbody>
 </table>
 </div>
 
-<div class="warn">
-  <strong>Pas d'authentification intégrée, pour l'instant</strong>
-  Chaque apprenant est reconnu par un identifiant stocké dans son navigateur, sans
-  mot de passe, et le studio est accessible à quiconque atteint l'interface. Gardez
-  l'instance sur un réseau privé ou derrière un proxy authentifiant.
+<div class="note">
+  <strong>Avant de l'ouvrir sur Internet</strong>
+  Chaque page demande une connexion et seuls les administrateurs modifient le catalogue.
+  Servez l'instance en HTTPS et fermez les ports internes : voir
+  <a href="./installation.html#exposer">Exposer l'instance</a>.
 </div>
 
 <h2 id="faq">Questions fréquentes<a class="anchor" href="#faq" aria-label="Lien vers cette section">#</a></h2>
@@ -224,7 +230,10 @@ réponses. Avec un modèle local, rien ne sort de la machine.
   <dd>Vidéo : MP4, WebM, MKV, AVI, MOV, M4V, WMV, FLV. Audio : MP3, WAV, M4A, AAC, OGG, FLAC, WMA, Opus. Les documents : PDF, Office, OpenDocument, Markdown, texte, images.</dd>
 
   <dt>Comment un apprenant retrouve-t-il sa progression sur un autre appareil ?</dt>
-  <dd>Avec son identifiant : il le copie depuis l'en-tête de l'application et le saisit sur l'autre appareil, web ou mobile.</dd>
+  <dd>En se connectant avec le même compte, sur le web ou sur l'application mobile : progression et notes suivent le compte.</dd>
+
+  <dt>Qui peut voir et modifier quoi ?</dt>
+  <dd>Tout compte connecté voit le catalogue complet. Seuls les administrateurs accèdent au studio et à la gestion des comptes. Notes et progression restent personnelles, y compris vis-à-vis des administrateurs.</dd>
 
   <dt>Et sur téléphone ?</dt>
   <dd>L'interface web s'adapte aux petits écrans, et une <a href="./mobile.html">application Flutter</a> reprend le parcours apprenant. Le studio reste sur le web.</dd>

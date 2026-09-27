@@ -31,6 +31,7 @@ uv run e-learning-cli list-videos            # liste les UUID vidéos
 uv run e-learning-cli transcribe -v <uuid>
 uv run e-learning-cli summary -v <uuid>      # alias: resume
 uv run e-learning-cli convert --glob '**/*.*'
+uv run e-learning-cli create-admin --email admin@example.com   # mot de passe demandé
 
 # Tests
 uv run pytest
@@ -64,7 +65,7 @@ Package `src/e_learning/` :
 
 | Contexte | Agrégats / rôle |
 |----------|-----------------|
-| `user` | Utilisateur anonyme (`UserId` UUIDv7) |
+| `user` | Compte (email, hash argon2, `is_admin`, `is_active`) — `UserId` UUIDv7 |
 | `catalog` | Formation, Chapter, Video, Document, Job — `position` en base, slugs FS stables |
 | `learning` | Note, Progress (FK vers user + video) |
 | `content` | Transcription / résumé / conversion / RAG |
@@ -72,8 +73,24 @@ Package `src/e_learning/` :
 
 ### Auth
 
-Header `X-User-UID: <uuid>`. En `APP_DEBUG=true`, fallback UID fixe si header absent.
-OpenAPI UI : `/api-docs` (debug only).
+Login OAuth2 password (`POST /auth/login`, email dans `username`) → JWT HS256 (`sub`, `iat`, `exp`).
+Jeton accepté en `Authorization: Bearer` ou cookie `access_token` (web ; écritures par cookie →
+header `X-Requested-With` exigé, anti-CSRF). Le compte est relu en base à chaque requête.
+
+- Routes fermées par défaut : chaque routeur déclare `dependencies=[Depends(get_current_user)]`
+  ou `[Depends(require_admin)]` (`presentation/api/dependencies/auth.py`). Toute écriture du
+  catalogue va dans `studio_router` (`routers/studio.py`), chemins inchangés.
+- `tests/integration/api/test_access_matrix.py` liste chaque route avec son rôle : une nouvelle
+  route non classée ou non gardée fait échouer la CI.
+- Ports `PasswordHasher` / `TokenService` / `LoginThrottle` (`application/user/ports.py`),
+  adaptateurs dans `infrastructure/security/` (pwdlib argon2, pyjwt, fenêtre glissante en mémoire
+  — par process).
+- Premier admin créé au démarrage (`APP_FIRST_ADMIN_*`, idempotent) ; sinon
+  `e-learning-cli create-admin --email <email>`.
+- Démarrage refusé hors debug si `APP_SECRET_KEY` / `APP_FIRST_ADMIN_PASSWORD` valent
+  `changethis` (ou clé < 32 caractères), et toujours si `APP_CORS_ORIGINS` contient `*`.
+
+OpenAPI UI : `/api-docs` (debug only), bouton *Authorize* branché sur `/auth/login`.
 
 ### Catalogue
 
@@ -103,13 +120,18 @@ Lecture : `GET /usage?days=30` (1–365) — totaux fenêtre + cumul, détail pa
 |----------|--------|------|
 | `APP_DATABASE_URL` | postgres local | URL asyncpg |
 | `APP_VIDEOS_PATH` | `videos/` | Racine FS |
-| `APP_DEBUG` | `false` | docs UI + UID fallback |
+| `APP_DEBUG` | `false` | docs UI ; tolère les secrets d'exemple (avertissement) |
 | `APP_INIT_DB` | `false` | `create_all` au boot |
 | `APP_RECONCILE_ON_STARTUP` | `false` | reconcile FS↔DB au boot (sinon `e-learning-cli reconcile`) |
 | `APP_SUMMARY_STRATEGY` | `openapi` | `openapi` \| `gemini` |
 | `APP_RABBITMQ_URL` | `amqp://guest:guest@localhost:5672/` | Broker jobs |
 | `APP_RABBITMQ_EXCHANGE` | `elearning_jobs` | Exchange DIRECT |
 | `APP_WORKER_PREFETCH` | `3` | Concurrence max par process worker |
+| `APP_SECRET_KEY` | `changethis` | Clé JWT HS256 (≥ 32 caractères hors debug) |
+| `APP_ACCESS_TOKEN_EXPIRE_MINUTES` | `10080` | Validité du jeton (7 jours, pas de refresh) |
+| `APP_FIRST_ADMIN_EMAIL` | `admin@example.com` | Premier admin créé au démarrage |
+| `APP_FIRST_ADMIN_PASSWORD` | `changethis` | Son mot de passe initial (refusé hors debug) |
+| `APP_LOGIN_MAX_FAILURES` / `APP_LOGIN_WINDOW_MINUTES` | `5` / `15` | Anti-bruteforce login → 429 |
 
 ## Docker
 

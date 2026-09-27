@@ -1,7 +1,5 @@
 'use client';
 
-import { useEffect } from 'react';
-import { useRouter } from 'next/navigation';
 import { Box } from '@mui/material';
 import { useAuthStore } from '../stores/auth.store';
 import Header from './Header';
@@ -10,21 +8,11 @@ interface AuthGuardProps {
   readonly children: React.ReactNode;
 }
 
+/** Cadre des pages connectées. La redirection vers `/auth` est faite par `SessionGate`. */
 export default function AuthGuard({ children }: AuthGuardProps) {
-  const { isAuthenticated, checkAuth } = useAuthStore();
-  const router = useRouter();
+  const status = useAuthStore((state) => state.status);
 
-  useEffect(() => {
-    checkAuth();
-  }, [checkAuth]);
-
-  useEffect(() => {
-    if (!isAuthenticated) {
-      router.push('/auth');
-    }
-  }, [isAuthenticated, router]);
-
-  if (!isAuthenticated) {
+  if (status !== 'authenticated') {
     return null;
   }
 

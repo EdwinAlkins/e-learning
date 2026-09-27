@@ -32,18 +32,20 @@ YouTube de Blender et réutilisées sous licence [Creative Commons Attribution](
 
 ## Ce qu'il est, et ce qu'il n'est pas
 
-Une plateforme de formation pour un **usage personnel** ou une **équipe de confiance**, qui garde
-médias, base et index sur votre infrastructure. Ce n'est **pas** un LMS commercial : pas de comptes
-avec mot de passe ni de rôles pour l'instant.
+Une plateforme de formation pour un **usage personnel** ou une **équipe**, qui garde médias, base et
+index sur votre infrastructure. Chaque personne a un **compte avec mot de passe**, créé par un
+administrateur ; seuls les administrateurs accèdent au studio. Ce n'est **pas** un LMS commercial :
+pas d'inscription libre, pas de SSO, pas de droits par formation.
 
 | Besoin | Cladèse | Sinon |
 | --- | --- | --- |
 | Héberger et suivre vos propres formations vidéo | ✅ | — |
-| Une plateforme privée pour une petite équipe | ✅ | Sur un réseau privé, ou derrière une authentification |
+| Une plateforme privée pour une équipe | ✅ | Comptes créés par un administrateur, studio réservé aux administrateurs |
 | Transcription, résumés et questions sur le cours sans service tiers imposé | ✅ | Modèle local ou distant, à configurer |
 | Reprendre une bibliothèque de cours rangée en dossiers | ✅ | [`e-learning-cli reconcile`](#cli) |
 | Application mobile | ✅ côté apprenant | Le studio reste sur le web |
-| Comptes, SSO, rôles formateur / apprenant | ❌ | Un proxy authentifiant devant l'instance ([détails](#sécurité)) |
+| Comptes avec mot de passe, rôles administrateur / apprenant | ✅ | Pas d'inscription libre ni de mot de passe oublié par email : l'admin crée et réinitialise |
+| SSO (Google, Microsoft, annuaire), droits par formation | ❌ | Un proxy d'authentification en amont ([détails](#sécurité)) |
 | Vendre des formations, inscriptions, certificats, SCORM | ❌ | [Moodle](https://moodle.org), [Open edX](https://openedx.org) |
 
 ## Compatibilité
@@ -70,11 +72,16 @@ GPU requis.
 git lfs install           # une fois par machine, avant le clone
 git clone https://github.com/EdwinAlkins/e-learning.git
 cd e-learning
-cp .env.template .env      # VIDEOS_HOST_PATH : dossier de vos médias
+cp .env.template .env      # voir ci-dessous
 docker compose up -d --build
 ```
 
-- Front : <http://localhost:3000> — **Generate New UID**, puis **Studio** pour créer une formation
+Avant le premier `up`, renseignez dans `.env` : `APP_SECRET_KEY` (`openssl rand -hex 32`),
+`APP_FIRST_ADMIN_EMAIL`, `APP_FIRST_ADMIN_PASSWORD`, et `VIDEOS_HOST_PATH` pour vos médias.
+L'API refuse de démarrer avec les valeurs d'exemple.
+
+- Front : <http://localhost:3000> — connectez-vous avec le compte admin, puis **Studio** pour créer
+  une formation et **Studio → Comptes** pour ouvrir des accès
 - API : <http://localhost:8000> — documentation OpenAPI sur `/api-docs` si `APP_DEBUG=true`
 
 > **Lancez depuis la racine du dépôt.** `e-learning-api/docker-compose.yml` sert au développement de
@@ -113,15 +120,18 @@ Tout passe par `.env` (voir [`.env.template`](.env.template)). Les variables pri
 
 | Variable | Rôle |
 | --- | --- |
+| `APP_SECRET_KEY` | Clé de signature des sessions, 32 caractères minimum — **obligatoire** |
+| `APP_FIRST_ADMIN_EMAIL` / `_PASSWORD` | Premier administrateur, créé au démarrage — **obligatoire** |
+| `APP_ACCESS_TOKEN_EXPIRE_MINUTES` | Durée d'une session (défaut `10080`, 7 jours) |
 | `VIDEOS_HOST_PATH` | Dossier hôte des formations, monté sur `/app/videos` |
 | `NEXT_PUBLIC_API_URL` | URL de l'API vue par le navigateur — **figée au build** du front |
-| `APP_CORS_ORIGINS` | Origines autorisées, liste JSON |
+| `APP_CORS_ORIGINS` | Adresses du front, liste JSON ; `"*"` refusé |
 | `APP_OPENAI_BASE_URL` / `_API_KEY` / `_MODEL` | Modèle de langage (résumés, assistant) |
 | `APP_SUMMARY_STRATEGY` | `openapi` ou `gemini` |
 | `APP_EMBEDDING_BASE_URL` | Vide : embeddings locaux (`sentence-transformers`) ; renseignée : API distante |
 | `APP_WORKER_PREFETCH` | Jobs en parallèle par worker (défaut `3`) |
 | `APP_MAX_UPLOAD_SIZE` | Taille maximale d'un téléversement, en octets |
-| `APP_DEBUG` | Interface OpenAPI et UID de repli — `false` en production |
+| `APP_DEBUG` | Interface OpenAPI, secrets d'exemple tolérés — `false` en production |
 
 Référence complète : [Configuration](https://edwinalkins.github.io/e-learning/configuration.html).
 
@@ -165,7 +175,9 @@ e-learning/
 - **Disque et base réconciliés** : chaque fichier a un chemin relatif unique ; l'ordre est une
   colonne `position`, réordonner ne renomme rien. Transcriptions et résumés sont des fichiers
   voisins du média.
-- **Identité anonyme** : un UUIDv7 dans l'en-tête `X-User-UID` porte progression et notes.
+- **Comptes et rôles** : connexion OAuth2 *password*, jeton JWT en `Authorization: Bearer`
+  (mobile, scripts) ou en cookie `HttpOnly` (web). Chaque routeur déclare sa garde, apprenant ou
+  admin ; un test fait échouer la CI si une route n'est pas protégée.
 
 Plus loin : [Architecture](https://edwinalkins.github.io/e-learning/architecture.html) ·
 [API HTTP](https://edwinalkins.github.io/e-learning/api.html) ·
@@ -221,6 +233,7 @@ docker compose exec api e-learning-cli convert --glob '**/*.*' # conversion web 
 docker compose exec api e-learning-cli transcribe -v <uuid> --model small --language fr
 docker compose exec api e-learning-cli summary -v <uuid>
 docker compose exec api e-learning-cli index-rag               # réindexer l'assistant
+docker compose exec api e-learning-cli create-admin --email vous@example.com  # mot de passe demandé
 ```
 
 ## Sauvegardes
@@ -253,17 +266,24 @@ puis applique la rotation.
 
 ## Sécurité
 
-**Il n'y a pas d'authentification intégrée.** L'UID est un identifiant de suivi, pas un secret :
-toute personne qui atteint le front ou l'API peut lire le catalogue, téléverser et supprimer.
+Toute page et toute route de l'API exigent une connexion ; le studio et la gestion des comptes sont
+réservés aux administrateurs. Mots de passe hachés en argon2, cinq échecs de connexion par email ou
+par IP en quinze minutes avant blocage, rôle relu en base à chaque requête.
 
-- Gardez l'instance **sur un réseau privé** (VPN, Tailscale) ou **derrière un proxy authentifiant**
-  (authentification HTTP, Authelia, Authentik, oauth2-proxy). Seul le VPN convient aussi à
-  l'application mobile.
+- **HTTPS obligatoire** hors `localhost` : le cookie de session est `Secure`, et les mots de passe
+  transitent dans la requête de connexion.
+- `APP_SECRET_KEY` d'au moins 32 caractères et mot de passe admin changé : l'API refuse de démarrer
+  sinon, hors mode debug.
+- Un VPN (Tailscale, WireGuard) ou un proxy SSO en amont (Authelia, Authentik, oauth2-proxy) reste
+  possible pour ne rien exposer publiquement ; seul le VPN convient aussi à l'application mobile.
 - Le compose publie **PostgreSQL, RabbitMQ (`guest` par défaut) et Qdrant** sur toutes les
   interfaces : en production, retirez ces ports ou liez-les à `127.0.0.1`, et changez les
   identifiants par défaut.
-- `APP_DEBUG=false` en production : le mode debug expose l'interface OpenAPI et accepte les requêtes
-  sans UID.
+- `APP_DEBUG=false` en production : le mode debug expose l'interface OpenAPI et tolère les secrets
+  d'exemple (il ne contourne pas l'authentification).
+- **Mise à jour depuis une version sans comptes** : la migration 007 supprime les anciens
+  identifiants anonymes avec leurs notes et leur progression. Sauvegardez d'abord
+  (`./scripts/backup.sh`).
 
 Recettes : [Exposer l'instance](https://edwinalkins.github.io/e-learning/installation.html#exposer).
 
@@ -280,7 +300,7 @@ Non. Tout fonctionne sur processeur ; la transcription est plus lente et se fait
 Oui. Seuls les résumés et l'assistant ont besoin d'un modèle de langage.
 
 **Comment un apprenant retrouve-t-il sa progression sur un autre appareil ?**
-Il copie son UID depuis l'en-tête de l'application et le saisit sur l'autre appareil, web ou mobile.
+Il se connecte avec le même compte, sur le web ou sur l'application mobile.
 
 **Une formation ajoutée sur le disque n'apparaît pas.**
 Lancez `e-learning-cli reconcile`, ou `APP_RECONCILE_ON_STARTUP=true`. Vérifiez les trois niveaux

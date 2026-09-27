@@ -15,7 +15,7 @@ from e_learning.presentation.api.dependencies import (
     get_delete_note,
     get_update_note,
 )
-from e_learning.presentation.api.dependencies.auth import CurrentUserIdDep
+from e_learning.presentation.api.dependencies.auth import CurrentUserDep, get_current_user
 from e_learning.presentation.api.dependencies.queries import LearningQueryDep
 from e_learning.presentation.api.v1.schemas.common import (
     NoteCreateRequest,
@@ -23,16 +23,20 @@ from e_learning.presentation.api.v1.schemas.common import (
     NoteUpdateRequest,
 )
 
-router = APIRouter(prefix="/notes", tags=["notes"])
+router = APIRouter(
+    prefix="/notes",
+    tags=["notes"],
+    dependencies=[Depends(get_current_user)],
+)
 
 
 @router.get("/{video_id}", response_model=list[NoteResponse])
 async def list_notes(
     video_id: str,
-    user_id: CurrentUserIdDep,
+    user: CurrentUserDep,
     queries: LearningQueryDep,
 ) -> list[NoteResponse]:
-    dtos = await queries.list_notes(user_id=user_id, video_id=video_id)
+    dtos = await queries.list_notes(user_id=user.id, video_id=video_id)
     return [NoteResponse.from_dto(n) for n in dtos]
 
 
@@ -40,12 +44,12 @@ async def list_notes(
 async def create_note(
     video_id: str,
     payload: NoteCreateRequest,
-    user_id: CurrentUserIdDep,
+    user: CurrentUserDep,
     use_case: Annotated[CreateNote, Depends(get_create_note)],
 ) -> NoteResponse:
     dto = await use_case.execute(
         CreateNoteCommand(
-            user_id=user_id,
+            user_id=user.id,
             video_id=video_id,
             timecode=payload.timecode,
             content=payload.content,
@@ -58,11 +62,11 @@ async def create_note(
 async def update_note(
     note_id: str,
     payload: NoteUpdateRequest,
-    user_id: CurrentUserIdDep,
+    user: CurrentUserDep,
     use_case: Annotated[UpdateNote, Depends(get_update_note)],
 ) -> NoteResponse:
     dto = await use_case.execute(
-        UpdateNoteCommand(note_id=note_id, user_id=user_id, content=payload.content)
+        UpdateNoteCommand(note_id=note_id, user_id=user.id, content=payload.content)
     )
     return NoteResponse.from_dto(dto)
 
@@ -70,7 +74,7 @@ async def update_note(
 @router.delete("/{note_id}", status_code=status.HTTP_204_NO_CONTENT)
 async def delete_note(
     note_id: str,
-    user_id: CurrentUserIdDep,
+    user: CurrentUserDep,
     use_case: Annotated[DeleteNote, Depends(get_delete_note)],
 ) -> None:
-    await use_case.execute(note_id=note_id, user_id=user_id)
+    await use_case.execute(note_id=note_id, user_id=user.id)

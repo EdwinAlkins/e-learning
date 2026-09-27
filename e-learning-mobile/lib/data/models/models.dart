@@ -50,6 +50,34 @@ class BackgroundJob {
   }
 }
 
+/// Compte connecté (`GET /auth/me`).
+class CurrentUser {
+  const CurrentUser({
+    required this.id,
+    required this.email,
+    this.fullName,
+    this.isAdmin = false,
+  });
+
+  final String id;
+  final String email;
+  final String? fullName;
+  final bool isAdmin;
+
+  /// Nom affiché : le nom complet s'il est renseigné, sinon l'email.
+  String get displayName =>
+      (fullName != null && fullName!.trim().isNotEmpty) ? fullName! : email;
+
+  factory CurrentUser.fromJson(Map<String, dynamic> json) {
+    return CurrentUser(
+      id: '${json['id']}',
+      email: '${json['email'] ?? ''}',
+      fullName: json['full_name'] as String?,
+      isAdmin: json['is_admin'] as bool? ?? false,
+    );
+  }
+}
+
 class DocumentItem {
   const DocumentItem({
     required this.id,
@@ -391,6 +419,98 @@ class AskFormationResponse {
           .whereType<Map<String, dynamic>>()
           .map(RagCitation.fromJson)
           .toList(),
+    );
+  }
+}
+
+/// Compteurs de consommation LLM (`GET /usage`).
+class TokenTotals {
+  const TokenTotals({
+    this.calls = 0,
+    this.promptTokens = 0,
+    this.completionTokens = 0,
+    this.totalTokens = 0,
+  });
+
+  final int calls;
+  final int promptTokens;
+  final int completionTokens;
+  final int totalTokens;
+
+  factory TokenTotals.fromJson(Map<String, dynamic> json) {
+    int read(String key) => (json[key] as num?)?.toInt() ?? 0;
+    return TokenTotals(
+      calls: read('calls'),
+      promptTokens: read('prompt_tokens'),
+      completionTokens: read('completion_tokens'),
+      totalTokens: read('total_tokens'),
+    );
+  }
+}
+
+/// Ventilation par clé (`kind` : `chat`, `summary`… ou nom de modèle).
+class TokenBreakdown {
+  const TokenBreakdown({required this.key, required this.totals});
+
+  final String key;
+  final TokenTotals totals;
+
+  factory TokenBreakdown.fromJson(Map<String, dynamic> json) =>
+      TokenBreakdown(key: '${json['key']}', totals: TokenTotals.fromJson(json));
+}
+
+class DailyTokenUsage {
+  const DailyTokenUsage({required this.day, required this.totals});
+
+  /// Jour UTC.
+  final DateTime day;
+  final TokenTotals totals;
+
+  factory DailyTokenUsage.fromJson(Map<String, dynamic> json) =>
+      DailyTokenUsage(
+        day: DateTime.parse('${json['day']}'),
+        totals: TokenTotals.fromJson(json),
+      );
+}
+
+/// Consommation LLM de l'utilisateur connecté sur une fenêtre de [days] jours.
+class UserTokenUsage {
+  const UserTokenUsage({
+    required this.days,
+    required this.period,
+    required this.allTime,
+    this.byKind = const [],
+    this.byModel = const [],
+    this.daily = const [],
+  });
+
+  final int days;
+  final TokenTotals period;
+  final TokenTotals allTime;
+  final List<TokenBreakdown> byKind;
+  final List<TokenBreakdown> byModel;
+
+  /// Un point par jour de la fenêtre, jours vides compris, du plus ancien au
+  /// plus récent.
+  final List<DailyTokenUsage> daily;
+
+  factory UserTokenUsage.fromJson(Map<String, dynamic> json) {
+    List<T> list<T>(String key, T Function(Map<String, dynamic>) parse) =>
+        (json[key] as List<dynamic>? ?? const [])
+            .whereType<Map<String, dynamic>>()
+            .map(parse)
+            .toList();
+    return UserTokenUsage(
+      days: (json['days'] as num?)?.toInt() ?? 0,
+      period: TokenTotals.fromJson(
+        json['period'] as Map<String, dynamic>? ?? const {},
+      ),
+      allTime: TokenTotals.fromJson(
+        json['all_time'] as Map<String, dynamic>? ?? const {},
+      ),
+      byKind: list('by_kind', TokenBreakdown.fromJson),
+      byModel: list('by_model', TokenBreakdown.fromJson),
+      daily: list('daily', DailyTokenUsage.fromJson),
     );
   }
 }

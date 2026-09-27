@@ -157,13 +157,38 @@ ligne de commande exécute le même code.</p>
 <table>
   <thead><tr><th>Contexte</th><th>Contenu</th></tr></thead>
   <tbody>
-    <tr><td><code>user</code></td><td>Utilisateur anonyme, identifié par un <code>UserId</code> UUIDv7</td></tr>
+    <tr><td><code>user</code></td><td>Compte : email normalisé, empreinte argon2 du mot de passe, <code>is_admin</code>, <code>is_active</code> ; <code>UserId</code> UUIDv7</td></tr>
     <tr><td><code>catalog</code></td><td>Formation, Chapter, Video, Document, Job ; <code>position</code> en base, slugs disque stables</td></tr>
     <tr><td><code>learning</code></td><td>Note et Progress, rattachées à un utilisateur et à une vidéo</td></tr>
     <tr><td><code>content</code></td><td>Transcription, résumé, conversion, indexation et questions RAG</td></tr>
+    <tr><td><code>usage</code></td><td>Journal des tokens consommés par les appels au modèle de langage, par utilisateur</td></tr>
   </tbody>
 </table>
 </div>
+
+<h2 id="auth">Authentification<a class="anchor" href="#auth" aria-label="Lien vers cette section">#</a></h2>
+
+<ul>
+  <li><strong>Ports applicatifs</strong> (<code>application/user/ports.py</code>) :
+      <code>PasswordHasher</code>, <code>TokenService</code>, <code>LoginThrottle</code>.
+      Le domaine ne voit que l'empreinte du mot de passe, jamais le mot de passe ni
+      l'algorithme.</li>
+  <li><strong>Adaptateurs</strong> (<code>infrastructure/security/</code>) : argon2 via
+      <code>pwdlib</code> (calcul dans un thread, hors boucle d'événements), JWT HS256 via
+      <code>pyjwt</code> (<code>sub</code>, <code>iat</code>, <code>exp</code>), compteur
+      d'échecs en mémoire du processus.</li>
+  <li><strong>Garde par routeur</strong> : chaque routeur FastAPI déclare
+      <code>dependencies=[Depends(get_current_user)]</code> ou
+      <code>[Depends(require_admin)]</code>. Toutes les écritures du catalogue sont
+      regroupées dans <code>studio_router</code>. Une nouvelle route est donc protégée par
+      défaut.</li>
+  <li><strong>Relecture en base</strong> : <code>get_current_user</code> décode le jeton
+      puis relit le compte, une requête SQL par appel. Désactivation et retrait du rôle
+      s'appliquent sans attendre l'expiration du jeton.</li>
+  <li><strong>Garde-fou</strong> : <code>tests/integration/api/test_access_matrix.py</code>
+      liste chaque route avec son rôle et échoue si une route n'est pas classée ou pas
+      gardée.</li>
+</ul>
 
 <h2 id="jobs">Cycle de vie d'un job<a class="anchor" href="#jobs" aria-label="Lien vers cette section">#</a></h2>
 
@@ -221,13 +246,15 @@ restent la vérité métier.</p>
 <table>
   <thead><tr><th>Route</th><th>Page</th></tr></thead>
   <tbody>
-    <tr><td><code>/auth</code></td><td>Génération ou reprise de l'UID</td></tr>
+    <tr><td><code>/auth</code></td><td>Connexion ; seule page publique</td></tr>
     <tr><td><code>/</code></td><td>Catalogue</td></tr>
     <tr><td><code>/formation/[formationId]</code></td><td>Détail, assistant, chapitres</td></tr>
     <tr><td><code>/player/[videoId]</code></td><td>Lecteur, résumé, notes, documents</td></tr>
     <tr><td><code>/studio</code></td><td>Liste des formations à éditer</td></tr>
     <tr><td><code>/studio/formation/new</code></td><td>Création</td></tr>
     <tr><td><code>/studio/formation/[id]</code></td><td>Éditeur de formation</td></tr>
+    <tr><td><code>/studio/users</code></td><td>Gestion des comptes</td></tr>
+    <tr><td><code>/usage</code></td><td>Consommation IA du compte</td></tr>
   </tbody>
 </table>
 </div>
@@ -236,8 +263,12 @@ restent la vérité métier.</p>
 pas de rendu serveur en pratique. L'état vit dans des stores Zustand
 (<code>auth</code>, <code>catalog</code>, <code>studio</code>, <code>player</code>,
 <code>theme</code>) ; les appels passent par un client Axios unique
-(<code>src/services/api.ts</code>) qui ajoute l'en-tête <code>X-User-UID</code>.
-L'interface est entièrement en MUI 7 ; le lecteur vidéo est video.js et
+(<code>src/services/api.ts</code>) qui envoie le cookie de session
+(<code>withCredentials</code>) et l'en-tête anti-CSRF <code>X-Requested-With</code>.
+<code>SessionGate</code>, dans le layout racine, redirige vers <code>/auth</code> sans
+session ; <code>app/studio/layout.tsx</code> renvoie un apprenant au catalogue.
+Un <code>401</code> efface la session, un <code>403</code> affiche « accès refusé » sans
+déconnecter. L'interface est entièrement en MUI 9 ; le lecteur vidéo est video.js et
 l'éditeur Markdown <code>@uiw/react-md-editor</code>. Le build Docker produit
 une sortie <code>standalone</code>, exécutée par un utilisateur non root.</p>
 

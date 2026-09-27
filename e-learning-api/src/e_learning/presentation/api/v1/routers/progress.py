@@ -11,7 +11,7 @@ from e_learning.application.learning.use_cases.upsert_progress import UpsertProg
 from e_learning.presentation.api.dependencies import (
     get_upsert_progress,
 )
-from e_learning.presentation.api.dependencies.auth import CurrentUserIdDep
+from e_learning.presentation.api.dependencies.auth import CurrentUserDep, get_current_user
 from e_learning.presentation.api.dependencies.queries import LearningQueryDep
 from e_learning.presentation.api.v1.schemas.common import (
     FormationProgressResponse,
@@ -20,15 +20,19 @@ from e_learning.presentation.api.v1.schemas.common import (
     ProgressUpdateRequest,
 )
 
-router = APIRouter(prefix="/progress", tags=["progress"])
+router = APIRouter(
+    prefix="/progress",
+    tags=["progress"],
+    dependencies=[Depends(get_current_user)],
+)
 
 
 @router.get("/formations", response_model=FormationsProgressResponse)
 async def list_formations_progress(
-    user_id: CurrentUserIdDep,
+    user: CurrentUserDep,
     queries: LearningQueryDep,
 ) -> FormationsProgressResponse:
-    data = await queries.list_formations_progress(user_id=user_id)
+    data = await queries.list_formations_progress(user_id=user.id)
     return FormationsProgressResponse(
         progress={k: FormationProgressResponse.from_dto(v) for k, v in data.items()}
     )
@@ -37,20 +41,20 @@ async def list_formations_progress(
 @router.get("/formation/{formation_id}", response_model=FormationProgressResponse)
 async def get_formation_progress(
     formation_id: str,
-    user_id: CurrentUserIdDep,
+    user: CurrentUserDep,
     queries: LearningQueryDep,
 ) -> FormationProgressResponse:
-    dto = await queries.get_formation_progress(user_id=user_id, formation_id=formation_id)
+    dto = await queries.get_formation_progress(user_id=user.id, formation_id=formation_id)
     return FormationProgressResponse.from_dto(dto)
 
 
 @router.get("/{video_id}", response_model=ProgressResponse)
 async def get_progress(
     video_id: str,
-    user_id: CurrentUserIdDep,
+    user: CurrentUserDep,
     queries: LearningQueryDep,
 ) -> ProgressResponse:
-    dto = await queries.get_progress(user_id=user_id, video_id=video_id)
+    dto = await queries.get_progress(user_id=user.id, video_id=video_id)
     return ProgressResponse(last_position=dto.last_position)
 
 
@@ -58,12 +62,12 @@ async def get_progress(
 async def upsert_progress(
     video_id: str,
     payload: ProgressUpdateRequest,
-    user_id: CurrentUserIdDep,
+    user: CurrentUserDep,
     use_case: Annotated[UpsertProgress, Depends(get_upsert_progress)],
 ) -> ProgressResponse:
     dto = await use_case.execute(
         UpsertProgressCommand(
-            user_id=user_id,
+            user_id=user.id,
             video_id=video_id,
             last_position=payload.last_position,
         )

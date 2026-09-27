@@ -55,6 +55,9 @@ services:
       APP_INIT_DB: "false"
       APP_RABBITMQ_URL: amqp://guest:guest@rabbitmq:5672/
       APP_RABBITMQ_EXCHANGE: elearning_jobs
+      APP_SECRET_KEY: ${APP_SECRET_KEY:?APP_SECRET_KEY requis (32 caractères minimum)}
+      APP_FIRST_ADMIN_EMAIL: ${APP_FIRST_ADMIN_EMAIL:?APP_FIRST_ADMIN_EMAIL requis}
+      APP_FIRST_ADMIN_PASSWORD: ${APP_FIRST_ADMIN_PASSWORD:?APP_FIRST_ADMIN_PASSWORD requis}
     volumes:
       - "${APP_VIDEOS_PATH:-./videos}:/app/videos"
       - huggingface_cache:/cache/huggingface

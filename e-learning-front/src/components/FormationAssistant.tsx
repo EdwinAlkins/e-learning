@@ -22,6 +22,7 @@ import {
   Send as SendIcon,
 } from '@mui/icons-material';
 import { apiService } from '../services/api';
+import { useAuthStore } from '../stores/auth.store';
 import type { RagCitation } from '../types';
 import MarkdownRenderer from './MarkdownRenderer';
 
@@ -41,6 +42,8 @@ export default function FormationAssistant({
   formationName,
 }: FormationAssistantProps) {
   const router = useRouter();
+  // Réindexer lance un job : route admin côté API.
+  const isAdmin = useAuthStore((state) => state.user?.is_admin === true);
   const [messages, setMessages] = useState<ChatMessage[]>([]);
   const [question, setQuestion] = useState('');
   const [loading, setLoading] = useState(false);
@@ -102,14 +105,16 @@ export default function FormationAssistant({
         <Typography variant="h6" sx={{ flexGrow: 1 }}>
           Assistant — {formationName}
         </Typography>
-        <Button
-          size="small"
-          startIcon={indexing ? <CircularProgress size={14} /> : <RefreshIcon />}
-          onClick={() => void handleReindex()}
-          disabled={indexing || loading}
-        >
-          Réindexer
-        </Button>
+        {isAdmin && (
+          <Button
+            size="small"
+            startIcon={indexing ? <CircularProgress size={14} /> : <RefreshIcon />}
+            onClick={() => void handleReindex()}
+            disabled={indexing || loading}
+          >
+            Réindexer
+          </Button>
+        )}
       </Box>
       <Typography variant="body2" color="text.secondary" sx={{ mb: 2 }}>
         Posez une question sur le contenu transcrit et les documents de cette formation.

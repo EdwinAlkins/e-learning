@@ -33,8 +33,13 @@
 
 <h2 id="studio">Le studio<a class="anchor" href="#studio" aria-label="Lien vers cette section">#</a></h2>
 
-<p>Le bouton <strong>Studio</strong> de l'en-tête liste les formations, avec
-<strong>Nouvelle formation</strong>, l'édition et la suppression.</p>
+<p>Le studio est réservé aux <strong>administrateurs</strong>. Le bouton
+<strong>Studio</strong> n'apparaît dans l'en-tête que pour eux ; un apprenant qui ouvre
+une adresse <code>/studio</code> est renvoyé au catalogue, et l'API refuse de toute façon
+ses écritures (<code>403</code>).</p>
+
+<p>La page liste les formations, avec <strong>Nouvelle formation</strong>, l'édition,
+la suppression, et <strong>Comptes</strong> pour gérer les utilisateurs.</p>
 
 <img class="shot" src="./assets/media/studio.png" loading="lazy"
      alt="Studio : liste des formations avec nombre de chapitres et durée, boutons éditer et supprimer.">
@@ -81,6 +86,35 @@ pas listé au catalogue.</p>
 <p>La décision se fonde sur l'extension, pas sur les codecs : un MP4 en HEVC est
 accepté tel quel. S'il ne se lit pas dans le navigateur, <strong>Convertir pour
 le web</strong> le ré-encode en H.264/AAC.</p>
+
+<h2 id="comptes">Les comptes<a class="anchor" href="#comptes" aria-label="Lien vers cette section">#</a></h2>
+
+<p><strong>Studio &rarr; Comptes</strong> liste les comptes, 25 par page, avec leur rôle
+et leur statut. Il n'y a pas d'inscription libre : c'est ici qu'un administrateur crée
+les accès.</p>
+
+<ul>
+  <li><strong>Nouveau compte</strong> : email, nom facultatif, mot de passe de 8 à 128
+      caractères, et interrupteur <strong>Administrateur</strong>. Transmettez le mot de passe
+      à la personne ; elle peut le changer ensuite depuis son menu.</li>
+  <li><strong>Modifier</strong> : nom, rôle, <strong>Compte actif</strong>, nouveau mot de
+      passe. L'email ne change pas. Désactiver un compte ou retirer le rôle admin prend
+      effet à la requête suivante de la personne, sans attendre l'expiration de sa session.</li>
+  <li><strong>Supprimer</strong> efface aussi les notes, la progression et la consommation
+      du compte.</li>
+</ul>
+
+<p>Vous ne pouvez ni vous retirer le rôle admin, ni désactiver ou supprimer votre
+propre compte : l'instance ne peut pas se retrouver sans administrateur par erreur.</p>
+
+<div class="note">
+  <strong>Premier administrateur</strong>
+  Il est créé au démarrage de l'API depuis <code>APP_FIRST_ADMIN_EMAIL</code> et
+  <code>APP_FIRST_ADMIN_PASSWORD</code>, s'il n'existe pas encore. Un redémarrage ne change
+  pas son mot de passe. Pour ajouter un admin sans passer par l'interface :
+  <code>docker compose exec api e-learning-cli create-admin --email vous@example.com</code>
+  (le mot de passe est demandé). Voir <a href="./configuration.html#auth">Configuration</a>.
+</div>
 
 <h2 id="documents">Documents<a class="anchor" href="#documents" aria-label="Lien vers cette section">#</a></h2>
 

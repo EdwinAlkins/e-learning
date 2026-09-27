@@ -50,6 +50,10 @@ de la leçon. Le résumé exige une transcription prête.</p>
 
 <h2 id="transcription">Transcription<a class="anchor" href="#transcription" aria-label="Lien vers cette section">#</a></h2>
 
+<p>Lancer un traitement est réservé aux <strong>administrateurs</strong> : les
+apprenants lisent transcriptions et résumés, et posent leurs questions à l'assistant,
+mais ne voient pas les boutons qui déclenchent un job.</p>
+
 <p>Bouton <strong>Transcrire</strong> sous le lecteur ou dans le studio. La
 langue est détectée par Whisper. Le bouton affiche la progression du job ; la
 page se met à jour seule quand c'est fini.</p>
@@ -68,7 +72,7 @@ premier usage.</p>
 <p>Bouton <strong>Générer</strong>, puis <strong>Résumé</strong> pour l'afficher
 et <strong>Régénérer</strong> pour recommencer. Le modèle reçoit la transcription
 et une consigne : un résumé pédagogique, structuré en Markdown, en français.
-Le texte reste éditable depuis le lecteur.</p>
+Un administrateur peut corriger le texte depuis le lecteur.</p>
 
 <div class="snippet" data-lang="bash"><pre><code>docker compose exec api e-learning-cli summary -v &lt;uuid&gt;</code></pre></div>
 

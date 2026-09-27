@@ -1,7 +1,7 @@
 class ApiEndpoints {
   static const health = '/health';
-  static const authGenerate = '/auth/generate';
-  static const authRestore = '/auth/restore';
+  static const authLogin = '/auth/login';
+  static const authMe = '/auth/me';
   static const formations = '/formations';
   static String formation(String id) => '/formations/$id';
   static String formationAsk(String id) => '/formations/$id/ask';
@@ -18,6 +18,7 @@ class ApiEndpoints {
   static String formationProgress(String formationId) =>
       '/progress/formation/$formationId';
   static const formationsProgress = '/progress/formations';
+  static const usage = '/usage';
   static String chapterDocuments(String chapterId) =>
       '/docs/chapters/$chapterId';
   static String documentFile(String documentId, {bool download = false}) =>

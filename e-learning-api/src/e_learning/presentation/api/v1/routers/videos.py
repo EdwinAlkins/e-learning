@@ -1,4 +1,4 @@
-"""Router vidéos (stream / file / summary / transcription jobs)."""
+"""Router vidéos (lecture : stream / file / résumé / transcription)."""
 
 from __future__ import annotations
 
@@ -11,34 +11,25 @@ from fastapi.responses import FileResponse, Response
 from starlette.responses import StreamingResponse
 
 from e_learning.application.catalog.use_cases.get_video_path import GetVideoPath
-from e_learning.application.catalog.use_cases.start_media_conversion import StartMediaConversion
-from e_learning.application.content.dto import UpdateSummaryCommand
 from e_learning.application.content.use_cases.get_summary import GetSummary
 from e_learning.application.content.use_cases.get_transcription import GetTranscription
-from e_learning.application.content.use_cases.start_summary_generation import (
-    StartSummaryGeneration,
-)
-from e_learning.application.content.use_cases.start_transcription import StartTranscription
-from e_learning.application.content.use_cases.update_summary import UpdateSummary
 from e_learning.presentation.api.dependencies import (
     get_get_summary,
     get_get_transcription,
     get_get_video_path,
-    get_start_media_conversion,
-    get_start_summary_generation,
-    get_start_transcription,
-    get_update_summary,
 )
-from e_learning.presentation.api.dependencies.auth import CurrentUserIdDep
+from e_learning.presentation.api.dependencies.auth import get_current_user
 from e_learning.presentation.api.http_range import parse_bytes_range
 from e_learning.presentation.api.v1.schemas.common import (
     SummaryResponse,
-    SummaryUpdateRequest,
     TranscriptionResponse,
-    VideoResponse,
 )
 
-router = APIRouter(prefix="/videos", tags=["videos"])
+router = APIRouter(
+    prefix="/videos",
+    tags=["videos"],
+    dependencies=[Depends(get_current_user)],
+)
 
 
 def _media_type_for(path: Path) -> str:
@@ -116,30 +107,6 @@ async def get_summary(
     return SummaryResponse(summary=dto.summary)
 
 
-@router.put("/{video_id}/summary", response_model=SummaryResponse)
-async def update_summary(
-    video_id: str,
-    payload: SummaryUpdateRequest,
-    use_case: Annotated[UpdateSummary, Depends(get_update_summary)],
-) -> SummaryResponse:
-    dto = await use_case.execute(UpdateSummaryCommand(video_id=video_id, summary=payload.summary))
-    return SummaryResponse(summary=dto.summary)
-
-
-@router.post(
-    "/{video_id}/summary/generate",
-    response_model=VideoResponse,
-    status_code=status.HTTP_202_ACCEPTED,
-)
-async def generate_summary(
-    video_id: str,
-    user_id: CurrentUserIdDep,
-    use_case: Annotated[StartSummaryGeneration, Depends(get_start_summary_generation)],
-) -> VideoResponse:
-    dto = await use_case.execute(video_id, user_id=user_id)
-    return VideoResponse.from_dto(dto)
-
-
 @router.get("/{video_id}/transcription", response_model=TranscriptionResponse)
 async def get_transcription(
     video_id: str,
@@ -147,29 +114,3 @@ async def get_transcription(
 ) -> TranscriptionResponse:
     dto = await use_case.execute(video_id)
     return TranscriptionResponse(content=dto.content)
-
-
-@router.post(
-    "/{video_id}/conversion",
-    response_model=VideoResponse,
-    status_code=status.HTTP_202_ACCEPTED,
-)
-async def start_media_conversion(
-    video_id: str,
-    use_case: Annotated[StartMediaConversion, Depends(get_start_media_conversion)],
-) -> VideoResponse:
-    dto, _job = await use_case.execute(video_id)
-    return VideoResponse.from_dto(dto)
-
-
-@router.post(
-    "/{video_id}/transcription",
-    response_model=VideoResponse,
-    status_code=status.HTTP_202_ACCEPTED,
-)
-async def start_transcription(
-    video_id: str,
-    use_case: Annotated[StartTranscription, Depends(get_start_transcription)],
-) -> VideoResponse:
-    dto = await use_case.execute(video_id)
-    return VideoResponse.from_dto(dto)

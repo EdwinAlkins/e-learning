@@ -1,11 +1,10 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
-import 'package:url_launcher/url_launcher.dart';
 
 import '../../../data/models/models.dart';
-import '../../../data/repositories/video_repository.dart';
+import '../document_opener.dart';
 
-/// Liste de documents avec ouverture / téléchargement délégués au système.
+/// Liste de documents : récupérés avec le jeton, puis ouverts par le système.
 class DocumentsList extends ConsumerWidget {
   const DocumentsList({
     super.key,
@@ -44,46 +43,15 @@ class DocumentsList extends ConsumerWidget {
                 doc.mimeType!,
             ].join(' · '),
           ),
-          onTap: () => _launch(context, ref, doc, download: false),
+          onTap: () => openDocument(context, ref, doc.id),
           trailing: IconButton(
             tooltip: 'Télécharger',
             icon: const Icon(Icons.download_outlined),
-            onPressed: () => _launch(context, ref, doc, download: true),
+            onPressed: () => openDocument(context, ref, doc.id, save: true),
           ),
         );
       },
     );
-  }
-
-  Future<void> _launch(
-    BuildContext context,
-    WidgetRef ref,
-    DocumentItem doc, {
-    required bool download,
-  }) async {
-    final messenger = ScaffoldMessenger.of(context);
-    final url = ref
-        .read(documentRepositoryProvider)
-        .fileUrl(doc.id, download: download);
-    try {
-      final ok = await launchUrl(
-        Uri.parse(url),
-        mode: LaunchMode.externalApplication,
-      );
-      if (!ok) {
-        messenger.showSnackBar(
-          SnackBar(
-            content: Text(
-              download
-                  ? 'Impossible de télécharger le document'
-                  : 'Impossible d’ouvrir le document',
-            ),
-          ),
-        );
-      }
-    } catch (e) {
-      messenger.showSnackBar(SnackBar(content: Text('Échec : $e')));
-    }
   }
 }
 

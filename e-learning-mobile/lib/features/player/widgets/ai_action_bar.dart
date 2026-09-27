@@ -3,21 +3,24 @@ import 'package:flutter/material.dart';
 import '../../../data/models/models.dart';
 
 /// Statuts IA + actions (transcrire / générer / régénérer) — PLAY-11 à PLAY-16.
+///
+/// Lancer un job IA est réservé aux admins côté API : pour un apprenant,
+/// [onTranscribe] et [onGenerateSummary] sont `null` et les boutons masqués.
 class AiActionBar extends StatelessWidget {
   const AiActionBar({
     super.key,
     required this.video,
     required this.busy,
-    required this.onTranscribe,
-    required this.onGenerateSummary,
+    this.onTranscribe,
+    this.onGenerateSummary,
     required this.onOpenSummary,
     this.errorMessage,
   });
 
   final VideoItem video;
   final bool busy;
-  final VoidCallback onTranscribe;
-  final VoidCallback onGenerateSummary;
+  final VoidCallback? onTranscribe;
+  final VoidCallback? onGenerateSummary;
   final VoidCallback onOpenSummary;
   final String? errorMessage;
 
@@ -27,13 +30,17 @@ class AiActionBar extends StatelessWidget {
     final summaryJob = video.activeJob(JobKind.summary);
     final transcribing = video.transcriptionStatus == MediaStatus.processing;
     final generating = video.summaryStatus == MediaStatus.processing;
+    final canTranscribe = onTranscribe != null;
+    final canGenerate = onGenerateSummary != null;
 
     final notices = <Widget>[
       if (errorMessage != null)
         _Notice(message: errorMessage!, severity: _Severity.error),
       if (video.transcriptionStatus == MediaStatus.failed)
-        const _Notice(
-          message: 'Échec de la transcription. Vous pouvez la relancer.',
+        _Notice(
+          message: canTranscribe
+              ? 'Échec de la transcription. Vous pouvez la relancer.'
+              : 'Échec de la transcription.',
           severity: _Severity.error,
         ),
       if (video.summaryStatus == MediaStatus.failed)
@@ -41,7 +48,8 @@ class AiActionBar extends StatelessWidget {
           message: 'Échec de la génération du résumé.',
           severity: _Severity.error,
         ),
-      if (!video.hasTranscription &&
+      if (canGenerate &&
+          !video.hasTranscription &&
           !transcribing &&
           video.transcriptionStatus != MediaStatus.failed &&
           !video.hasSummary)
@@ -62,7 +70,7 @@ class AiActionBar extends StatelessWidget {
             runSpacing: 8,
             crossAxisAlignment: WrapCrossAlignment.center,
             children: [
-              if (!video.hasTranscription)
+              if (canTranscribe && !video.hasTranscription)
                 OutlinedButton.icon(
                   onPressed: busy || transcribing || !video.isPlayable
                       ? null
@@ -78,7 +86,7 @@ class AiActionBar extends StatelessWidget {
                         : 'Transcrire',
                   ),
                 ),
-              if (!video.hasSummary)
+              if (canGenerate && !video.hasSummary)
                 OutlinedButton.icon(
                   onPressed:
                       busy ||
@@ -100,13 +108,14 @@ class AiActionBar extends StatelessWidget {
                   icon: const Icon(Icons.article_outlined),
                   label: const Text('Résumé'),
                 ),
-                TextButton.icon(
-                  onPressed: busy || generating || !video.isPlayable
-                      ? null
-                      : onGenerateSummary,
-                  icon: _icon(generating || busy, Icons.refresh),
-                  label: const Text('Régénérer'),
-                ),
+                if (canGenerate)
+                  TextButton.icon(
+                    onPressed: busy || generating || !video.isPlayable
+                        ? null
+                        : onGenerateSummary,
+                    icon: _icon(generating || busy, Icons.refresh),
+                    label: const Text('Régénérer'),
+                  ),
               ],
             ],
           ),

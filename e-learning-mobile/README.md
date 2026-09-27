@@ -4,8 +4,15 @@ Application Flutter **apprenant** pour la plateforme e-learning.
 
 ## Périmètre couvert
 
-- Auth UID (`X-User-UID`)
+- Connexion email + mot de passe (comptes créés par un admin depuis le web) :
+  jeton JWT dans `flutter_secure_storage`, envoyé en `Authorization: Bearer`
+  (API, lecteur média, téléchargement des documents). Un 401 renvoie à l'écran
+  de connexion.
+- Pas de studio. Les actions IA (transcrire, générer / éditer un résumé,
+  relancer une conversion) ne s'affichent que pour un compte admin.
 - Catalogue + détail formation + progressions
+- Consommation IA (icône « Consommation IA » du catalogue) : tokens sur 7 / 30 / 90 jours et
+  depuis le début, histogramme par jour, répartition assistant / résumés
 - **Lecteur vidéo / audio** multi-plateforme
   - mobile : `video_player` + `chewie` (vidéo), `just_audio` + `audio_session` (audio)
   - desktop (Linux/Windows/macOS) : `media_kit` (libmpv), vidéo **et** audio
@@ -114,7 +121,7 @@ Pour produire un **APK** et l’installer via **adb** (sans `flutter run`), voir
 
 ## Endpoints consommés (API.md)
 
-- `POST /auth/generate`, `POST /auth/restore`
+- `POST /auth/login` (form-urlencoded `username` / `password`), `GET /auth/me`
 - `GET /formations`, `GET /formations/{id}`
 - `POST /formations/{id}/ask`
 - `GET/POST /progress/{video_id}`, `GET /progress/formations`, `GET /progress/formation/{id}`
@@ -122,4 +129,6 @@ Pour produire un **APK** et l’installer via **adb** (sans `flutter run`), voir
 - `GET/PUT /videos/{id}/summary`, `POST /videos/{id}/summary/generate`
 - `POST /videos/{id}/transcription`, `POST /videos/{id}/conversion`
 - `GET/POST /notes/{video_id}`, `PUT/DELETE /notes/{note_id}`
-- `GET /docs/chapters/{chapter_id}`, `GET /docs/{id}/file`
+- `GET /usage?days=` (consommation IA du compte)
+- `GET /docs/chapters/{chapter_id}`, `GET /docs/{id}/file` — téléchargé via Dio
+  (jeton) puis ouvert avec `open_filex`, pas via le navigateur

@@ -2,11 +2,10 @@ import 'package:flutter/material.dart';
 import 'package:flutter_markdown_plus/flutter_markdown_plus.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
-import 'package:url_launcher/url_launcher.dart';
 
 import '../../../data/models/models.dart';
 import '../../../data/repositories/formation_repository.dart';
-import '../../../data/repositories/video_repository.dart';
+import '../../documents/document_opener.dart';
 import '../../settings/widgets/settings_sheet.dart';
 
 class AssistantScreen extends ConsumerStatefulWidget {
@@ -91,13 +90,7 @@ class _AssistantScreenState extends ConsumerState<AssistantScreen> {
                             '/player/${c.videoId}?formationId=${widget.formationId}',
                           );
                         } else if (c.documentId != null) {
-                          final url = ref
-                              .read(documentRepositoryProvider)
-                              .fileUrl(c.documentId!);
-                          await launchUrl(
-                            Uri.parse(url),
-                            mode: LaunchMode.externalApplication,
-                          );
+                          await openDocument(context, ref, c.documentId!);
                         }
                       },
                     );

@@ -44,3 +44,7 @@ export function isAllowedDocumentFilename(filename: string): boolean {
   const lower = filename.toLowerCase();
   return DOCUMENT_ACCEPT_EXTENSIONS.some((ext) => lower.endsWith(ext));
 }
+
+/** Politique de mot de passe (alignée API ``application/user/passwords.py``). */
+export const PASSWORD_MIN_LENGTH = 8;
+export const PASSWORD_MAX_LENGTH = 128;

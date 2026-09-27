@@ -1,11 +1,10 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
-import 'package:url_launcher/url_launcher.dart';
 
 import '../../../core/utils/time_format.dart';
 import '../../../data/models/models.dart';
-import '../../../data/repositories/video_repository.dart';
+import '../../documents/document_opener.dart';
 import '../../settings/widgets/settings_sheet.dart';
 import '../providers/formation_detail_provider.dart';
 
@@ -162,23 +161,7 @@ class _ChapterSection extends ConsumerWidget {
               leading: const Icon(Icons.description_outlined),
               title: Text(doc.title),
               subtitle: Text(doc.filename),
-              onTap: () async {
-                final url = ref
-                    .read(documentRepositoryProvider)
-                    .fileUrl(doc.id);
-                final uri = Uri.parse(url);
-                final ok = await launchUrl(
-                  uri,
-                  mode: LaunchMode.externalApplication,
-                );
-                if (!ok && context.mounted) {
-                  ScaffoldMessenger.of(context).showSnackBar(
-                    const SnackBar(
-                      content: Text('Impossible d’ouvrir le document'),
-                    ),
-                  );
-                }
-              },
+              onTap: () => openDocument(context, ref, doc.id),
             );
           }),
         ],

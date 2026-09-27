@@ -62,11 +62,12 @@ void main() {
 
     expect(tester.takeException(), isNull);
 
-    // Le champ UID et le bouton de validation sont accessibles au défilement.
-    await tester.ensureVisible(find.text('Restaurer'));
+    // Les champs et le bouton de connexion sont accessibles au défilement.
+    // (Ciblé par type : sans session chargée, le bouton affiche un spinner.)
+    await tester.ensureVisible(find.byType(FilledButton));
     await tester.pump();
     expect(
-      tester.getRect(find.text('Restaurer')).bottom,
+      tester.getRect(find.byType(FilledButton)).bottom,
       lessThan(_visibleHeight),
     );
     expect(tester.takeException(), isNull);

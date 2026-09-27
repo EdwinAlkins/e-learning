@@ -14,11 +14,14 @@ class AuthScreen extends ConsumerStatefulWidget {
 }
 
 class _AuthScreenState extends ConsumerState<AuthScreen> {
-  final _controller = TextEditingController();
+  final _emailController = TextEditingController();
+  final _passwordController = TextEditingController();
+  bool _obscure = true;
 
   @override
   void dispose() {
-    _controller.dispose();
+    _emailController.dispose();
+    _passwordController.dispose();
     super.dispose();
   }
 
@@ -33,8 +36,8 @@ class _AuthScreenState extends ConsumerState<AuthScreen> {
         child: Stack(
           children: [
             // Centré quand ça rentre, défilant dès que le clavier réduit la
-            // hauteur disponible — sinon le bouton « Restaurer » passe sous le
-            // clavier et la colonne déborde.
+            // hauteur disponible — sinon le bouton « Se connecter » passe sous
+            // le clavier et la colonne déborde.
             Center(
               child: SingleChildScrollView(
                 keyboardDismissBehavior:
@@ -57,7 +60,7 @@ class _AuthScreenState extends ConsumerState<AuthScreen> {
                           ),
                           const SizedBox(height: 8),
                           Text(
-                            'Connectez-vous avec votre identifiant UID.',
+                            'Connectez-vous avec votre email et votre mot de passe.',
                             textAlign: TextAlign.center,
                             style: theme.textTheme.bodyMedium?.copyWith(
                               color: theme.colorScheme.onSurfaceVariant,
@@ -92,12 +95,58 @@ class _AuthScreenState extends ConsumerState<AuthScreen> {
                             ),
                             const SizedBox(height: 16),
                           ],
+                          AutofillGroup(
+                            child: Column(
+                              crossAxisAlignment: CrossAxisAlignment.stretch,
+                              children: [
+                                TextField(
+                                  controller: _emailController,
+                                  decoration: const InputDecoration(
+                                    labelText: 'Email',
+                                    border: OutlineInputBorder(),
+                                    prefixIcon: Icon(Icons.alternate_email),
+                                  ),
+                                  keyboardType: TextInputType.emailAddress,
+                                  autocorrect: false,
+                                  enabled: !auth.isLoading,
+                                  autofillHints: const [
+                                    AutofillHints.username,
+                                    AutofillHints.email,
+                                  ],
+                                  textInputAction: TextInputAction.next,
+                                ),
+                                const SizedBox(height: 12),
+                                TextField(
+                                  controller: _passwordController,
+                                  decoration: InputDecoration(
+                                    labelText: 'Mot de passe',
+                                    border: const OutlineInputBorder(),
+                                    prefixIcon: const Icon(Icons.lock_outline),
+                                    suffixIcon: IconButton(
+                                      tooltip: _obscure
+                                          ? 'Afficher le mot de passe'
+                                          : 'Masquer le mot de passe',
+                                      icon: Icon(
+                                        _obscure
+                                            ? Icons.visibility_outlined
+                                            : Icons.visibility_off_outlined,
+                                      ),
+                                      onPressed: () =>
+                                          setState(() => _obscure = !_obscure),
+                                    ),
+                                  ),
+                                  obscureText: _obscure,
+                                  enabled: !auth.isLoading,
+                                  autofillHints: const [AutofillHints.password],
+                                  textInputAction: TextInputAction.done,
+                                  onSubmitted: (_) => _login(),
+                                ),
+                              ],
+                            ),
+                          ),
+                          const SizedBox(height: 16),
                           FilledButton(
-                            onPressed: auth.isLoading
-                                ? null
-                                : () => ref
-                                      .read(authControllerProvider.notifier)
-                                      .generate(),
+                            onPressed: auth.isLoading ? null : _login,
                             child: auth.isLoading
                                 ? const SizedBox(
                                     height: 20,
@@ -106,43 +155,16 @@ class _AuthScreenState extends ConsumerState<AuthScreen> {
                                       strokeWidth: 2,
                                     ),
                                   )
-                                : const Text('Générer un nouvel UID'),
+                                : const Text('Se connecter'),
                           ),
-                          const SizedBox(height: 24),
-                          TextField(
-                            controller: _controller,
-                            decoration: const InputDecoration(
-                              labelText: 'UID existant',
-                              border: OutlineInputBorder(),
+                          const SizedBox(height: 16),
+                          Text(
+                            'Pas de compte ? Demandez-en un à votre administrateur.',
+                            textAlign: TextAlign.center,
+                            style: theme.textTheme.bodySmall?.copyWith(
+                              color: theme.colorScheme.onSurfaceVariant,
                             ),
-                            textInputAction: TextInputAction.done,
-                            onSubmitted: (_) => _restore(),
                           ),
-                          const SizedBox(height: 12),
-                          OutlinedButton(
-                            onPressed: auth.isLoading ? null : _restore,
-                            child: const Text('Restaurer'),
-                          ),
-                          if (auth.uid != null) ...[
-                            const SizedBox(height: 24),
-                            SelectableText(
-                              auth.uid!,
-                              textAlign: TextAlign.center,
-                              style: theme.textTheme.bodySmall,
-                            ),
-                            TextButton.icon(
-                              onPressed: () {
-                                Clipboard.setData(
-                                  ClipboardData(text: auth.uid!),
-                                );
-                                ScaffoldMessenger.of(context).showSnackBar(
-                                  const SnackBar(content: Text('UID copié')),
-                                );
-                              },
-                              icon: const Icon(Icons.copy),
-                              label: const Text('Copier l’UID'),
-                            ),
-                          ],
                         ],
                       ),
                     ),
@@ -163,9 +185,11 @@ class _AuthScreenState extends ConsumerState<AuthScreen> {
     );
   }
 
-  void _restore() {
-    final uid = _controller.text.trim();
-    if (uid.isEmpty) return;
-    ref.read(authControllerProvider.notifier).restore(uid);
+  void _login() {
+    final email = _emailController.text.trim();
+    final password = _passwordController.text;
+    if (email.isEmpty || password.isEmpty) return;
+    TextInput.finishAutofillContext();
+    ref.read(authControllerProvider.notifier).login(email, password);
   }
 }

@@ -2,8 +2,16 @@
 
 from __future__ import annotations
 
+from collections.abc import Sequence
+
 from e_learning.application.jobs.dto import ComputeJobMessage
 from e_learning.application.shared.messaging import JobPublisherPort
+from e_learning.application.user.ports import (
+    IssuedToken,
+    LoginThrottle,
+    PasswordHasher,
+    TokenService,
+)
 from e_learning.domain.catalog.entities import Chapter, Document, Formation, Video
 from e_learning.domain.catalog.exceptions import (
     ChapterNotFound,
@@ -35,9 +43,9 @@ from e_learning.domain.learning.value_objects import NoteId, ProgressId
 from e_learning.domain.usage.entities import TokenUsage
 from e_learning.domain.usage.repository import TokenUsageRepository
 from e_learning.domain.user.entities import User
-from e_learning.domain.user.exceptions import UserNotFound
+from e_learning.domain.user.exceptions import InvalidCredentials, UserNotFound
 from e_learning.domain.user.repository import UserRepository
-from e_learning.domain.user.value_objects import UserId
+from e_learning.domain.user.value_objects import Email, UserId
 
 
 class RecordingPublisher(JobPublisherPort):
@@ -73,6 +81,78 @@ class FakeUserRepository(UserRepository):
 
     async def exists(self, user_id: UserId) -> bool:
         return str(user_id) in self.items
+
+    async def get_by_email(self, email: Email) -> User | None:
+        return next((u for u in self.items.values() if u.email == email), None)
+
+    async def list(self, *, offset: int, limit: int) -> list[User]:
+        ordered = sorted(self.items.values(), key=lambda u: (u.created_at, str(u.id)))
+        return ordered[offset : offset + limit]
+
+    async def count(self) -> int:
+        return len(self.items)
+
+    async def delete(self, user_id: UserId) -> None:
+        self.items.pop(str(user_id), None)
+
+
+def make_user(
+    email: str = "learner@example.com",
+    *,
+    password: str = "secret-password",
+    is_admin: bool = False,
+) -> User:
+    """Compte dont le hash est compatible avec :class:`FakePasswordHasher`."""
+    return User.create(
+        email=Email(email),
+        hashed_password=FakePasswordHasher.PREFIX + password,
+        is_admin=is_admin,
+    )
+
+
+class FakePasswordHasher(PasswordHasher):
+    """Hash réversible et traçable : permet de vérifier le hash factice (S3)."""
+
+    PREFIX = "hashed:"
+
+    def __init__(self) -> None:
+        self.verify_calls: list[str | None] = []
+
+    async def hash(self, password: str) -> str:
+        return self.PREFIX + password
+
+    async def verify(self, password: str, hashed_password: str | None) -> bool:
+        self.verify_calls.append(hashed_password)
+        return hashed_password is not None and hashed_password == self.PREFIX + password
+
+
+class FakeTokenService(TokenService):
+    """Jeton = ``token:<sub>`` ; tout autre format est refusé."""
+
+    def issue(self, subject: str) -> IssuedToken:
+        return IssuedToken(access_token=f"token:{subject}", expires_in=3600)
+
+    def decode(self, token: str) -> str:
+        if not token.startswith("token:"):
+            raise InvalidCredentials("Jeton invalide ou expiré.")
+        return token.removeprefix("token:")
+
+
+class FakeLoginThrottle(LoginThrottle):
+    def __init__(self, *, max_failures: int = 5) -> None:
+        self.max_failures = max_failures
+        self.failures: dict[str, int] = {}
+
+    async def retry_after(self, keys: Sequence[str]) -> int | None:
+        blocked = any(self.failures.get(k, 0) >= self.max_failures for k in keys)
+        return 900 if blocked else None
+
+    async def record_failure(self, keys: Sequence[str]) -> None:
+        for key in keys:
+            self.failures[key] = self.failures.get(key, 0) + 1
+
+    async def reset(self, key: str) -> None:
+        self.failures.pop(key, None)
 
 
 class FakeFormationRepository(FormationRepository):

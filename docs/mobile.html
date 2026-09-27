@@ -37,12 +37,13 @@
 <table>
   <thead><tr><th>Inclus</th><th>Hors périmètre</th></tr></thead>
   <tbody>
-    <tr><td>Identifiant UID : génération et reprise</td><td>Studio : création, téléversement, réordonnancement</td></tr>
+    <tr><td>Connexion par email et mot de passe, session conservée</td><td>Studio : création, téléversement, réordonnancement, comptes</td></tr>
     <tr><td>Catalogue, détail formation, progressions</td><td>Lecture hors ligne</td></tr>
     <tr><td>Lecteur vidéo et audio, reprise, vitesse, ±10&nbsp;s, précédent / suivant</td><td>Notifications</td></tr>
-    <tr><td>Notes horodatées : création, édition, suppression, seek au tap</td><td></td></tr>
-    <tr><td>Transcription, génération et édition du résumé</td><td></td></tr>
+    <tr><td>Notes horodatées : création, édition, suppression, seek au tap</td><td>Changement de mot de passe (depuis le web)</td></tr>
+    <tr><td>Lecture des résumés ; transcription, génération et édition du résumé pour les administrateurs</td><td></td></tr>
     <tr><td>Documents de la leçon, assistant de formation</td><td></td></tr>
+    <tr><td>Consommation IA : tokens sur 7, 30 ou 90 jours, par jour et par usage</td><td></td></tr>
     <tr><td>Thème clair, sombre ou système</td><td></td></tr>
   </tbody>
 </table>
@@ -50,8 +51,30 @@
 
 <p>La position de lecture est sauvegardée avec un anti-rebond de 500&nbsp;ms,
 et forcée à la pause, au passage en arrière-plan et en quittant l'écran. Un
-apprenant qui commence sur le web reprend sur son téléphone en saisissant le
-même UID.</p>
+apprenant qui commence sur le web reprend sur son téléphone en se connectant avec le
+même compte.</p>
+
+<h2 id="session">Connexion et session<a class="anchor" href="#session" aria-label="Lien vers cette section">#</a></h2>
+
+<ul>
+  <li>L'écran de connexion demande l'email et le mot de passe du compte, créé par un
+      administrateur depuis le studio web.</li>
+  <li>Le jeton est rangé dans le stockage sécurisé du système
+      (<code>flutter_secure_storage</code>) et envoyé en
+      <code>Authorization: Bearer</code>, y compris par le lecteur vidéo. Au lancement,
+      l'application le vérifie auprès de l'API.</li>
+  <li>Session expirée, compte désactivé ou supprimé : retour à l'écran de connexion.
+      Si l'API est simplement injoignable, le jeton est gardé pour réessayer.</li>
+  <li>Les documents sont téléchargés par l'application, avec le jeton, puis ouverts par
+      l'application du système. <strong>Télécharger</strong> garde une copie dans le dossier
+      de téléchargement de l'application.</li>
+  <li>Les boutons de transcription, de génération ou d'édition du résumé et de relance
+      de conversion ne s'affichent que pour un administrateur : ce sont des routes
+      réservées côté API.</li>
+</ul>
+
+<p>Si la connexion affiche « Cette API ne gère pas la connexion par compte », l'URL vise
+une API d'une version antérieure : vérifiez l'adresse dans les Paramètres.</p>
 
 <p>Lecture : <code>video_player</code> et <code>chewie</code> pour la vidéo,
 <code>just_audio</code> pour l'audio sur mobile ; <code>media_kit</code> (libmpv)
@@ -69,6 +92,7 @@ cp .env.template .env      # obligatoire : le fichier est embarqué comme asset<
     <tr><td>Émulateur Android</td><td><code>http://10.0.2.2:8000</code></td></tr>
     <tr><td>Simulateur iOS</td><td><code>http://localhost:8000</code></td></tr>
     <tr><td>Téléphone réel</td><td><code>http://&lt;IP-LAN&gt;:8000</code></td></tr>
+    <tr><td>Desktop Linux sur la machine de l'API</td><td><code>http://localhost:8000</code></td></tr>
     <tr><td>Production</td><td>HTTPS, via <code>--dart-define=API_URL=https://…</code></td></tr>
   </tbody>
 </table>

@@ -43,9 +43,10 @@ export function fail(message) {
 }
 
 /**
- * Identité et cible de la capture. L'environnement l'emporte sur l'état écrit
+ * Compte et cible de la capture. L'environnement l'emporte sur l'état écrit
  * par `npm run seed`, ce qui permet de filmer une instance déjà peuplée :
- * DEMO_UID, FORMATION (nom exact) et, facultatif, LESSON (titre de la leçon).
+ * DEMO_EMAIL, DEMO_PASSWORD, FORMATION (nom exact) et, facultatif, LESSON
+ * (titre de la leçon). Le compte doit être administrateur pour filmer le studio.
  */
 export async function loadDemo() {
   let state = {};
@@ -54,22 +55,34 @@ export async function loadDemo() {
   } catch {
     // pas encore de seed : l'environnement doit tout fournir
   }
-  const uid = env.DEMO_UID ?? state.uid;
+  const email = env.DEMO_EMAIL ?? state.email;
+  const password = env.DEMO_PASSWORD ?? state.password;
   const formation = env.FORMATION ?? state.formation;
   const lesson = env.LESSON ?? state.lesson;
-  if (!uid || !formation) {
-    fail('Aucune donnée de démo. Lancez `npm run seed`, ou passez DEMO_UID et FORMATION.');
+  if (!email || !password || !formation) {
+    fail('Aucune donnée de démo. Lancez `npm run seed`, ou passez DEMO_EMAIL, DEMO_PASSWORD et FORMATION.');
   }
-  return { uid, formation, lesson };
+  return { email, password, formation, lesson };
 }
 
-/** Appel JSON à l'API, avec l'en-tête d'identité. */
-export async function api(path, { uid, method = 'GET', body, form } = {}) {
+/** Connexion par compte : renvoie le jeton à passer à `api()`. */
+export async function login(email, password) {
+  const { access_token: token } = await api('/auth/login', {
+    method: 'POST',
+    urlencoded: { username: email, password },
+  });
+  return token;
+}
+
+/** Appel JSON à l'API, authentifié par le jeton de `login()`. */
+export async function api(path, { token, method = 'GET', body, form, urlencoded } = {}) {
   const headers = {};
-  if (uid) headers['X-User-UID'] = uid;
+  if (token) headers.Authorization = `Bearer ${token}`;
   let payload;
   if (form) {
     payload = form;
+  } else if (urlencoded) {
+    payload = new URLSearchParams(urlencoded);
   } else if (body !== undefined) {
     headers['Content-Type'] = 'application/json';
     payload = JSON.stringify(body);
@@ -82,7 +95,9 @@ export async function api(path, { uid, method = 'GET', body, form } = {}) {
   }
   if (!response.ok) {
     const detail = await response.text().catch(() => '');
-    throw new Error(`${method} ${path} → ${response.status} ${detail.slice(0, 300)}`);
+    const error = new Error(`${method} ${path} → ${response.status} ${detail.slice(0, 300)}`);
+    error.status = response.status;
+    throw error;
   }
   if (response.status === 204) return null;
   const type = response.headers.get('content-type') ?? '';

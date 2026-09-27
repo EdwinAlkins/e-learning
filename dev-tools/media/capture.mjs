@@ -3,15 +3,15 @@ import { mkdir, readdir, rename, rm, writeFile } from 'node:fs/promises';
 import { join } from 'node:path';
 import {
   ASK, ASK_TIMEOUT_MS, FRONT, MODE, NOTE, SCALE, SHOTS_DIR, THEME, VIDEO_DIR,
-  api, fail, lessonsOf, loadDemo,
+  api, fail, lessonsOf, loadDemo, login,
 } from './config.mjs';
 
 // Premier mot de la note, sans balisage : sert a attendre son apparition a
 // l'ecran, puis a la retrouver pour la supprimer en fin de prise.
 const NOTE_MARKER = NOTE.replace(/[*_`#>[\]]/g, '').trim().split(/\s+/)[0] || 'note';
 
-// Parcours complet du front : accueil, catalogue, formation, assistant,
-// lecteur, résumé, notes, documents, studio. Deux modes :
+// Parcours complet du front : connexion, catalogue, formation, assistant,
+// lecteur, résumé, notes, documents, consommation IA, studio. Deux modes :
 //   shots  captures PNG (×SCALE) dans out/shots/
 //   video  enregistrement brut (WebM VP8) avec curseur dessiné dans out/video/raw.webm,
 //          à passer ensuite dans encode.mjs
@@ -54,7 +54,9 @@ const demo = await loadDemo();
 
 // Résolution de la cible via l'API : la capture échoue tôt et clairement
 // plutôt qu'au milieu d'un enregistrement.
-const { formations } = await api('/formations', { uid: demo.uid });
+const token = await login(demo.email, demo.password).catch((error) => fail(
+  `Connexion de ${demo.email} refusée (${error.message}). Relancez \`npm run seed\`.`));
+const { formations } = await api('/formations', { token });
 const formation = formations.find((f) => f.name === demo.formation);
 if (!formation) fail(`Formation « ${demo.formation} » absente de ${FRONT}. Lancez \`npm run seed\`.`);
 const lessons = lessonsOf(formation);
@@ -145,16 +147,17 @@ async function toTop() {
 }
 
 try {
-  // ── 1. Accueil : reprise de l'identifiant ───────────────────────────────
+  // ── 1. Connexion : email et mot de passe ────────────────────────────────
   mark('auth');
   await page.goto(`${FRONT}/auth`, { waitUntil: 'networkidle' });
-  const uidField = page.getByLabel('UID');
-  await uidField.waitFor();
+  const emailField = page.getByLabel('Email');
+  await emailField.waitFor();
   await pause(900);
   await shot('01-auth');
-  await type(uidField, demo.uid, 28);
+  await type(emailField, demo.email, 28);
+  await type(page.getByLabel('Mot de passe'), demo.password, 28);
   await pause(400);
-  await click(page.getByRole('button', { name: 'Continue' }));
+  await click(page.getByRole('button', { name: 'Se connecter' }));
   await page.waitForURL((u) => !u.pathname.startsWith('/auth'), { timeout: 20000 });
 
   // ── 2. Catalogue ────────────────────────────────────────────────────────
@@ -266,8 +269,27 @@ try {
   await pause(1600);
   await shot('08-documents', tabsBlock);
 
-  // ── 9. Studio ───────────────────────────────────────────────────────────
+  // ── 9. Consommation IA ──────────────────────────────────────────────────
   await toTop();
+  mark('usage');
+  await click(page.getByRole('button', { name: 'Consommation', exact: true }));
+  await page.getByRole('heading', { level: 1, name: 'Consommation IA' }).waitFor();
+  await page.getByRole('heading', { name: 'Par modèle' }).waitFor();
+  await page.waitForLoadState('networkidle');
+  await pause(1400);
+  if (video) {
+    // Survol de la barre la plus haute : l'info-bulle détaille la journée.
+    const bars = page.getByRole('img', { name: 'Tokens consommés par jour' }).locator(':scope > div');
+    const heights = await bars.evaluateAll((els) => els.map((el) => el.firstElementChild?.offsetHeight ?? 0));
+    const peak = heights.indexOf(Math.max(...heights));
+    if (peak >= 0) {
+      await moveTo(bars.nth(peak));
+      await pause(1800);
+    }
+  }
+  await shot('12-usage');
+
+  // ── 10. Studio ──────────────────────────────────────────────────────────
   mark('studio');
   await click(page.getByRole('button', { name: 'Studio', exact: true }));
   await page.getByRole('heading', { level: 1, name: 'Studio' }).waitFor();
@@ -296,7 +318,7 @@ try {
     await pause(1200);
   }
 
-  // ── 10. Rendu mobile ────────────────────────────────────────────────────
+  // ── 11. Rendu mobile ────────────────────────────────────────────────────
   // Navigation dans l'application, pas `page.goto` : un chargement direct d'une
   // page protégée repasse par /auth, qui renvoie au catalogue.
   if (!video) {
@@ -335,9 +357,9 @@ try {
 
 // La note tapée pendant la vidéo ne doit pas s'accumuler d'une prise à l'autre.
 if (video) {
-  const notes = await api(`/notes/${lesson.id}`, { uid: demo.uid }).catch(() => []);
+  const notes = await api(`/notes/${lesson.id}`, { token }).catch(() => []);
   for (const note of notes.filter((n) => n.content.startsWith(NOTE.slice(0, 30)))) {
-    await api(`/notes/${note.id}`, { uid: demo.uid, method: 'DELETE' }).catch(() => {});
+    await api(`/notes/${note.id}`, { token, method: 'DELETE' }).catch(() => {});
   }
 }
 

@@ -4,7 +4,7 @@
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
 <title>API HTTP &mdash; Cladèse</title>
-<meta name="description" content="Référence des routes de l'API Cladèse : authentification, formations, studio, vidéos, progression, notes et documents.">
+<meta name="description" content="Référence des routes de l'API Cladèse : connexion, rôles, comptes, formations, studio, vidéos, progression, notes, documents et consommation IA.">
 <link rel="canonical" href="https://edwinalkins.github.io/e-learning/api.html">
 <meta property="og:type" content="article">
 <meta property="og:url" content="https://edwinalkins.github.io/e-learning/api.html">
@@ -28,52 +28,114 @@
 <main id="content">
 <header>
   <h1>API HTTP</h1>
-  <p class="lede">JSON sur HTTP, identité par en-tête. Le schéma OpenAPI complet est servi en mode debug.</p>
+  <p class="lede">JSON sur HTTP, connexion par email et mot de passe, jeton porté par un en-tête ou un cookie. Le schéma OpenAPI complet est servi en mode debug.</p>
 </header>
 
 <h2 id="auth">Authentification<a class="anchor" href="#auth" aria-label="Lien vers cette section">#</a></h2>
 
-<div class="snippet" data-lang="http"><pre><code>X-User-UID: 0192f0c4-7d7a-7c1e-9a0b-5d2c8e1f3a47</code></pre></div>
+<p>Toute route est fermée par défaut. Seules <code>POST /auth/login</code>,
+<code>POST /auth/logout</code>, <code>/</code>, <code>/health</code>, <code>/ready</code>
+et <code>/metrics</code> répondent sans connexion.</p>
 
-<p>Requis pour la progression, les notes et les documents d'un chapitre.
-Publics : santé, <code>/auth/*</code>, lecture des formations, <code>/videos/*</code>
-et le téléchargement <code>/docs/{id}/file</code>. Avec <code>APP_DEBUG=true</code>,
-un UID fixe remplace l'en-tête absent, et l'interface OpenAPI est servie sur
-<code>/api-docs</code>, <code>/api-redoc</code> et <code>/openapi.json</code>.</p>
+<p><code>POST /auth/login</code> reçoit l'email dans le champ <code>username</code> et le mot
+de passe, au format formulaire (flux OAuth2 <em>password</em>). Il renvoie un jeton JWT,
+valable <code>APP_ACCESS_TOKEN_EXPIRE_MINUTES</code> (7 jours par défaut, sans
+rafraîchissement). Le jeton s'envoie de deux façons :</p>
 
-<div class="snippet" data-lang="bash"><pre><code># UID est une variable réservée de bash : on utilise un autre nom
-LEARNER=$(curl -s -X POST localhost:8000/auth/generate | jq -r .uid)
-curl -s localhost:8000/progress/formations -H "X-User-UID: $LEARNER"</code></pre></div>
-
-<p>Les listes ne sont pas paginées : <code>GET /formations</code> renvoie le
-catalogue complet, chapitres et leçons compris.</p>
-
-<h2 id="sante">Santé<a class="anchor" href="#sante" aria-label="Lien vers cette section">#</a></h2>
 <div class="table-wrap"><table>
-  <thead><tr><th>Méthode</th><th>Route</th><th>Effet</th></tr></thead>
+  <thead><tr><th>Transport</th><th>Clients</th><th>Détail</th></tr></thead>
   <tbody>
-    <tr><td><span class="pill pill-get">GET</span></td><td><code>/health</code></td><td><code>{"status": "ok"}</code></td></tr>
-    <tr><td><span class="pill pill-get">GET</span></td><td><code>/ready</code></td><td>Vérifie PostgreSQL</td></tr>
-    <tr><td><span class="pill pill-post">POST</span></td><td><code>/auth/generate</code></td><td><code>{"uid"}</code> nouvel identifiant</td></tr>
-    <tr><td><span class="pill pill-post">POST</span></td><td><code>/auth/restore</code></td><td>Corps <code>{"uid"}</code> ; valide et renvoie l'identifiant</td></tr>
+    <tr><td>En-tête <code>Authorization: Bearer &lt;jeton&gt;</code></td><td>Mobile, scripts, Swagger</td><td>Prioritaire s'il est présent</td></tr>
+    <tr><td>Cookie <code>access_token</code></td><td>Front web</td><td>Posé par <code>/auth/login</code> : <code>HttpOnly</code>, <code>SameSite=Lax</code>, <code>Secure</code> hors <code>localhost</code>. Le navigateur l'envoie aussi pour <code>&lt;video&gt;</code> et les liens de téléchargement</td></tr>
   </tbody>
 </table></div>
 
-<h2 id="formations">Formations<a class="anchor" href="#formations" aria-label="Lien vers cette section">#</a></h2>
+<p>Avec le cookie, les écritures (<code>POST</code>, <code>PUT</code>, <code>PATCH</code>,
+<code>DELETE</code>) exigent en plus l'en-tête <code>X-Requested-With</code>, de valeur
+libre : c'est la protection contre les requêtes forgées depuis un autre site. Sans lui,
+la réponse est <code>403</code>.</p>
+
+<div class="snippet" data-lang="bash"><pre><code>TOKEN=$(curl -s localhost:8000/auth/login \
+  -d username=admin@example.com --data-urlencode 'password=votre-mot-de-passe' \
+  | jq -r .access_token)
+curl -s localhost:8000/progress/formations -H "Authorization: Bearer $TOKEN"</code></pre></div>
+
+<h3 id="roles">Rôles<a class="anchor" href="#roles" aria-label="Lien vers cette section">#</a></h3>
+<div class="table-wrap"><table>
+  <thead><tr><th>Rôle</th><th>Droits</th></tr></thead>
+  <tbody>
+    <tr><td>Apprenant (<code>is_admin=false</code>)</td><td>Catalogue, vidéos, documents, assistant, ses notes, sa progression et sa consommation</td></tr>
+    <tr><td>Admin (<code>is_admin=true</code>)</td><td>Tout, plus le studio (toutes les écritures du catalogue) et la gestion des comptes</td></tr>
+  </tbody>
+</table></div>
+
+<p>Le rôle n'est pas lu dans le jeton : le compte est relu en base à chaque requête. Un
+retrait du rôle admin ou une désactivation prend donc effet à la requête suivante. Notes
+et progression restent propres à chaque compte, admin compris.</p>
+
+<div class="table-wrap"><table>
+  <thead><tr><th>Code</th><th>Signification</th></tr></thead>
+  <tbody>
+    <tr><td><code>401</code></td><td>Pas de jeton, jeton invalide ou expiré, compte désactivé</td></tr>
+    <tr><td><code>403</code></td><td>Connecté, mais route réservée aux admins (ou en-tête anti-CSRF manquant)</td></tr>
+    <tr><td><code>429</code></td><td>Trop d'échecs de connexion : 5 par email ou par adresse IP sur 15 minutes. En-tête <code>Retry-After</code></td></tr>
+  </tbody>
+</table></div>
+
+<p>Avec <code>APP_DEBUG=true</code>, l'interface OpenAPI est servie sur
+<code>/api-docs</code>, <code>/api-redoc</code> et <code>/openapi.json</code>. Son bouton
+<strong>Authorize</strong> se connecte via <code>/auth/login</code> : saisir l'email dans
+<code>username</code>. Le mode debug ne contourne pas l'authentification.</p>
+
+<p>Les listes ne sont pas paginées, sauf les comptes : <code>GET /formations</code> renvoie le
+catalogue complet, chapitres et leçons compris.</p>
+
+<h2 id="sante">Santé et session<a class="anchor" href="#sante" aria-label="Lien vers cette section">#</a></h2>
+<div class="table-wrap"><table>
+  <thead><tr><th>Méthode</th><th>Route</th><th>Accès</th><th>Effet</th></tr></thead>
+  <tbody>
+    <tr><td><span class="pill pill-get">GET</span></td><td><code>/health</code></td><td>Public</td><td><code>{"status": "ok"}</code></td></tr>
+    <tr><td><span class="pill pill-get">GET</span></td><td><code>/ready</code></td><td>Public</td><td>Vérifie PostgreSQL</td></tr>
+    <tr><td><span class="pill pill-post">POST</span></td><td><code>/auth/login</code></td><td>Public</td><td>Formulaire <code>username</code> + <code>password</code> → <code>{"access_token", "token_type", "expires_in"}</code> et cookie. <code>401</code> au message unique, que l'email ou le mot de passe soit faux</td></tr>
+    <tr><td><span class="pill pill-post">POST</span></td><td><code>/auth/logout</code></td><td>Public</td><td><code>204</code>, efface le cookie</td></tr>
+    <tr><td><span class="pill pill-get">GET</span></td><td><code>/auth/me</code></td><td>Apprenant</td><td><code>{"id", "email", "full_name", "is_admin"}</code></td></tr>
+    <tr><td><span class="pill pill-patch">PATCH</span></td><td><code>/auth/me/password</code></td><td>Apprenant</td><td>Corps <code>{"current_password", "new_password"}</code> ; <code>400</code> si l'actuel est faux, <code>422</code> hors 8–128 caractères</td></tr>
+  </tbody>
+</table></div>
+
+<h2 id="comptes">Comptes (admin)<a class="anchor" href="#comptes" aria-label="Lien vers cette section">#</a></h2>
+<div class="table-wrap"><table>
+  <thead><tr><th>Méthode</th><th>Route</th><th>Effet</th></tr></thead>
+  <tbody>
+    <tr><td><span class="pill pill-get">GET</span></td><td><code>/admin/users</code></td><td><code>?offset=0&amp;limit=50</code> (limite ≤ 200) → <code>{"items", "total"}</code></td></tr>
+    <tr><td><span class="pill pill-post">POST</span></td><td><code>/admin/users</code></td><td>Corps <code>{"email", "password", "full_name"?, "is_admin"?}</code> ; email déjà pris → <code>409</code></td></tr>
+    <tr><td><span class="pill pill-patch">PATCH</span></td><td><code>/admin/users/{id}</code></td><td>Corps <code>{"full_name"?, "is_admin"?, "is_active"?, "password"?}</code> ; champ absent = inchangé</td></tr>
+    <tr><td><span class="pill pill-delete">DELETE</span></td><td><code>/admin/users/{id}</code></td><td>Supprime le compte, ses notes, sa progression et sa consommation</td></tr>
+  </tbody>
+</table></div>
+
+<p>Un compte renvoyé contient <code>id</code>, <code>email</code>, <code>full_name</code>,
+<code>is_admin</code>, <code>is_active</code> et <code>created_at</code>, jamais le mot de passe
+ni son empreinte. Un admin ne peut ni se retirer le rôle admin, ni se désactiver, ni se
+supprimer : <code>409</code>.</p>
+
+<h2 id="formations">Formations (apprenant)<a class="anchor" href="#formations" aria-label="Lien vers cette section">#</a></h2>
 <div class="table-wrap"><table>
   <thead><tr><th>Méthode</th><th>Route</th><th>Effet</th></tr></thead>
   <tbody>
     <tr><td><span class="pill pill-get">GET</span></td><td><code>/formations</code></td><td>Catalogue complet : chapitres, vidéos, documents, statuts, <code>active_jobs</code></td></tr>
     <tr><td><span class="pill pill-get">GET</span></td><td><code>/formations/{id}</code></td><td>Une formation</td></tr>
     <tr><td><span class="pill pill-post">POST</span></td><td><code>/formations/{id}/ask</code></td><td>Corps <code>{"question"}</code> → <code>{"answer", "citations"}</code></td></tr>
-    <tr><td><span class="pill pill-post">POST</span></td><td><code>/formations/{id}/index</code></td><td><code>202</code>, job <code>rag_index_formation</code></td></tr>
   </tbody>
 </table></div>
 
-<h2 id="studio">Studio (écriture)<a class="anchor" href="#studio" aria-label="Lien vers cette section">#</a></h2>
+<h2 id="studio">Studio (admin)<a class="anchor" href="#studio" aria-label="Lien vers cette section">#</a></h2>
+<p>Toutes les écritures du catalogue, y compris celles des sections <a href="#videos">Vidéos</a>
+et <a href="#documents">Documents</a> marquées « Admin ». Un apprenant reçoit <code>403</code>.</p>
 <div class="table-wrap"><table>
   <thead><tr><th>Méthode</th><th>Route</th><th>Effet</th></tr></thead>
   <tbody>
+    <tr><td><span class="pill pill-post">POST</span></td><td><code>/formations/{id}/index</code></td><td><code>202</code>, job <code>rag_index_formation</code></td></tr>
     <tr><td><span class="pill pill-post">POST</span></td><td><code>/formations</code></td><td>Corps <code>{"name"}</code></td></tr>
     <tr><td><span class="pill pill-patch">PATCH</span></td><td><code>/formations/{id}</code></td><td>Renommer</td></tr>
     <tr><td><span class="pill pill-delete">DELETE</span></td><td><code>/formations/{id}</code></td><td>Supprimer</td></tr>
@@ -92,16 +154,16 @@ catalogue complet, chapitres et leçons compris.</p>
 
 <h2 id="videos">Vidéos<a class="anchor" href="#videos" aria-label="Lien vers cette section">#</a></h2>
 <div class="table-wrap"><table>
-  <thead><tr><th>Méthode</th><th>Route</th><th>Effet</th></tr></thead>
+  <thead><tr><th>Méthode</th><th>Route</th><th>Accès</th><th>Effet</th></tr></thead>
   <tbody>
-    <tr><td><span class="pill pill-get">GET</span></td><td><code>/videos/{id}/stream</code></td><td>Flux avec support <code>Range</code></td></tr>
-    <tr><td><span class="pill pill-get">GET</span></td><td><code>/videos/{id}/file</code></td><td>Fichier complet</td></tr>
-    <tr><td><span class="pill pill-get">GET</span></td><td><code>/videos/{id}/transcription</code></td><td><code>{"content"}</code></td></tr>
-    <tr><td><span class="pill pill-post">POST</span></td><td><code>/videos/{id}/transcription</code></td><td><code>202</code>, job <code>transcription</code></td></tr>
-    <tr><td><span class="pill pill-get">GET</span></td><td><code>/videos/{id}/summary</code></td><td><code>{"summary"}</code></td></tr>
-    <tr><td><span class="pill pill-put">PUT</span></td><td><code>/videos/{id}/summary</code></td><td>Corps <code>{"summary"}</code> ; remplace le texte</td></tr>
-    <tr><td><span class="pill pill-post">POST</span></td><td><code>/videos/{id}/summary/generate</code></td><td><code>202</code>, job <code>summary</code></td></tr>
-    <tr><td><span class="pill pill-post">POST</span></td><td><code>/videos/{id}/conversion</code></td><td><code>202</code>, relance ffmpeg</td></tr>
+    <tr><td><span class="pill pill-get">GET</span></td><td><code>/videos/{id}/stream</code></td><td>Apprenant</td><td>Flux avec support <code>Range</code></td></tr>
+    <tr><td><span class="pill pill-get">GET</span></td><td><code>/videos/{id}/file</code></td><td>Apprenant</td><td>Fichier complet</td></tr>
+    <tr><td><span class="pill pill-get">GET</span></td><td><code>/videos/{id}/transcription</code></td><td>Apprenant</td><td><code>{"content"}</code></td></tr>
+    <tr><td><span class="pill pill-post">POST</span></td><td><code>/videos/{id}/transcription</code></td><td>Admin</td><td><code>202</code>, job <code>transcription</code></td></tr>
+    <tr><td><span class="pill pill-get">GET</span></td><td><code>/videos/{id}/summary</code></td><td>Apprenant</td><td><code>{"summary"}</code></td></tr>
+    <tr><td><span class="pill pill-put">PUT</span></td><td><code>/videos/{id}/summary</code></td><td>Admin</td><td>Corps <code>{"summary"}</code> ; remplace le texte</td></tr>
+    <tr><td><span class="pill pill-post">POST</span></td><td><code>/videos/{id}/summary/generate</code></td><td>Admin</td><td><code>202</code>, job <code>summary</code></td></tr>
+    <tr><td><span class="pill pill-post">POST</span></td><td><code>/videos/{id}/conversion</code></td><td>Admin</td><td><code>202</code>, relance ffmpeg</td></tr>
   </tbody>
 </table></div>
 
@@ -117,7 +179,7 @@ catalogue complet, chapitres et leçons compris.</p>
   </tbody>
 </table></div>
 
-<h2 id="apprenant">Progression et notes<a class="anchor" href="#apprenant" aria-label="Lien vers cette section">#</a></h2>
+<h2 id="apprenant">Progression et notes (apprenant)<a class="anchor" href="#apprenant" aria-label="Lien vers cette section">#</a></h2>
 <div class="table-wrap"><table>
   <thead><tr><th>Méthode</th><th>Route</th><th>Effet</th></tr></thead>
   <tbody>
@@ -125,7 +187,7 @@ catalogue complet, chapitres et leçons compris.</p>
     <tr><td><span class="pill pill-get">GET</span></td><td><code>/progress/formation/{id}</code></td><td>Détail par chapitre et par vidéo</td></tr>
     <tr><td><span class="pill pill-get">GET</span></td><td><code>/progress/{video_id}</code></td><td>Position d'une vidéo</td></tr>
     <tr><td><span class="pill pill-post">POST</span></td><td><code>/progress/{video_id}</code></td><td>Corps <code>{"last_position"}</code> en secondes</td></tr>
-    <tr><td><span class="pill pill-get">GET</span></td><td><code>/notes/{video_id}</code></td><td>Notes de l'utilisateur sur la vidéo</td></tr>
+    <tr><td><span class="pill pill-get">GET</span></td><td><code>/notes/{video_id}</code></td><td>Notes du compte connecté sur la vidéo</td></tr>
     <tr><td><span class="pill pill-post">POST</span></td><td><code>/notes/{video_id}</code></td><td>Corps <code>{"timecode", "content"}</code></td></tr>
     <tr><td><span class="pill pill-put">PUT</span></td><td><code>/notes/{note_id}</code></td><td>Corps <code>{"content"}</code></td></tr>
     <tr><td><span class="pill pill-delete">DELETE</span></td><td><code>/notes/{note_id}</code></td><td>Supprimer</td></tr>
@@ -134,12 +196,20 @@ catalogue complet, chapitres et leçons compris.</p>
 
 <h2 id="documents">Documents<a class="anchor" href="#documents" aria-label="Lien vers cette section">#</a></h2>
 <div class="table-wrap"><table>
+  <thead><tr><th>Méthode</th><th>Route</th><th>Accès</th><th>Effet</th></tr></thead>
+  <tbody>
+    <tr><td><span class="pill pill-get">GET</span></td><td><code>/docs/chapters/{chapter_id}</code></td><td>Apprenant</td><td>Documents du chapitre</td></tr>
+    <tr><td><span class="pill pill-get">GET</span></td><td><code>/docs/{id}/file</code></td><td>Apprenant</td><td>Téléchargement ; <code>?download=true</code> force l'enregistrement</td></tr>
+    <tr><td><span class="pill pill-patch">PATCH</span></td><td><code>/docs/{id}</code></td><td>Admin</td><td>Corps <code>{"title"?, "video_id"?}</code> ; <code>video_id: null</code> détache</td></tr>
+    <tr><td><span class="pill pill-delete">DELETE</span></td><td><code>/docs/{id}</code></td><td>Admin</td><td>Supprimer</td></tr>
+  </tbody>
+</table></div>
+
+<h2 id="usage">Consommation IA (apprenant)<a class="anchor" href="#usage" aria-label="Lien vers cette section">#</a></h2>
+<div class="table-wrap"><table>
   <thead><tr><th>Méthode</th><th>Route</th><th>Effet</th></tr></thead>
   <tbody>
-    <tr><td><span class="pill pill-get">GET</span></td><td><code>/docs/chapters/{chapter_id}</code></td><td>Documents du chapitre (UID requis)</td></tr>
-    <tr><td><span class="pill pill-get">GET</span></td><td><code>/docs/{id}/file</code></td><td>Téléchargement</td></tr>
-    <tr><td><span class="pill pill-patch">PATCH</span></td><td><code>/docs/{id}</code></td><td>Corps <code>{"title"?, "video_id"?}</code> ; <code>video_id: null</code> détache</td></tr>
-    <tr><td><span class="pill pill-delete">DELETE</span></td><td><code>/docs/{id}</code></td><td>Supprimer</td></tr>
+    <tr><td><span class="pill pill-get">GET</span></td><td><code>/usage?days=30</code></td><td>Tokens du compte connecté (1 à 365 jours) : <code>period</code>, <code>all_time</code>, <code>by_kind</code>, <code>by_model</code>, <code>daily</code> (jours UTC)</td></tr>
   </tbody>
 </table></div>
 

@@ -16,6 +16,12 @@ from e_learning.domain.shared.exceptions import (
     NotFoundError,
     ValidationError,
 )
+from e_learning.domain.user.exceptions import (
+    AdminRequired,
+    InactiveUser,
+    InvalidCredentials,
+    TooManyLoginAttempts,
+)
 
 logger = logging.getLogger("e_learning")
 
@@ -25,6 +31,29 @@ def _error(status_code: int, message: str) -> JSONResponse:
 
 
 def register_error_handlers(app: FastAPI) -> None:
+    # 401 = pas de jeton, jeton invalide ou compte désactivé ; 403 = rôle insuffisant.
+    @app.exception_handler(InvalidCredentials)
+    async def _unauthorized(_: Request, exc: InvalidCredentials) -> JSONResponse:
+        response = _error(status.HTTP_401_UNAUTHORIZED, str(exc))
+        response.headers["WWW-Authenticate"] = "Bearer"
+        return response
+
+    @app.exception_handler(InactiveUser)
+    async def _inactive(_: Request, exc: InactiveUser) -> JSONResponse:
+        response = _error(status.HTTP_401_UNAUTHORIZED, str(exc))
+        response.headers["WWW-Authenticate"] = "Bearer"
+        return response
+
+    @app.exception_handler(AdminRequired)
+    async def _forbidden(_: Request, exc: AdminRequired) -> JSONResponse:
+        return _error(status.HTTP_403_FORBIDDEN, str(exc))
+
+    @app.exception_handler(TooManyLoginAttempts)
+    async def _too_many(_: Request, exc: TooManyLoginAttempts) -> JSONResponse:
+        response = _error(status.HTTP_429_TOO_MANY_REQUESTS, str(exc))
+        response.headers["Retry-After"] = str(exc.retry_after_seconds)
+        return response
+
     @app.exception_handler(NotFoundError)
     async def _not_found(_: Request, exc: NotFoundError) -> JSONResponse:
         return _error(status.HTTP_404_NOT_FOUND, str(exc))

@@ -33,7 +33,11 @@ async def test_query_services_project_without_rebuilding_aggregates(app: Any) ->
         session.add_all(
             [
                 FormationModel(id=formation_id, name="Query Services", slug="query-services"),
-                UserModel(id=user_id),
+                UserModel(
+                    id=user_id,
+                    email=f"query-{user_id}@example.com",
+                    hashed_password="x",
+                ),
             ]
         )
         await session.commit()

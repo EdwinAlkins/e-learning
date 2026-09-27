@@ -32,14 +32,20 @@ from e_learning.infrastructure.persistence.database import (
     create_session_factory,
     init_db,
 )
+from e_learning.infrastructure.security.jwt_tokens import JwtTokenService
+from e_learning.infrastructure.security.login_throttle import InMemoryLoginThrottle
+from e_learning.infrastructure.security.password_hasher import Argon2PasswordHasher
 from e_learning.infrastructure.storage.filesystem_catalog import FilesystemCatalogStorage
+from e_learning.presentation.api.bootstrap import ensure_first_admin
 from e_learning.presentation.api.error_handlers import register_error_handlers
 from e_learning.presentation.api.v1.routers import (
+    admin_users,
     auth,
     docs,
     formations,
     notes,
     progress,
+    studio,
     usage,
     videos,
 )
@@ -51,6 +57,7 @@ def create_app(settings: Settings | None = None) -> FastAPI:
     settings = settings or get_settings()
     configure_logging(settings.log_level)
     logger.info("Démarrage de %s", settings.app_name)
+    _check_security(settings)
 
     engine = create_engine(
         settings.database_url,
@@ -69,6 +76,15 @@ def create_app(settings: Settings | None = None) -> FastAPI:
         settings.rabbitmq_url.get_secret_value(),
         exchange_name=settings.rabbitmq_exchange,
     )
+    password_hasher = Argon2PasswordHasher()
+    token_service = JwtTokenService(
+        settings.secret_key.get_secret_value(),
+        expire_minutes=settings.access_token_expire_minutes,
+    )
+    login_throttle = InMemoryLoginThrottle(
+        max_failures=settings.login_max_failures,
+        window_seconds=settings.login_window_minutes * 60,
+    )
 
     @asynccontextmanager
     async def lifespan(app: FastAPI) -> AsyncIterator[None]:
@@ -76,6 +92,7 @@ def create_app(settings: Settings | None = None) -> FastAPI:
             logger.info("Initialisation du schéma (create_all).")
             await init_db(engine)
 
+        await ensure_first_admin(session_factory, password_hasher, settings)
         await embeddings.warmup()
         await job_publisher.connect()
 
@@ -143,11 +160,18 @@ def create_app(settings: Settings | None = None) -> FastAPI:
     app.state.vector_store = vector_store
     app.state.chat = chat
     app.state.job_publisher = job_publisher
+    app.state.password_hasher = password_hasher
+    app.state.token_service = token_service
+    app.state.login_throttle = login_throttle
 
     register_error_handlers(app)
+    # Routes fermées par défaut : chaque routeur porte sa garde (get_current_user
+    # ou require_admin) ; seuls auth.router et les sondes ci-dessous sont publics.
     app.include_router(auth.router)
+    app.include_router(auth.me_router)
+    app.include_router(admin_users.router)
     app.include_router(formations.formations_router)
-    app.include_router(formations.studio_router)
+    app.include_router(studio.studio_router)
     app.include_router(videos.router)
     app.include_router(notes.router)
     app.include_router(progress.router)
@@ -170,3 +194,19 @@ def create_app(settings: Settings | None = None) -> FastAPI:
         return {"status": "ready"}
 
     return app
+
+
+def _check_security(settings: Settings) -> None:
+    """Refuse de démarrer avec des secrets d'exemple hors mode debug (S5, S7)."""
+    if "*" in settings.cors_origins:
+        raise RuntimeError(
+            "APP_CORS_ORIGINS ne doit pas contenir '*' : les cookies d'authentification "
+            "exigent une liste explicite d'origines."
+        )
+    problems = settings.security_problems()
+    if not problems:
+        return
+    if not settings.debug:
+        raise RuntimeError("Configuration non sûre : " + " ".join(problems))
+    for problem in problems:
+        logger.warning("Mode debug, configuration non sûre tolérée : %s", problem)

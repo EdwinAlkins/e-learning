@@ -31,22 +31,33 @@
   <p class="lede">Du premier accès à la prise de notes : ce que voit quelqu'un qui suit une formation.</p>
 </header>
 
-<h2 id="identifiant">L'identifiant (UID)<a class="anchor" href="#identifiant" aria-label="Lien vers cette section">#</a></h2>
+<h2 id="connexion">La connexion<a class="anchor" href="#connexion" aria-label="Lien vers cette section">#</a></h2>
 
-<p>À la première visite, l'écran d'accueil propose deux choix :</p>
+<p>Chaque apprenant a un compte, créé par un administrateur : il n'y a pas
+d'inscription libre. Toute page renvoie vers l'écran de connexion tant qu'on
+n'est pas connecté.</p>
+
 <ul>
-  <li><strong>Generate New UID</strong> crée un identifiant et ouvre le catalogue ;</li>
-  <li><strong>Continue</strong> reprend un identifiant existant, collé dans le champ.</li>
+  <li>Saisissez votre <strong>email</strong> et votre <strong>mot de passe</strong>, puis
+      <strong>Se connecter</strong>. Après une connexion, vous revenez sur la page que vous
+      vouliez ouvrir.</li>
+  <li>Le message d'erreur ne précise pas si l'email ou le mot de passe est faux. Après
+      cinq échecs en quinze minutes, les tentatives sont bloquées temporairement.</li>
+  <li>La session dure sept jours par défaut. Elle est gardée dans un cookie que les
+      scripts de la page ne peuvent pas lire.</li>
 </ul>
 
-<p>L'UID est conservé dans le navigateur (<code>localStorage</code>). Il s'affiche
-dans l'en-tête ; <strong>un clic le copie</strong>. C'est lui qui retrouve la
-progression et les notes sur un autre navigateur ou sur mobile.
-<strong>Déconnexion</strong> l'oublie localement : sans copie, la progression
-associée n'est plus accessible depuis ce navigateur.</p>
+<p>Votre email apparaît dans l'en-tête. Son menu propose <strong>Changer le mot de
+passe</strong> (8 à 128 caractères) et <strong>Déconnexion</strong>. Un mot de passe
+oublié se réinitialise par un administrateur, depuis
+<a href="./studio.html#comptes">Studio &rarr; Comptes</a>.</p>
+
+<p>Progression, notes et consommation sont liées au compte : on les retrouve sur un
+autre navigateur ou sur <a href="./mobile.html">mobile</a> en se connectant avec le
+même email.</p>
 
 <img class="shot" src="./assets/media/auth.png" loading="lazy"
-     alt="Écran d'accueil : champ UID, bouton Continue, séparateur OR et bouton Generate New UID.">
+     alt="Écran de connexion : champs Email et Mot de passe, bouton Se connecter.">
 
 <h2 id="catalogue">Le catalogue<a class="anchor" href="#catalogue" aria-label="Lien vers cette section">#</a></h2>
 
@@ -109,7 +120,8 @@ est écrite dans le fichier <code>.md</code> de la leçon.</p>
 
 <p>La liste, à droite, est triée par timecode. Cliquer sur une note ramène la vidéo
 à son timecode ; chaque note se modifie ou se supprime sur place. Les notes
-sont personnelles : elles sont rattachées à l'UID.</p>
+sont personnelles : elles sont rattachées à votre compte, et un administrateur ne
+les voit pas.</p>
 
 <h2 id="documents">Les documents<a class="anchor" href="#documents" aria-label="Lien vers cette section">#</a></h2>
 
@@ -117,6 +129,16 @@ sont personnelles : elles sont rattachées à l'UID.</p>
 la leçon : PDF, présentations, feuilles de calcul, images. Chacun s'ouvre dans un
 nouvel onglet ou se télécharge. Les documents rattachés au chapitre plutôt qu'à
 une vidéo apparaissent sur la page formation.</p>
+
+<h2 id="consommation">La consommation IA<a class="anchor" href="#consommation" aria-label="Lien vers cette section">#</a></h2>
+
+<p><strong>Consommation</strong>, dans l'en-tête, affiche les tokens consommés par vos
+questions à l'assistant et par les résumés que vous avez lancés : totaux sur la période
+choisie et depuis le début, détail par jour, par usage et par modèle. Les embeddings et
+les résumés générés en ligne de commande ne sont pas comptés.</p>
+
+<img class="shot" src="./assets/media/usage.png" loading="lazy"
+     alt="Consommation IA sur 30 jours : totaux de tokens et d'appels, histogramme par jour, détail par fonctionnalité et par modèle.">
 
 <h2 id="theme">Thème et mobile<a class="anchor" href="#theme" aria-label="Lien vers cette section">#</a></h2>
 

@@ -1,6 +1,5 @@
 import 'package:dio/dio.dart';
 import 'package:flutter/material.dart';
-import 'package:flutter/services.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import '../../../config/env.dart';
@@ -171,34 +170,15 @@ class _SettingsSheetState extends ConsumerState<_SettingsSheet> {
 
             const SizedBox(height: 24),
             _SectionTitle('Session'),
-            if (auth.uid case final uid?) ...[
-              Text(
-                'UID',
-                style: theme.textTheme.labelMedium?.copyWith(
-                  color: theme.colorScheme.onSurfaceVariant,
+            if (auth.user case final user?) ...[
+              Text(user.displayName, style: theme.textTheme.bodyLarge),
+              if (user.displayName != user.email)
+                Text(
+                  user.email,
+                  style: theme.textTheme.bodyMedium?.copyWith(
+                    color: theme.colorScheme.onSurfaceVariant,
+                  ),
                 ),
-              ),
-              const SizedBox(height: 4),
-              Row(
-                children: [
-                  Expanded(
-                    child: SelectableText(
-                      uid,
-                      style: theme.textTheme.bodyMedium,
-                    ),
-                  ),
-                  IconButton(
-                    tooltip: 'Copier l’UID',
-                    onPressed: () {
-                      Clipboard.setData(ClipboardData(text: uid));
-                      ScaffoldMessenger.of(context).showSnackBar(
-                        const SnackBar(content: Text('UID copié')),
-                      );
-                    },
-                    icon: const Icon(Icons.copy, size: 18),
-                  ),
-                ],
-              ),
               const SizedBox(height: 8),
               OutlinedButton.icon(
                 onPressed: () async {

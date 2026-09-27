@@ -23,54 +23,42 @@ import {
   DarkMode as DarkModeIcon,
   SettingsBrightness as SettingsBrightnessIcon,
   Insights as InsightsIcon,
+  AccountCircle as AccountCircleIcon,
+  Password as PasswordIcon,
 } from '@mui/icons-material';
 import { useAuthStore } from '../stores/auth.store';
+import { useCatalogStore } from '../stores/catalog.store';
 import { useThemeStore, type ThemeMode } from '../stores/theme.store';
 import { SNACKBAR_DURATION_MS } from '../constants';
+import ChangePasswordDialog from './ChangePasswordDialog';
 
 export default function Header() {
-  const { uid, clearUID } = useAuthStore();
+  const { user, logout } = useAuthStore();
   const { mode, setMode } = useThemeStore();
   const router = useRouter();
-  const [copied, setCopied] = useState(false);
+  const [passwordChanged, setPasswordChanged] = useState(false);
+  const [passwordDialogOpen, setPasswordDialogOpen] = useState(false);
   const [themeMenuAnchor, setThemeMenuAnchor] = useState<null | HTMLElement>(null);
+  const [accountMenuAnchor, setAccountMenuAnchor] = useState<null | HTMLElement>(null);
 
-  const handleLogout = () => {
-    clearUID();
-    router.push('/auth');
-  };
-
-  const handleCopyUID = async () => {
-    if (!uid) return;
-
+  const handleLogout = async () => {
+    setAccountMenuAnchor(null);
     try {
-      if (navigator.clipboard?.writeText) {
-        await navigator.clipboard.writeText(uid);
-        setCopied(true);
-        return;
-      }
-
-      // Fallback : execCommand quand l'API Clipboard est indisponible
-      const textArea = document.createElement('textarea');
-      textArea.value = uid;
-      textArea.setAttribute('readonly', '');
-      textArea.style.position = 'fixed';
-      textArea.style.left = '-999999px';
-      document.body.appendChild(textArea);
-      textArea.select();
-      try {
-        const ok = document.execCommand('copy');
-        if (ok) setCopied(true);
-      } finally {
-        document.body.removeChild(textArea);
-      }
-    } catch (err) {
-      console.error('Failed to copy UID:', err);
+      await logout();
+    } finally {
+      // Le catalogue embarque la progression du compte : ne pas la montrer au suivant.
+      useCatalogStore.getState().reset();
+      router.replace('/auth');
     }
   };
 
+  const handleOpenPasswordDialog = () => {
+    setAccountMenuAnchor(null);
+    setPasswordDialogOpen(true);
+  };
+
   const handleCloseSnackbar = () => {
-    setCopied(false);
+    setPasswordChanged(false);
   };
 
   const handleThemeMenuOpen = (event: React.MouseEvent<HTMLElement>) => {
@@ -118,9 +106,11 @@ export default function Header() {
             </Typography>
           </Box>
           <Box sx={{ display: 'flex', alignItems: 'center', gap: 2 }}>
-            <Button color="inherit" onClick={() => router.push('/studio')}>
-              Studio
-            </Button>
+            {user?.is_admin && (
+              <Button color="inherit" onClick={() => router.push('/studio')}>
+                Studio
+              </Button>
+            )}
             <Button
               color="inherit"
               onClick={() => router.push('/usage')}
@@ -171,41 +161,66 @@ export default function Header() {
                 <ListItemText>Système</ListItemText>
               </MenuItem>
             </Menu>
-            {uid && (
+            {user && (
               <>
-                <Typography
-                  variant="body2"
-                  sx={{
-                    display: { xs: 'none', sm: 'block' },
-                    cursor: 'pointer',
-                    '&:hover': {
-                      textDecoration: 'underline',
-                    },
-                  }}
-                  onClick={handleCopyUID}
-                >
-                  UID: {uid}
-                </Typography>
                 <Button
                   color="inherit"
-                  startIcon={<LogoutIcon />}
-                  onClick={handleLogout}
+                  startIcon={<AccountCircleIcon />}
+                  onClick={(event) => setAccountMenuAnchor(event.currentTarget)}
+                  aria-label="Mon compte"
+                  sx={{ textTransform: 'none' }}
                 >
-                  Déconnexion
+                  <Box component="span" sx={{ display: { xs: 'none', sm: 'inline' } }}>
+                    {user.full_name || user.email}
+                  </Box>
                 </Button>
+                <Menu
+                  anchorEl={accountMenuAnchor}
+                  open={Boolean(accountMenuAnchor)}
+                  onClose={() => setAccountMenuAnchor(null)}
+                  anchorOrigin={{ vertical: 'bottom', horizontal: 'right' }}
+                  transformOrigin={{ vertical: 'top', horizontal: 'right' }}
+                >
+                  <MenuItem disabled>
+                    <ListItemText
+                      primary={user.email}
+                      secondary={user.is_admin ? 'Administrateur' : 'Apprenant'}
+                    />
+                  </MenuItem>
+                  <MenuItem onClick={handleOpenPasswordDialog}>
+                    <ListItemIcon>
+                      <PasswordIcon fontSize="small" />
+                    </ListItemIcon>
+                    <ListItemText>Changer le mot de passe</ListItemText>
+                  </MenuItem>
+                  <MenuItem onClick={handleLogout}>
+                    <ListItemIcon>
+                      <LogoutIcon fontSize="small" />
+                    </ListItemIcon>
+                    <ListItemText>Déconnexion</ListItemText>
+                  </MenuItem>
+                </Menu>
               </>
             )}
           </Box>
         </Toolbar>
       </AppBar>
+      <ChangePasswordDialog
+        open={passwordDialogOpen}
+        onClose={() => setPasswordDialogOpen(false)}
+        onChanged={() => {
+          setPasswordDialogOpen(false);
+          setPasswordChanged(true);
+        }}
+      />
       <Snackbar
-        open={copied}
+        open={passwordChanged}
         autoHideDuration={SNACKBAR_DURATION_MS}
         onClose={handleCloseSnackbar}
         anchorOrigin={{ vertical: 'top', horizontal: 'center' }}
       >
         <Alert onClose={handleCloseSnackbar} severity="success" sx={{ width: '100%' }}>
-          UID copié dans le presse-papiers
+          Mot de passe modifié
         </Alert>
       </Snackbar>
     </>

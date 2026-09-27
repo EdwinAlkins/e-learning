@@ -46,6 +46,7 @@ préfixez par <code>docker compose exec api</code> ; hors Docker, par <code>uv r
     <tr><td><code>transcribe</code></td><td>Transcrit une vidéo, de façon synchrone</td><td><code>-v</code> UUID, <code>-m</code> modèle Whisper (<code>base</code>), <code>-l</code> langue, <code>--timecodes</code></td></tr>
     <tr><td><code>summary</code> (alias <code>resume</code>)</td><td>Génère le résumé d'une vidéo</td><td><code>-v</code> UUID</td></tr>
     <tr><td><code>index-rag</code></td><td>Indexe transcriptions, résumés et documents dans Qdrant</td><td><code>--formation-id</code> ou <code>--video-id</code></td></tr>
+    <tr><td><code>create-admin</code></td><td>Crée un compte administrateur ; refuse un email déjà pris</td><td><code>--email</code>, <code>--password</code> (demandé, masqué, si absent), <code>--full-name</code></td></tr>
   </tbody>
 </table>
 </div>
@@ -73,6 +74,17 @@ chaque <code>docker compose up</code>. À la main :</p>
 cd e-learning-api
 uv run alembic upgrade head
 uv run alembic revision --autogenerate -m "description"</code></pre></div>
+
+<div class="warn">
+  <strong>Passage aux comptes : les données anonymes sont supprimées</strong>
+  La migration <code>007_user_credentials</code> ajoute email, mot de passe et rôle aux
+  utilisateurs, et <strong>supprime les anciens identifiants anonymes</strong> avec leurs
+  notes, leur progression et leur consommation : un identifiant anonyme ne peut pas être
+  rattaché de façon sûre à un email. Le retour arrière retire les colonnes mais ne restaure
+  pas ces données. Lancez <code>./scripts/backup.sh</code> avant la mise à jour, et
+  renseignez <code>APP_SECRET_KEY</code> et <code>APP_FIRST_ADMIN_*</code> dans
+  <code>.env</code>.
+</div>
 
 <h2 id="sauvegardes">Sauvegardes<a class="anchor" href="#sauvegardes" aria-label="Lien vers cette section">#</a></h2>
 
@@ -124,7 +136,11 @@ restic forget --keep-daily 7 --keep-weekly 4 --prune</code></pre></div>
 <table>
   <thead><tr><th>Symptôme</th><th>Piste</th></tr></thead>
   <tbody>
-    <tr><td>Le front affiche une erreur réseau</td><td><code>NEXT_PUBLIC_API_URL</code> injoignable depuis le navigateur, ou origine absente de <code>APP_CORS_ORIGINS</code></td></tr>
+    <tr><td>L'API redémarre en boucle</td><td><code>docker compose logs api</code> : <code>APP_SECRET_KEY</code> ou <code>APP_FIRST_ADMIN_PASSWORD</code> à leur valeur d'exemple, ou <code>"*"</code> dans <code>APP_CORS_ORIGINS</code></td></tr>
+    <tr><td>Le front affiche « Impossible de joindre l'API » ou une erreur CORS</td><td><code>NEXT_PUBLIC_API_URL</code> injoignable depuis le navigateur, ou adresse du front absente de <code>APP_CORS_ORIGINS</code> (<code>127.0.0.1</code> et <code>localhost</code> sont deux origines différentes)</td></tr>
+    <tr><td>La connexion web réussit mais renvoie aussitôt à l'écran de connexion</td><td>Cookie refusé : API en HTTP hors <code>localhost</code> (cookie <code>Secure</code>), ou front et API sur deux sites différents</td></tr>
+    <tr><td>Connexion refusée avec <code>429</code></td><td>Cinq échecs en quinze minutes pour cet email ou cette adresse IP ; attendre, ou redémarrer l'API pour remettre le compteur à zéro</td></tr>
+    <tr><td>Mot de passe administrateur perdu</td><td>Un autre admin le réinitialise depuis <strong>Studio &rarr; Comptes</strong>, ou <code>e-learning-cli create-admin</code> avec un nouvel email</td></tr>
     <tr><td>Une formation ajoutée sur disque n'apparaît pas</td><td><code>e-learning-cli reconcile</code> ; vérifier les trois niveaux de dossiers</td></tr>
     <tr><td>La vidéo ne se lit pas</td><td>Codec non supporté : <strong>Convertir pour le web</strong> dans le studio</td></tr>
     <tr><td>Statut bloqué sur <code>processing</code></td><td><code>docker compose logs worker</code>, état de RabbitMQ</td></tr>

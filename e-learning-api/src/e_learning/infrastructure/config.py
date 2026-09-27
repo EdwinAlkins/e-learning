@@ -23,6 +23,11 @@ class SummaryStrategyName(StrEnum):
     GEMINI = "gemini"
 
 
+# Valeur d'exemple de ``.env.template`` : refusée hors mode debug.
+INSECURE_DEFAULT_SECRET = "changethis"
+SECRET_KEY_MIN_LENGTH = 32
+
+
 class Settings(BaseSettings):
     """Paramètres applicatifs (surchargables par variables d'environnement)."""
 
@@ -68,6 +73,27 @@ class Settings(BaseSettings):
     rabbitmq_url: SecretStr = SecretStr("amqp://guest:guest@localhost:5672/")
     rabbitmq_exchange: str = "elearning_jobs"
     worker_prefetch: int = 3
+    # Authentification (JWT HS256 + premier admin)
+    secret_key: SecretStr = SecretStr(INSECURE_DEFAULT_SECRET)
+    access_token_expire_minutes: int = 60 * 24 * 7
+    first_admin_email: str = "admin@example.com"
+    first_admin_password: SecretStr = SecretStr(INSECURE_DEFAULT_SECRET)
+    # Anti-bruteforce : N échecs par email ou par IP sur la fenêtre → 429
+    login_max_failures: int = 5
+    login_window_minutes: int = 15
+
+    def security_problems(self) -> list[str]:
+        """Réglages dangereux en production (bloquants hors mode debug)."""
+        problems: list[str] = []
+        secret = self.secret_key.get_secret_value()
+        if secret == INSECURE_DEFAULT_SECRET or len(secret) < SECRET_KEY_MIN_LENGTH:
+            problems.append(
+                f"APP_SECRET_KEY doit être changée et faire au moins "
+                f"{SECRET_KEY_MIN_LENGTH} caractères."
+            )
+        if self.first_admin_password.get_secret_value() == INSECURE_DEFAULT_SECRET:
+            problems.append("APP_FIRST_ADMIN_PASSWORD doit être changé.")
+        return problems
 
     def use_local_embeddings(self) -> bool:
         """True si aucune URL d'embeddings distante n'est configurée."""

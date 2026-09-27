@@ -83,12 +83,14 @@ cp .env.template .env</code></pre></div>
   <code>git lfs install &amp;&amp; git lfs pull</code> répare.
 </div>
 
-<p>Dans <code>.env</code>, les trois valeurs à regarder en premier :</p>
+<p>Dans <code>.env</code>, les valeurs à regarder en premier :</p>
 
 <div class="table-wrap">
 <table>
   <thead><tr><th>Variable</th><th>Pourquoi</th></tr></thead>
   <tbody>
+    <tr><td><code>APP_SECRET_KEY</code></td><td>Clé de signature des sessions, au moins 32 caractères : <code>openssl rand -hex 32</code>. <strong>Obligatoire</strong> : l'API refuse de démarrer avec <code>changethis</code>.</td></tr>
+    <tr><td><code>APP_FIRST_ADMIN_EMAIL</code> / <code>APP_FIRST_ADMIN_PASSWORD</code></td><td>Premier compte administrateur, créé au premier démarrage. <strong>Obligatoire</strong> de changer le mot de passe d'exemple.</td></tr>
     <tr><td><code>VIDEOS_HOST_PATH</code></td><td>Dossier hôte des formations, monté sur <code>/app/videos</code> dans l'API et le worker.</td></tr>
     <tr><td><code>APP_OPENAI_BASE_URL</code></td><td>Modèle de langage pour les résumés et l'assistant. <code>host.docker.internal</code> désigne la machine hôte.</td></tr>
     <tr><td><code>NEXT_PUBLIC_API_URL</code></td><td>URL de l'API <em>vue par le navigateur</em>. Intégrée au build du front.</td></tr>
@@ -123,9 +125,14 @@ puis s'arrête ; l'API et le worker attendent qu'il ait réussi.</p>
 </table>
 </div>
 
-<p>Ouvrez <a href="http://localhost:3000">http://localhost:3000</a>, cliquez sur
-<strong>Generate New UID</strong>, puis <strong>Studio</strong> pour créer une
-première formation.</p>
+<p>Ouvrez <a href="http://localhost:3000">http://localhost:3000</a> et connectez-vous
+avec <code>APP_FIRST_ADMIN_EMAIL</code> et <code>APP_FIRST_ADMIN_PASSWORD</code>.
+<strong>Studio</strong> permet ensuite de créer une première formation, et
+<strong>Studio &rarr; Comptes</strong> d'ouvrir des accès aux apprenants.</p>
+
+<p>Si l'API redémarre en boucle, <code>docker compose logs api</code> indique la variable
+à corriger : clé ou mot de passe d'exemple, ou <code>"*"</code> dans
+<code>APP_CORS_ORIGINS</code>.</p>
 
 <div class="note">
   <strong><code>NEXT_PUBLIC_API_URL</code> est figée au build</strong>
@@ -153,7 +160,7 @@ docker compose exec api e-learning-cli list-videos</code></pre></div>
 
 # API
 cd e-learning-api
-cp .env.template .env           # URLs en localhost
+cp .env.template .env           # URLs en localhost ; APP_DEBUG=true pour le dev
 uv sync --group ai --group dev
 uv run alembic upgrade head
 uv run e-learning-api           # http://localhost:8000
@@ -167,37 +174,38 @@ cp .env.template .env.local
 npm ci
 npm run dev                     # http://localhost:3000</code></pre></div>
 
-<p>Avec <code>APP_DEBUG=true</code>, la documentation OpenAPI est servie sur
-<a href="http://localhost:8000/api-docs">/api-docs</a>.</p>
+<p>Avec <code>APP_DEBUG=true</code>, l'API accepte les secrets d'exemple (avec un
+avertissement) et sert la documentation OpenAPI sur
+<a href="http://localhost:8000/api-docs">/api-docs</a>. Le compte admin
+d'exemple est alors <code>admin@example.com</code> / <code>changethis</code>.</p>
 
 <h2 id="exposer">Exposer l'instance<a class="anchor" href="#exposer" aria-label="Lien vers cette section">#</a></h2>
 
-<div class="warn">
-  <strong>Pas d'authentification intégrée</strong>
-  Un UID n'est pas un secret de connexion : c'est un identifiant de suivi.
-  Toute personne qui atteint le front ou l'API peut lire le catalogue, téléverser
-  et supprimer. Mettez une authentification devant, ou restez sur un réseau privé
-  (VPN, Tailscale).
-</div>
+<p>Chaque page et chaque route de l'API exigent une connexion, et le studio est réservé
+aux administrateurs. Avant une exposition sur Internet, trois points restent à régler.</p>
 
-<p>Le compose publie aussi <strong>PostgreSQL, RabbitMQ (identifiants
-<code>guest</code> par défaut) et Qdrant</strong> sur toutes les interfaces. En
-production, retirez ces ports ou liez-les à la boucle locale, par exemple dans
-un <code>docker-compose.override.yml</code> (Compose 2.24+ pour <code>!override</code>) :</p>
+<ul>
+  <li><strong>HTTPS obligatoire.</strong> Le cookie de session est marqué <code>Secure</code>
+      dès que l'API n'est pas servie sur <code>localhost</code> : en HTTP, le navigateur le
+      refuse et la connexion web échoue. Les mots de passe transitent aussi dans la requête.</li>
+  <li><strong>Secrets.</strong> <code>APP_SECRET_KEY</code> d'au moins 32 caractères,
+      mot de passe admin changé, <code>APP_DEBUG=false</code>.</li>
+  <li><strong>Ports d'infrastructure.</strong> Le compose publie aussi PostgreSQL,
+      RabbitMQ (identifiants <code>guest</code> par défaut) et Qdrant sur toutes les
+      interfaces. Retirez ces ports ou liez-les à la boucle locale, par exemple dans un
+      <code>docker-compose.override.yml</code> (Compose 2.24+ pour <code>!override</code>) :</li>
+</ul>
 
 <div class="snippet" data-lang="yaml"><pre><code>services:
   postgres:
     ports: !override
       - "127.0.0.1:${POSTGRES_PORT}:5432"</code></pre></div>
 
-<p>Un schéma simple : un seul domaine, le front à la racine, l'API sous
-<code>/api</code>, et une authentification HTTP devant les deux. Exemple avec Caddy :</p>
+<p>Un schéma simple : un seul domaine, le front à la racine et l'API sous
+<code>/api</code>. Front et API restent ainsi sur le même site, ce qu'exige le cookie de
+session. Exemple avec Caddy, qui obtient le certificat HTTPS tout seul :</p>
 
 <div class="snippet" data-lang="caddyfile"><pre><code>learn.example.com {
-	basic_auth {
-		# caddy hash-password
-		alice $2a$14$…
-	}
 	handle_path /api/* {
 		reverse_proxy 127.0.0.1:8000
 	}
@@ -212,29 +220,35 @@ un <code>docker-compose.override.yml</code> (Compose 2.24+ pour <code>!override<
 APP_CORS_ORIGINS=["https://learn.example.com"]
 APP_DEBUG=false</code></pre></div>
 
-<h3 id="choisir-auth">Quelle protection choisir<a class="anchor" href="#choisir-auth" aria-label="Lien vers cette section">#</a></h3>
+<h3 id="choisir-auth">Ajouter une protection en amont<a class="anchor" href="#choisir-auth" aria-label="Lien vers cette section">#</a></h3>
+
+<p>Les comptes intégrés suffisent pour la plupart des usages. Une couche en amont réduit
+encore la surface exposée :</p>
 
 <div class="table-wrap">
 <table>
   <thead><tr><th>Option</th><th>Navigateur</th><th>Application mobile</th><th>Pour qui</th></tr></thead>
   <tbody>
-    <tr><td>VPN : Tailscale, WireGuard</td><td>Oui</td><td>Oui</td><td>Le plus simple, rien n'est exposé publiquement</td></tr>
-    <tr><td>Authentification HTTP basique (Caddy ci-dessus)</td><td>Oui</td><td>Non</td><td>Quelques personnes, un mot de passe partagé ou par personne</td></tr>
-    <tr><td>Proxy SSO : Authelia, Authentik, oauth2-proxy, Cloudflare Access</td><td>Oui</td><td>Non</td><td>Comptes existants (Google, GitHub, annuaire) devant l'instance</td></tr>
+    <tr><td>Comptes intégrés seuls, en HTTPS</td><td>Oui</td><td>Oui</td><td>Le cas général</td></tr>
+    <tr><td>VPN : Tailscale, WireGuard</td><td>Oui</td><td>Oui</td><td>Rien n'est exposé publiquement</td></tr>
+    <tr><td>Proxy SSO devant l'instance : Authelia, Authentik, oauth2-proxy, Cloudflare Access</td><td>Oui</td><td>Non</td><td>Filtrer l'accès par des comptes existants ; la connexion Cladèse reste nécessaire ensuite</td></tr>
   </tbody>
 </table>
 </div>
 
-<p>Un proxy protège l'accès, pas les données entre utilisateurs : une fois
-passé, chacun peut toujours ouvrir le studio. L'application mobile appelle l'API
-directement et ne sait pas passer une page de connexion : pour elle, le VPN est la
-seule option de ce tableau qui fonctionne.</p>
+<p>L'application mobile appelle l'API directement et ne sait pas passer une page de
+connexion tierce : avec un proxy SSO, elle ne fonctionne qu'à travers un VPN. Cladèse
+ne se connecte pas lui-même à un fournisseur d'identité (SSO, OIDC).</p>
 
 <h2 id="mise-a-jour">Mettre à jour<a class="anchor" href="#mise-a-jour" aria-label="Lien vers cette section">#</a></h2>
 
 <div class="snippet" data-lang="bash"><pre><code>./scripts/backup.sh             # d'abord
 git pull
 docker compose up -d --build    # migrate applique les nouvelles migrations</code></pre></div>
+
+<p>Depuis une version sans comptes, lisez d'abord
+<a href="./operations.html#migrations">l'avertissement sur la migration 007</a> : elle
+supprime les progressions et notes des anciens identifiants anonymes.</p>
 
 <p>Vérifier l'état : <code>GET /health</code> répond si le processus tourne,
 <code>GET /ready</code> vérifie aussi la connexion à PostgreSQL.</p>

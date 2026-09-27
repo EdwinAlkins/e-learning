@@ -2,31 +2,19 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_secure_storage/flutter_secure_storage.dart';
 
 import '../../config/constants.dart';
+import '../../data/models/models.dart';
 import '../../data/repositories/auth_repository.dart';
-import 'current_uid.dart';
+import '../network/api_exception.dart';
+import 'access_token.dart';
 
 class AuthState {
-  const AuthState({this.uid, this.isLoading = false, this.error});
+  const AuthState({this.user, this.isLoading = false, this.error});
 
-  final String? uid;
+  final CurrentUser? user;
   final bool isLoading;
   final String? error;
 
-  bool get isAuthenticated => uid != null && uid!.isNotEmpty;
-
-  AuthState copyWith({
-    String? uid,
-    bool? isLoading,
-    String? error,
-    bool clearUid = false,
-    bool clearError = false,
-  }) {
-    return AuthState(
-      uid: clearUid ? null : (uid ?? this.uid),
-      isLoading: isLoading ?? this.isLoading,
-      error: clearError ? null : (error ?? this.error),
-    );
-  }
+  bool get isAuthenticated => user != null;
 }
 
 class AuthController extends Notifier<AuthState> {
@@ -40,58 +28,70 @@ class AuthController extends Notifier<AuthState> {
 
   AuthRepository get _repo => ref.read(authRepositoryProvider);
 
-  void _setUid(String? uid) {
-    ref.read(currentUidProvider.notifier).setUid(uid);
+  void _setToken(String? token) {
+    ref.read(accessTokenProvider.notifier).set(token);
   }
 
+  /// Reprend la session enregistrée : jeton lu dans le stockage sécurisé,
+  /// puis `GET /auth/me` pour obtenir le compte (et vérifier le jeton).
   Future<void> restoreSession() async {
-    state = state.copyWith(isLoading: true, clearError: true);
+    state = const AuthState(isLoading: true);
+    // L'identifiant anonyme d'avant les comptes n'ouvre plus rien.
+    await _storage.delete(key: AppConstants.legacyUidStorageKey);
+    final stored = await _storage.read(key: AppConstants.accessTokenStorageKey);
+    if (stored == null || stored.isEmpty) {
+      state = const AuthState();
+      return;
+    }
     try {
-      final stored = await _storage.read(key: AppConstants.uidStorageKey);
-      if (stored == null || stored.isEmpty) {
-        _setUid(null);
-        state = const AuthState();
-        return;
+      final user = await _repo.me(token: stored);
+      _setToken(stored);
+      state = AuthState(user: user);
+    } on ApiException catch (e) {
+      if (e.statusCode == 401) {
+        // Jeton expiré, révoqué ou compte désactivé : reconnexion obligatoire.
+        await _storage.delete(key: AppConstants.accessTokenStorageKey);
+        state = const AuthState(error: 'Session expirée. Reconnectez-vous.');
+      } else {
+        // API injoignable : on garde le jeton pour une nouvelle tentative.
+        state = AuthState(error: e.message);
       }
-      final uid = await _repo.restore(stored);
-      await _storage.write(key: AppConstants.uidStorageKey, value: uid);
-      _setUid(uid);
-      state = AuthState(uid: uid);
-    } catch (e) {
-      await _storage.delete(key: AppConstants.uidStorageKey);
-      _setUid(null);
-      state = AuthState(error: e.toString());
     }
   }
 
-  Future<void> generate() async {
-    state = state.copyWith(isLoading: true, clearError: true);
+  Future<void> login(String email, String password) async {
+    state = const AuthState(isLoading: true);
     try {
-      final uid = await _repo.generate();
-      await _storage.write(key: AppConstants.uidStorageKey, value: uid);
-      _setUid(uid);
-      state = AuthState(uid: uid);
-    } catch (e) {
-      state = state.copyWith(isLoading: false, error: e.toString());
-    }
-  }
-
-  Future<void> restore(String uid) async {
-    state = state.copyWith(isLoading: true, clearError: true);
-    try {
-      final restored = await _repo.restore(uid.trim());
-      await _storage.write(key: AppConstants.uidStorageKey, value: restored);
-      _setUid(restored);
-      state = AuthState(uid: restored);
-    } catch (e) {
-      state = state.copyWith(isLoading: false, error: e.toString());
+      final token = await _repo.login(email.trim(), password);
+      final user = await _repo.me(token: token);
+      await _storage.write(
+        key: AppConstants.accessTokenStorageKey,
+        value: token,
+      );
+      _setToken(token);
+      state = AuthState(user: user);
+    } on ApiException catch (e) {
+      state = AuthState(
+        error: e.statusCode == 401
+            ? 'Email ou mot de passe incorrect.'
+            : e.message,
+      );
     }
   }
 
   Future<void> logout() async {
-    await _storage.delete(key: AppConstants.uidStorageKey);
-    _setUid(null);
+    await _storage.delete(key: AppConstants.accessTokenStorageKey);
+    _setToken(null);
     state = const AuthState();
+  }
+
+  /// Appelé par le client HTTP sur un 401 : la redirection vers l'écran de
+  /// connexion suit via `_AuthRefresh` (routes).
+  Future<void> sessionExpired() async {
+    if (!state.isAuthenticated) return;
+    await _storage.delete(key: AppConstants.accessTokenStorageKey);
+    _setToken(null);
+    state = const AuthState(error: 'Session expirée. Reconnectez-vous.');
   }
 }
 

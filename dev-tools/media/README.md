@@ -30,7 +30,7 @@ npm run setup          # installe playwright et Chromium
 
 ```bash
 npm run seed           # une fois : formations de démo + out/demo.json
-npm run shots          # → out/shots/01-auth.png … 11-mobile.png
+npm run shots          # → out/shots/01-auth.png … 12-usage.png
 npm run video          # → out/video/raw.webm (brut) + marks.json
 npm run encode         # → out/video/demo.mp4, poster.png, demo.gif
 npm run promote        # → docs/assets/media/
@@ -47,13 +47,16 @@ Tout vient de l'environnement ; aucun hôte ni identifiant n'est écrit dans un 
 | Variable | Défaut | Rôle |
 | --- | --- | --- |
 | `FRONT_URL` | `http://localhost:3000` | Front à filmer |
-| `API_URL` | `http://localhost:8000` | API, pour le seed et la résolution des identifiants |
+| `API_URL` | `http://localhost:8000` | API, pour le seed et la résolution de la formation |
 | `THEME` | `light` | `light` ou `dark` (préférence de couleur du navigateur) |
 | `SCALE` | `2` | Densité des captures PNG |
 | `ASK` | une question sur la mise en production | Question posée à l'assistant ; `ASK=` (vide) saute la scène |
 | `ASK_TIMEOUT` | `120` | Attente maximale de la réponse, en secondes |
 | `NOTE` | une note sur les volumes Docker | Note tapée dans le lecteur pendant la vidéo, puis supprimée par l'API |
-| `DEMO_UID` | celui de `out/demo.json` | Identité utilisée par le seed et la capture |
+| `DEMO_EMAIL`, `DEMO_PASSWORD` | ceux de `out/demo.json` | Compte utilisé par la capture ; il doit être administrateur pour filmer le studio. Le seed crée `demo@cladese.example` |
+| `ADMIN_EMAIL`, `ADMIN_PASSWORD` | — | Administrateur existant, requis par le seed pour créer le compte de démo (ou réinitialiser son mot de passe). Jamais écrits sur disque |
+| `PG_CONTAINER` | `e-learning-postgres-1` | Conteneur Postgres où le seed écrit l'historique de consommation |
+| `USAGE_DAYS` | `90` | Profondeur de cet historique, en jours |
 | `FORMATION` | `Docker en pratique` | Formation à filmer (nom exact) |
 | `LESSON` | `Images et conteneurs` | Leçon ouverte dans le lecteur (titre exact) |
 | `SEED_RESET` | — | `1` : supprime et recrée les formations de démo |
@@ -70,15 +73,16 @@ Exemples :
 THEME=dark npm run shots
 ASK= npm run video                                  # instance sans LLM
 FRONT_URL=https://learn.example.test API_URL=https://learn.example.test/api \
-  DEMO_UID=… FORMATION="Ma formation" npm run shots  # instance déjà peuplée
+  DEMO_EMAIL=… DEMO_PASSWORD=… FORMATION="Ma formation" npm run shots  # instance déjà peuplée
 ```
 
 ## Ce que fait le parcours
 
-Accueil (saisie de l'UID) → catalogue → page formation → question à l'assistant → leçon
-dans le lecteur, lecture quelques secondes → résumé → notes (en vidéo, une note est écrite
-puis retirée par l'API à la fin) → documents → studio → éditeur de formation, survol des
-actions → rendu mobile (captures uniquement).
+Connexion (email et mot de passe du compte de démo) → catalogue → page formation → question à
+l'assistant → leçon dans le lecteur, lecture quelques secondes → résumé → notes (en vidéo, une
+note est écrite puis retirée par l'API à la fin) → documents → consommation IA (en vidéo,
+survol du jour le plus chargé) → studio → éditeur de formation, survol des actions → rendu
+mobile (captures uniquement).
 
 **Aucune action destructive.** Rien n'est supprimé, renommé ni déplacé dans l'interface. Si
 vous étendez le script, gardez cette règle : il doit pouvoir tourner contre une instance
@@ -98,6 +102,13 @@ la page blanche du début, choisir l'image d'aperçu et le départ du GIF.
   *Transcrire* sur une leçon de démo produit une transcription vide.
 - L'indexation de la formation est lancée à la fin ; elle demande le worker, Qdrant et les
   embeddings. Sans eux, tout le reste de la démo fonctionne.
+- Le compte de démo `demo@cladese.example` est **administrateur** : c'est lui qui crée les
+  formations et qui porte notes et progression. Son mot de passe, tiré au hasard, est écrit dans
+  `out/demo.json` (ignoré par git, droits `600`).
+- La page Consommation est remplie par un **historique fictif** (questions à l'assistant et
+  résumés, à graine fixe) écrit directement dans la table `token_usage` via `docker exec psql`,
+  pour ce seul compte et hors jour courant. Le modèle affiché est le dernier réellement utilisé
+  sur l'instance. Sans accès Docker, l'étape est sautée avec un avertissement.
 
 > **Les fichiers atterrissent dans `VIDEOS_HOST_PATH`.** Avec le `.env` par défaut, c'est
 > `e-learning-api/videos/`, qui n'est pas ignoré par git. Pointez `VIDEOS_HOST_PATH` hors du
@@ -107,7 +118,7 @@ la page blanche du début, choisir l'image d'aperçu et le départ du GIF.
 
 | Fichier | Contenu | Publié sous |
 | --- | --- | --- |
-| `shots/01-auth.png` | Écran d'accueil | `auth.png` |
+| `shots/01-auth.png` | Écran de connexion, champs vides | `auth.png` |
 | `shots/02-catalogue.png` | Catalogue et progression | `catalogue.png` |
 | `shots/03-formation.png` | Page formation | `formation.png` |
 | `shots/04-assistant.png` | Assistant : réponse et sources | `assistant.png` |
@@ -118,9 +129,10 @@ la page blanche du début, choisir l'image d'aperçu et le départ du GIF.
 | `shots/09-studio.png` | Liste du studio | `studio.png` |
 | `shots/10-builder.png` | Éditeur de formation | `builder.png` |
 | `shots/11-mobile.png` | Lecteur à 430 px | — |
+| `shots/12-usage.png` | Consommation IA sur 30 jours | `usage.png` |
 | `video/raw.webm` | Enregistrement brut de Playwright (VP8, lourd) | — |
-| `video/demo.mp4`, `poster.png` | Vidéo de présentation (61 s, ≈ 1,6 Mo) et image d'aperçu | mêmes noms |
-| `video/demo.gif` | Boucle de 36 s, 900 px, 6 images/s (≈ 3 Mo) | `demo.gif` (README ; repli de la vidéo sur la page Présentation) |
+| `video/demo.mp4`, `poster.png` | Vidéo de présentation (66 s, ≈ 1,1 Mo) et image d'aperçu | mêmes noms |
+| `video/demo.gif` | Boucle de 36 s, 900 px, 6 images/s (≈ 2,5 Mo) | `demo.gif` (README ; repli de la vidéo sur la page Présentation) |
 
 ### Vidéo de lancement (landing)
 
@@ -151,7 +163,7 @@ licence de la musique n'est pas vérifiée pour une diffusion sur le site.
 
 Le site ne publie qu'un **MP4 H.264** : c'est le seul format lu par tous les navigateurs, y
 compris les anciens Safari sur iOS. Encodé en `-preset veryslow -tune animation` (réglage
-adapté aux aplats d'une interface) à CRF 30, il pèse ≈ 1,6 Mo pour 61 s. Un second format
+adapté aux aplats d'une interface) à CRF 30, il pèse ≈ 1,1 Mo pour 66 s. Un second format
 n'ajouterait que du poids au dépôt.
 
 Le poids dépend fortement de ce qui est filmé : des cartons titres du seed compressent bien
@@ -164,8 +176,10 @@ En cas d'échec, la capture enregistre l'écran courant dans `error.png`.
 
 Une capture montre plus que l'interface. Pour chaque image promue dans `docs/assets/media/` :
 
-- **UID** : visible dans l'en-tête et tapé à l'écran d'accueil. Utilisez l'UID de démo, jamais
-  celui d'un vrai apprenant.
+- **Compte** : le nom du compte s'affiche dans l'en-tête et l'email est tapé à l'écran de
+  connexion. Utilisez le compte de démo, jamais celui d'une vraie personne. Ne filmez pas
+  *Studio → Comptes* : la liste montre les emails de tous les comptes.
+- **Modèle** : la page Consommation affiche le nom du modèle de langage configuré.
 - **Contenu** : titres de formations, notes, résumés et réponses de l'assistant d'une instance
   réelle peuvent être confidentiels. Capturez une instance peuplée par le seed.
 - **Adresses** : les captures Playwright n'ont pas de barre d'adresse, mais une URL peut fuiter

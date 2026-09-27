@@ -1,6 +1,5 @@
 import axios from 'axios';
-import type { AxiosInstance, InternalAxiosRequestConfig } from 'axios';
-import { getUID, clearUID } from './auth';
+import type { AxiosInstance } from 'axios';
 import {
   normalizeApiChapter,
   normalizeApiDocument,
@@ -8,7 +7,7 @@ import {
   normalizeApiVideo,
 } from '../utils/formation-normalize';
 import type {
-  AuthResponse,
+  AdminUser,
   AskFormationResponse,
   CatalogResponse,
   Formation,
@@ -24,6 +23,10 @@ import type {
   PatchVideoPayload,
   MoveVideoRequest,
   UserTokenUsage,
+  CurrentUser,
+  UserListResponse,
+  CreateUserPayload,
+  UpdateUserPayload,
 } from '../types';
 
 export const API_BASE_URL = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:8000';
@@ -42,50 +45,112 @@ const extractFormationsArray = (data: unknown): Formation[] => {
   return [];
 };
 
-// Create Axios instance
+// Session : cookie HttpOnly `access_token` posé par POST /auth/login. Il est
+// illisible en JS et envoyé automatiquement (`withCredentials`), y compris par
+// les balises <video>/<audio> et les liens de téléchargement (URL directes).
+// `X-Requested-With` est exigé par l'API sur les écritures authentifiées par
+// cookie (protection CSRF) ; on l'envoie sur toutes les requêtes.
 const api: AxiosInstance = axios.create({
   baseURL: API_BASE_URL,
+  withCredentials: true,
   headers: {
     'Content-Type': 'application/json',
+    'X-Requested-With': 'XMLHttpRequest',
   },
 });
 
-// Request interceptor to inject UID header
-api.interceptors.request.use(
-  (config: InternalAxiosRequestConfig) => {
-    const uid = getUID();
-    if (uid && config.headers) {
-      config.headers['X-User-UID'] = uid;
-    }
-    return config;
-  },
-  (error) => Promise.reject(error)
-);
+interface AuthErrorHandlers {
+  /** 401 : pas de session ou session expirée → retour à la connexion. */
+  onUnauthorized?: () => void;
+  /** 403 : session valide, droits insuffisants → « accès refusé », sans déconnexion. */
+  onForbidden?: () => void;
+}
 
-// Response interceptor for error handling
+let authErrorHandlers: AuthErrorHandlers = {};
+
+/** Branché par le store d'auth (évite une dépendance circulaire api ↔ store). */
+export function setAuthErrorHandlers(handlers: AuthErrorHandlers): void {
+  authErrorHandlers = handlers;
+}
+
 api.interceptors.response.use(
   (response) => response,
   (error) => {
-    if (error.response?.status === 401 || error.response?.status === 403) {
-      const uid = getUID();
-      if (uid) {
-        clearUID();
-      }
+    const status = error.response?.status;
+    const url: string = error.config?.url ?? '';
+    // Un échec de connexion n'est pas une session expirée.
+    if (status === 401 && url !== '/auth/login') {
+      authErrorHandlers.onUnauthorized?.();
+    } else if (status === 403) {
+      authErrorHandlers.onForbidden?.();
     }
     return Promise.reject(error);
   }
 );
 
+/** Message lisible pour une erreur d'API (`detail` FastAPI, sinon `fallback`). */
+export function apiErrorMessage(error: unknown, fallback: string): string {
+  if (axios.isAxiosError(error)) {
+    if (error.response?.status === 429) {
+      const retryAfter = Number(error.response.headers['retry-after']);
+      const minutes = Number.isFinite(retryAfter) ? Math.ceil(retryAfter / 60) : null;
+      return minutes
+        ? `Trop de tentatives. Réessayez dans ${minutes} min.`
+        : 'Trop de tentatives. Réessayez plus tard.';
+    }
+    const detail = error.response?.data?.detail;
+    if (typeof detail === 'string') return detail;
+    if (!error.response) return "Impossible de joindre l'API.";
+  }
+  return fallback;
+}
+
 // API functions
 export const apiService = {
-  generateUID: async (): Promise<string> => {
-    const response = await api.post<AuthResponse>('/auth/generate');
-    return response.data.uid;
+  /** OAuth2 password flow : l'API pose le cookie de session. */
+  login: async (email: string, password: string): Promise<void> => {
+    await api.post(
+      '/auth/login',
+      new URLSearchParams({ username: email, password }),
+      { headers: { 'Content-Type': 'application/x-www-form-urlencoded' } }
+    );
   },
 
-  restoreUID: async (uid: string): Promise<string> => {
-    const response = await api.post<AuthResponse>('/auth/restore', { uid });
-    return response.data.uid;
+  logout: async (): Promise<void> => {
+    await api.post('/auth/logout');
+  },
+
+  getMe: async (): Promise<CurrentUser> => {
+    const response = await api.get<CurrentUser>('/auth/me');
+    return response.data;
+  },
+
+  changePassword: async (currentPassword: string, newPassword: string): Promise<void> => {
+    await api.patch('/auth/me/password', {
+      current_password: currentPassword,
+      new_password: newPassword,
+    });
+  },
+
+  listUsers: async (offset: number, limit: number): Promise<UserListResponse> => {
+    const response = await api.get<UserListResponse>('/admin/users', {
+      params: { offset, limit },
+    });
+    return response.data;
+  },
+
+  createUser: async (payload: CreateUserPayload): Promise<AdminUser> => {
+    const response = await api.post<AdminUser>('/admin/users', payload);
+    return response.data;
+  },
+
+  updateUser: async (userId: string, payload: UpdateUserPayload): Promise<AdminUser> => {
+    const response = await api.patch<AdminUser>(`/admin/users/${userId}`, payload);
+    return response.data;
+  },
+
+  deleteUser: async (userId: string): Promise<void> => {
+    await api.delete(`/admin/users/${userId}`);
   },
 
   getFormations: async (): Promise<Formation[]> => {
@@ -379,6 +444,7 @@ export const apiService = {
     await api.delete(`/docs/${documentId}`);
   },
 
+  /** URL directe : le cookie de session suffit (pas de header à ajouter). */
   documentFileUrl: (documentId: string, download = false): string =>
     `${API_BASE_URL}/docs/${documentId}/file${download ? '?download=true' : ''}`,
 };

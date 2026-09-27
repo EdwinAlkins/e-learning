@@ -2,6 +2,7 @@ import type { Metadata } from "next";
 import { Inter } from "next/font/google";
 import "./globals.css";
 import ThemeProvider from "./theme-provider";
+import SessionGate from "../components/SessionGate";
 
 const inter = Inter({
   subsets: ["latin"],
@@ -31,7 +32,7 @@ export default function RootLayout({
     <html lang="en" className={inter.variable}>
       <body>
         <ThemeProvider>
-          {children}
+          <SessionGate>{children}</SessionGate>
         </ThemeProvider>
       </body>
     </html>

@@ -7,6 +7,7 @@ import click
 from e_learning.infrastructure.config import get_settings
 from e_learning.infrastructure.logging import configure_logging
 from e_learning.presentation.cli.commands.convert import convert_cmd
+from e_learning.presentation.cli.commands.create_admin import create_admin_cmd
 from e_learning.presentation.cli.commands.index_rag import index_rag_cmd
 from e_learning.presentation.cli.commands.list_videos import list_videos_cmd
 from e_learning.presentation.cli.commands.reconcile import reconcile_cmd
@@ -16,7 +17,7 @@ from e_learning.presentation.cli.commands.transcribe import transcribe_cmd
 
 @click.group()
 def cli() -> None:
-    """Outils CLI Cladèse (catalogue, transcription, résumé, conversion)."""
+    """Outils CLI Cladèse (catalogue, transcription, résumé, conversion, comptes)."""
     configure_logging(get_settings().log_level)
 
 
@@ -27,6 +28,7 @@ cli.add_command(summary_cmd)
 cli.add_command(resume_cmd)
 cli.add_command(convert_cmd)
 cli.add_command(index_rag_cmd)
+cli.add_command(create_admin_cmd)
 
 
 def main() -> None:

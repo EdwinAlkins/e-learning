@@ -2,7 +2,7 @@ import 'dart:async';
 
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
-import '../../../core/auth/current_uid.dart';
+import '../../../core/auth/access_token.dart';
 import '../../../core/logging/app_logger.dart';
 import '../../../data/repositories/progress_repository.dart';
 import '../../../data/repositories/video_repository.dart';
@@ -30,9 +30,9 @@ final mediaControllerProvider = FutureProvider.autoDispose
 
       final videoRepo = ref.watch(videoRepositoryProvider);
       final progressRepo = ref.watch(progressRepositoryProvider);
-      // L'UID n'est lu qu'à la construction : il ne change qu'à la déconnexion,
-      // qui démonte déjà l'écran.
-      final uid = ref.read(currentUidProvider);
+      // Le jeton n'est lu qu'à la construction : il ne change qu'à la
+      // connexion / déconnexion, qui démontent déjà l'écran.
+      final token = ref.read(accessTokenProvider);
 
       double? startAt;
       try {
@@ -50,7 +50,9 @@ final mediaControllerProvider = FutureProvider.autoDispose
         videoId: video.id,
         isAudio: video.isAudio,
         streamUrl: videoRepo.streamUrl(video.id),
-        headers: {if (uid != null && uid.isNotEmpty) 'X-User-UID': uid},
+        // video_player comme media_kit transmettent ces en-têtes à chaque
+        // requête Range du flux.
+        headers: authHeaders(token),
         fallbackDuration: video.duration,
         onSaveProgress: (position) =>
             progressRepo.saveVideoProgress(video.id, position),

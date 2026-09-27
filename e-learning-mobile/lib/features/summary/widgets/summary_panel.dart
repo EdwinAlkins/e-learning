@@ -12,12 +12,17 @@ class SummaryPanel extends ConsumerStatefulWidget {
     super.key,
     required this.video,
     required this.busy,
-    required this.onGenerate,
+    this.onGenerate,
   });
 
   final VideoItem video;
   final bool busy;
-  final VoidCallback onGenerate;
+
+  /// `null` pour un apprenant : générer et éditer un résumé sont réservés aux
+  /// admins côté API, le panneau n'est alors qu'en lecture.
+  final VoidCallback? onGenerate;
+
+  bool get canManage => onGenerate != null;
 
   @override
   ConsumerState<SummaryPanel> createState() => _SummaryPanelState();
@@ -111,12 +116,14 @@ class _SummaryPanelState extends ConsumerState<SummaryPanel>
             'La génération du résumé a échoué.',
             textAlign: TextAlign.center,
           ),
-          const SizedBox(height: 12),
-          FilledButton.tonalIcon(
-            onPressed: widget.busy ? null : widget.onGenerate,
-            icon: const Icon(Icons.refresh),
-            label: const Text('Relancer la génération'),
-          ),
+          if (widget.canManage) ...[
+            const SizedBox(height: 12),
+            FilledButton.tonalIcon(
+              onPressed: widget.busy ? null : widget.onGenerate,
+              icon: const Icon(Icons.refresh),
+              label: const Text('Relancer la génération'),
+            ),
+          ],
         ],
       );
     }
@@ -131,20 +138,24 @@ class _SummaryPanelState extends ConsumerState<SummaryPanel>
           ),
           const SizedBox(height: 12),
           Text(
-            video.hasTranscription
+            !widget.canManage
+                ? 'Aucun résumé disponible pour ce média.'
+                : video.hasTranscription
                 ? 'Aucun résumé n’a encore été généré pour ce média.'
                 : 'Transcrivez d’abord le média pour pouvoir générer un résumé.',
             textAlign: TextAlign.center,
           ),
-          const SizedBox(height: 12),
-          FilledButton.icon(
-            onPressed:
-                widget.busy || !video.hasTranscription || !video.isPlayable
-                ? null
-                : widget.onGenerate,
-            icon: const Icon(Icons.auto_awesome),
-            label: const Text('Générer le résumé'),
-          ),
+          if (widget.canManage) ...[
+            const SizedBox(height: 12),
+            FilledButton.icon(
+              onPressed:
+                  widget.busy || !video.hasTranscription || !video.isPlayable
+                  ? null
+                  : widget.onGenerate,
+              icon: const Icon(Icons.auto_awesome),
+              label: const Text('Générer le résumé'),
+            ),
+          ],
         ],
       );
     }
@@ -168,12 +179,14 @@ class _SummaryPanelState extends ConsumerState<SummaryPanel>
           return _Centered(
             children: [
               const Text('Résumé non disponible.', textAlign: TextAlign.center),
-              const SizedBox(height: 12),
-              FilledButton.tonalIcon(
-                onPressed: widget.busy ? null : widget.onGenerate,
-                icon: const Icon(Icons.refresh),
-                label: const Text('Générer à nouveau'),
-              ),
+              if (widget.canManage) ...[
+                const SizedBox(height: 12),
+                FilledButton.tonalIcon(
+                  onPressed: widget.busy ? null : widget.onGenerate,
+                  icon: const Icon(Icons.refresh),
+                  label: const Text('Générer à nouveau'),
+                ),
+              ],
             ],
           );
         }
@@ -262,16 +275,20 @@ class _SummaryPanelState extends ConsumerState<SummaryPanel>
                     style: Theme.of(context).textTheme.titleMedium,
                   ),
                   const Spacer(),
-                  TextButton.icon(
-                    onPressed: widget.busy ? null : widget.onGenerate,
-                    icon: const Icon(Icons.refresh, size: 18),
-                    label: const Text('Régénérer'),
-                  ),
-                  IconButton(
-                    tooltip: 'Éditer le résumé',
-                    onPressed: () => _startEdit(text),
-                    icon: const Icon(Icons.edit_outlined),
-                  ),
+                  if (widget.canManage) ...[
+                    TextButton.icon(
+                      onPressed: widget.busy ? null : widget.onGenerate,
+                      icon: const Icon(Icons.refresh, size: 18),
+                      label: const Text('Régénérer'),
+                    ),
+                    IconButton(
+                      tooltip: 'Éditer le résumé',
+                      onPressed: () => _startEdit(text),
+                      icon: const Icon(Icons.edit_outlined),
+                    ),
+                  ] else
+                    // Garde la hauteur de la ligne sans les boutons.
+                    const SizedBox(height: 48),
                 ],
               ),
             ),

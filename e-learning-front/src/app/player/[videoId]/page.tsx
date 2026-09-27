@@ -41,6 +41,7 @@ import { useCatalogStore } from '../../../stores/catalog.store';
 import { apiService } from '../../../services/api';
 import type { Document, Formation, Video } from '../../../types';
 import AuthGuard from '../../../components/AuthGuard';
+import { useAuthStore } from '../../../stores/auth.store';
 import { flattenFormationVideos } from '../../../utils/formation';
 import { findActiveJob, jobProgressLabel } from '../../../utils/job-progress';
 import { POLLING_INTERVAL_MS } from '../../../constants';
@@ -59,6 +60,8 @@ function findVideoInCatalog(formations: Formation[], videoId: string) {
 }
 
 export default function Player() {
+  // Jobs IA et édition du résumé : routes admin côté API (403 pour un apprenant).
+  const isAdmin = useAuthStore((state) => state.user?.is_admin === true);
   const params = useParams();
   const videoId = params.videoId as string;
   const router = useRouter();
@@ -512,7 +515,7 @@ export default function Player() {
               duration={video.duration}
               rightElement={
                 <Box sx={{ display: 'flex', alignItems: 'center', gap: 1, flexWrap: 'wrap' }}>
-                  {video.transcription_status !== 'ready' && (
+                  {isAdmin && video.transcription_status !== 'ready' && (
                     <Button
                       variant="outlined"
                       size="small"
@@ -537,7 +540,7 @@ export default function Player() {
                         : 'Transcrire'}
                     </Button>
                   )}
-                  {video.summary_status !== 'ready' && (
+                  {isAdmin && video.summary_status !== 'ready' && (
                     <Button
                       variant="outlined"
                       size="small"
@@ -574,7 +577,7 @@ export default function Player() {
                       {summaryLoading ? 'Chargement…' : 'Résumé'}
                     </Button>
                   )}
-                  {video.summary_status === 'ready' && (
+                  {isAdmin && video.summary_status === 'ready' && (
                     <Button
                       variant="text"
                       size="small"
@@ -594,18 +597,24 @@ export default function Player() {
         {(aiJobError ||
           video.transcription_status === 'failed' ||
           video.summary_status === 'failed' ||
-          (video.transcription_status !== 'ready' &&
+          (isAdmin &&
+            video.transcription_status !== 'ready' &&
             video.transcription_status !== 'processing' &&
             video.summary_status !== 'ready')) && (
           <Box sx={{ mb: 3, display: 'flex', flexDirection: 'column', gap: 1 }}>
             {displayedAiError && <Alert severity="error">{displayedAiError}</Alert>}
             {video.transcription_status === 'failed' && (
-              <Alert severity="error">Échec de la transcription. Vous pouvez relancer.</Alert>
+              <Alert severity="error">
+                {isAdmin
+                  ? 'Échec de la transcription. Vous pouvez relancer.'
+                  : 'Échec de la transcription.'}
+              </Alert>
             )}
             {video.summary_status === 'failed' && (
               <Alert severity="error">Échec de la génération du résumé.</Alert>
             )}
-            {video.transcription_status !== 'ready' &&
+            {isAdmin &&
+              video.transcription_status !== 'ready' &&
               video.transcription_status !== 'failed' &&
               video.transcription_status !== 'processing' &&
               video.summary_status !== 'ready' && (
@@ -647,11 +656,11 @@ export default function Player() {
                           <CancelIcon />
                         </IconButton>
                       </>
-                    ) : (
+                    ) : isAdmin ? (
                       <IconButton size="small" aria-label="Modifier" onClick={handleEditSummary}>
                         <EditIcon />
                       </IconButton>
-                    )}
+                    ) : null}
                   </Box>
                 </Box>
                 <Collapse in={isEditingSummary}>

@@ -8,7 +8,10 @@ class AppConstants {
   /// Rafraîchissement des statuts IA quand un job est en cours.
   static const jobPollInterval = Duration(seconds: 3);
 
-  static const uidStorageKey = 'user_uid';
+  static const accessTokenStorageKey = 'access_token';
+
+  /// Ancien identifiant anonyme (avant les comptes) : effacé au démarrage.
+  static const legacyUidStorageKey = 'user_uid';
   static const themeStorageKey = 'theme_mode';
   static const apiUrlStorageKey = 'api_url_override';
 }

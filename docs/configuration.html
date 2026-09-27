@@ -62,9 +62,9 @@ elle lit <code>.env.template</code> puis <code>.env</code> dans son dossier.</p>
   <tbody>
     <tr><td><code>APP_DATABASE_URL</code></td><td>Postgres local</td><td>URL SQLAlchemy async (<code>postgresql+asyncpg://…</code>)</td></tr>
     <tr><td><code>APP_VIDEOS_PATH</code></td><td><code>videos/</code></td><td>Racine du catalogue sur disque (forcée à <code>/app/videos</code> par le compose)</td></tr>
-    <tr><td><code>APP_DEBUG</code></td><td><code>false</code></td><td>Active <code>/api-docs</code>, <code>/api-redoc</code> et un UID de repli si l'en-tête manque</td></tr>
+    <tr><td><code>APP_DEBUG</code></td><td><code>false</code></td><td>Active <code>/api-docs</code> et <code>/api-redoc</code>, et tolère les secrets d'exemple (avec un avertissement). Ne contourne pas l'authentification</td></tr>
     <tr><td><code>APP_LOG_LEVEL</code></td><td><code>INFO</code></td><td><code>DEBUG</code>, <code>INFO</code>, <code>WARNING</code>, <code>ERROR</code>, <code>CRITICAL</code></td></tr>
-    <tr><td><code>APP_CORS_ORIGINS</code></td><td><code>[]</code></td><td>Liste JSON des origines autorisées, ex. <code>["http://localhost:3000"]</code></td></tr>
+    <tr><td><code>APP_CORS_ORIGINS</code></td><td><code>[]</code></td><td>Liste JSON des origines du front, ex. <code>["http://localhost:3000"]</code>. <code>"*"</code> est refusé au démarrage : le cookie de session exige une liste explicite</td></tr>
     <tr><td><code>APP_INIT_DB</code></td><td><code>false</code></td><td><code>create_all</code> au démarrage ; préférer les migrations</td></tr>
     <tr><td><code>APP_RECONCILE_ON_STARTUP</code></td><td><code>false</code></td><td>Réconcilie disque et base au démarrage</td></tr>
     <tr><td><code>APP_MAX_UPLOAD_SIZE</code></td><td><code>524288000</code></td><td>Taille maximale d'un téléversement, en octets (500 Mo)</td></tr>
@@ -73,6 +73,32 @@ elle lit <code>.env.template</code> puis <code>.env</code> dans son dossier.</p>
   </tbody>
 </table>
 </div>
+
+<h2 id="auth">Authentification<a class="anchor" href="#auth" aria-label="Lien vers cette section">#</a></h2>
+
+<div class="table-wrap">
+<table>
+  <thead><tr><th>Variable</th><th>Défaut</th><th>Rôle</th></tr></thead>
+  <tbody>
+    <tr><td><code>APP_SECRET_KEY</code></td><td><code>changethis</code></td><td>Clé de signature des jetons (JWT HS256). Au moins 32 caractères, ex. <code>openssl rand -hex 32</code></td></tr>
+    <tr><td><code>APP_ACCESS_TOKEN_EXPIRE_MINUTES</code></td><td><code>10080</code></td><td>Durée d'une session (7 jours). Pas de rafraîchissement : il faut se reconnecter ensuite</td></tr>
+    <tr><td><code>APP_FIRST_ADMIN_EMAIL</code></td><td><code>admin@example.com</code></td><td>Premier administrateur, créé au démarrage s'il n'existe pas</td></tr>
+    <tr><td><code>APP_FIRST_ADMIN_PASSWORD</code></td><td><code>changethis</code></td><td>Son mot de passe initial ; jamais réécrit ensuite, même si la variable change</td></tr>
+    <tr><td><code>APP_LOGIN_MAX_FAILURES</code> / <code>APP_LOGIN_WINDOW_MINUTES</code></td><td><code>5</code> / <code>15</code></td><td>Échecs de connexion tolérés par email ou par IP sur la fenêtre, avant <code>429</code></td></tr>
+  </tbody>
+</table>
+</div>
+
+<div class="warn">
+  <strong>Démarrage refusé avec les valeurs d'exemple</strong>
+  Hors <code>APP_DEBUG=true</code>, l'API ne démarre pas si <code>APP_SECRET_KEY</code> vaut
+  <code>changethis</code> ou fait moins de 32 caractères, ou si
+  <code>APP_FIRST_ADMIN_PASSWORD</code> vaut <code>changethis</code>. Changer la clé
+  invalide toutes les sessions en cours.
+</div>
+
+<p>Le compteur d'échecs de connexion vit en mémoire du processus de l'API : il repart à
+zéro au redémarrage. Derrière un reverse proxy, l'adresse IP comptée est celle du proxy.</p>
 
 <h2 id="ia">Modèle de langage<a class="anchor" href="#ia" aria-label="Lien vers cette section">#</a></h2>
 
@@ -146,6 +172,17 @@ trois transcriptions Whisper en même temps.</p>
     <tr><td><code>NEXT_PUBLIC_API_URL</code></td><td><code>http://localhost:8000</code></td><td>URL de l'API vue par le navigateur ; intégrée au build (argument Docker)</td></tr>
   </tbody>
 </table>
+</div>
+
+<div class="note">
+  <strong>Front et API sur le même site</strong>
+  La session web tient dans un cookie <code>SameSite=Lax</code> posé par l'API. Ouvrez le
+  front à une adresse listée dans <code>APP_CORS_ORIGINS</code>, et gardez front et API sur
+  le même site : <code>localhost:3000</code> et <code>localhost:8000</code>, ou
+  <code>learn.example.com</code> et <code>api.example.com</code>. Ouvrir le front sur
+  <code>127.0.0.1</code> alors que la liste contient <code>localhost</code> échoue avec une
+  erreur CORS. Le cookie est marqué <code>Secure</code> dès que l'hôte de l'API n'est pas
+  <code>localhost</code> : servez alors l'API en HTTPS.
 </div>
 
 <p>L'application mobile a sa propre configuration (<code>API_URL</code>) : voir
