@@ -25,8 +25,13 @@ export interface Chapter {
 
 export interface BackgroundJob {
   id: string;
-  kind: 'media_conversion' | 'transcription' | 'summary' | 'rag_index_video' | 'rag_index_formation' | string;
-  status: 'queued' | 'running' | 'succeeded' | 'failed' | 'cancelled' | string;
+  kind:
+    | 'media_conversion'
+    | 'transcription'
+    | 'summary'
+    | 'rag_index_video'
+    | 'rag_index_formation';
+  status: 'queued' | 'running' | 'succeeded' | 'failed' | 'cancelled';
   progress: number;
   message?: string;
 }

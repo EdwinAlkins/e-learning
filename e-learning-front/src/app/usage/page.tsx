@@ -23,8 +23,8 @@ import {
 import { alpha, useTheme } from '@mui/material/styles';
 import { ArrowBack as ArrowBackIcon } from '@mui/icons-material';
 import AuthGuard from '../../components/AuthGuard';
-import { apiService } from '../../services/api';
-import type { DailyTokenUsage, TokenBreakdown, UserTokenUsage } from '../../types';
+import { useUsageQuery } from '../../features/usage/queries/usage.queries';
+import type { DailyTokenUsage, TokenBreakdown } from '../../types';
 
 const PERIODS = [7, 30, 90, 365] as const;
 
@@ -333,28 +333,9 @@ function BreakdownTable({
 export default function UsagePage() {
   const router = useRouter();
   const [days, setDays] = useState<number>(30);
-  const [usage, setUsage] = useState<UserTokenUsage | null>(null);
-  const [error, setError] = useState<string | null>(null);
-
-  useEffect(() => {
-    let cancelled = false;
-    apiService
-      .getTokenUsage(days)
-      .then((data) => {
-        if (!cancelled) {
-          setUsage(data);
-          setError(null);
-        }
-      })
-      .catch((err) => {
-        if (!cancelled) {
-          setError(err instanceof Error ? err.message : 'Impossible de charger la consommation');
-        }
-      });
-    return () => {
-      cancelled = true;
-    };
-  }, [days]);
+  const usageQuery = useUsageQuery(days);
+  const usage = usageQuery.data ?? null;
+  const error = usageQuery.error instanceof Error ? usageQuery.error.message : null;
 
   return (
     <AuthGuard>

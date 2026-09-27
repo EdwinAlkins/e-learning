@@ -10,7 +10,8 @@ import {
   DialogTitle,
   TextField,
 } from '@mui/material';
-import { apiErrorMessage, apiService } from '../services/api';
+import { authApi } from '../features/auth/api/auth.api';
+import { apiErrorMessage } from '../shared/api/errors';
 import { PASSWORD_MAX_LENGTH, PASSWORD_MIN_LENGTH } from '../constants';
 import { useOpenReset } from '../hooks/useOpenReset';
 
@@ -42,7 +43,7 @@ export default function ChangePasswordDialog({ open, onClose, onChanged }: Chang
     setLoading(true);
     setError(null);
     try {
-      await apiService.changePassword(current, next);
+      await authApi.changePassword(current, next);
       onChanged();
     } catch (err) {
       setError(apiErrorMessage(err, 'Changement de mot de passe impossible.'));

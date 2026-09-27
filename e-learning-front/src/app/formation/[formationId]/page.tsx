@@ -1,6 +1,6 @@
 'use client';
 
-import { useEffect, useState } from 'react';
+import { useEffect, useMemo, useState } from 'react';
 import { useRouter, useParams } from 'next/navigation';
 import {
   Container,
@@ -32,9 +32,9 @@ import {
   FolderOpen as FolderOpenIcon,
   Headphones as HeadphonesIcon,
 } from '@mui/icons-material';
-import { useCatalogStore } from '../../../stores/catalog.store';
-import { apiService } from '../../../services/api';
-import type { Document, Video, FormationProgress } from '../../../types';
+import { useFormationQuery } from '../../../features/catalog/queries/formation.queries';
+import { useFormationProgressQuery } from '../../../features/formation/queries/progress.queries';
+import type { Document, Video } from '../../../types';
 import AuthGuard from '../../../components/AuthGuard';
 import DocumentsPanel from '../../../components/DocumentsPanel';
 import FormationAssistant from '../../../components/FormationAssistant';
@@ -66,36 +66,39 @@ const chapterLevelDocuments = (documents: Document[] | undefined): Document[] =>
 const videoDocuments = (documents: Document[] | undefined, videoId: string): Document[] =>
   sortDocuments((documents ?? []).filter((doc) => doc.video_id === videoId));
 
-export default function FormationDetail() {
-  const params = useParams();
-  const formationIdDecoded = decodeURIComponent(params.formationId as string);
-  const { formations, loading, error, fetchFormations } = useCatalogStore();
+interface FormationDetailSessionProps {
+  formationId: string;
+}
+
+function FormationDetailSession({ formationId }: FormationDetailSessionProps) {
+  const formationQuery = useFormationQuery(formationId);
   const router = useRouter();
   const theme = useTheme();
 
-  const formation =
-    formations.length > 0
-      ? (formations.find((item) => item.id === formationIdDecoded) ?? null)
-      : null;
-  const [progressData, setProgressData] = useState<FormationProgress | null>(null);
-  const [progressLoading, setProgressLoading] = useState(false);
-  const [expandedChapters, setExpandedChapters] = useState<Record<string, boolean> | null>(
-    null
-  );
-  const [expandedFormationId, setExpandedFormationId] = useState<string | null>(null);
+  const formation = formationQuery.data ?? null;
+  const loading = formationQuery.isLoading;
+  const refetchFormation = formationQuery.refetch;
+  const error =
+    formationQuery.error instanceof Error ? formationQuery.error.message : null;
+  const progressQuery = useFormationProgressQuery(formation?.id ?? '');
+  const progressData = progressQuery.data ?? null;
+  const progressLoading = progressQuery.isLoading;
+  const [chapterExpansionOverrides, setChapterExpansionOverrides] = useState<
+    Record<string, boolean>
+  >({});
   const [expandedVideoDocs, setExpandedVideoDocs] = useState<Record<string, boolean>>({});
 
-  if (formation && expandedFormationId !== formation.id) {
-    setExpandedFormationId(formation.id);
-    setExpandedChapters(loadChapterExpandedState(formation));
-  } else if (!formation && expandedFormationId !== null) {
-    setExpandedFormationId(null);
-    setExpandedChapters(null);
-  }
-
-  useEffect(() => {
-    void fetchFormations(true);
-  }, [fetchFormations]);
+  const storedExpandedChapters = useMemo(
+    () => (formation ? loadChapterExpandedState(formation) : null),
+    [formation]
+  );
+  const expandedChapters = useMemo(
+    () =>
+      storedExpandedChapters
+        ? { ...storedExpandedChapters, ...chapterExpansionOverrides }
+        : null,
+    [storedExpandedChapters, chapterExpansionOverrides]
+  );
 
   const processingJobKey = formation
     ? formation.chapters
@@ -114,34 +117,9 @@ export default function FormationDetail() {
   useEffect(() => {
     if (!formation?.id || !processingJobKey) return;
     return setVisibilityInterval(() => {
-      void fetchFormations(true, true);
+      void refetchFormation();
     }, POLLING_INTERVAL_MS);
-  }, [formation?.id, processingJobKey, fetchFormations]);
-
-  const loadedFormationId = formation?.id;
-
-  useEffect(() => {
-    if (!loadedFormationId) return;
-
-    let cancelled = false;
-
-    const loadProgress = async () => {
-      setProgressLoading(true);
-      try {
-        const progress = await apiService.getFormationProgress(loadedFormationId);
-        if (!cancelled) setProgressData(progress);
-      } catch (err) {
-        console.error('Error fetching progress', err);
-      } finally {
-        if (!cancelled) setProgressLoading(false);
-      }
-    };
-
-    void loadProgress();
-    return () => {
-      cancelled = true;
-    };
-  }, [loadedFormationId]);
+  }, [formation?.id, processingJobKey, refetchFormation]);
 
   const handleVideoClick = (video: Video) => {
     router.push(`/player/${video.id}`);
@@ -150,14 +128,14 @@ export default function FormationDetail() {
   const handleChapterChange =
     (chapterId: string) => (_event: React.SyntheticEvent, isExpanded: boolean) => {
       if (!formation) return;
-      setExpandedChapters((prev) => {
+      setChapterExpansionOverrides((prev) => {
         const newState = { ...prev, [chapterId]: isExpanded };
         saveChapterExpanded(formation.id, chapterId, isExpanded);
         return newState;
       });
     };
 
-  if ((loading && !formation) || (formations.length === 0 && !error && loading)) {
+  if (loading && !formation) {
     return (
       <AuthGuard>
         <Container maxWidth="lg" sx={{ py: 4 }}>
@@ -169,7 +147,7 @@ export default function FormationDetail() {
     );
   }
 
-  if (error || (!formation && formations.length > 0)) {
+  if (error || !formation) {
     return (
       <AuthGuard>
         <Container maxWidth="lg" sx={{ py: 4 }}>
@@ -423,4 +401,11 @@ export default function FormationDetail() {
       </Container>
     </AuthGuard>
   );
+}
+
+export default function FormationDetail() {
+  const params = useParams();
+  const formationId = decodeURIComponent(params.formationId as string);
+
+  return <FormationDetailSession key={formationId} formationId={formationId} />;
 }

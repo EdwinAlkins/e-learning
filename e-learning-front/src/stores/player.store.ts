@@ -1,6 +1,6 @@
 import { create } from 'zustand';
 import { debounce } from '../utils/debounce';
-import { apiService } from '../services/api';
+import { playerApi } from '../features/player/api/player.api';
 import { PROGRESS_SAVE_DEBOUNCE_MS } from '../constants';
 
 interface PlayerState {
@@ -22,7 +22,7 @@ const getDebouncedSave = (videoId: string): DebouncedSave => {
   let fn = debouncedSaveByVideoId.get(videoId);
   if (!fn) {
     fn = debounce((id: string, position: number) => {
-      apiService.saveProgress(id, position).catch((error) => {
+      playerApi.saveProgress(id, position).catch((error) => {
         console.error('Failed to save progress:', error);
       });
     }, PROGRESS_SAVE_DEBOUNCE_MS);

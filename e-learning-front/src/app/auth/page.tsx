@@ -15,7 +15,7 @@ import {
 import { Login as LoginIcon } from '@mui/icons-material';
 import axios from 'axios';
 import { useAuthStore } from '../../stores/auth.store';
-import { apiErrorMessage } from '../../services/api';
+import { apiErrorMessage } from '../../shared/api/errors';
 
 /** Cible de retour après connexion : chemin interne uniquement (pas de redirection ouverte). */
 function nextPath(): string {

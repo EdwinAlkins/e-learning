@@ -159,7 +159,7 @@ e-learning/
 ├── docker-compose.yml   # Pile complète : Postgres, RabbitMQ, Qdrant, migrations, API, worker, front
 ├── .env.template
 ├── e-learning-api/      # FastAPI, architecture hexagonale / DDD, CLI et worker
-├── e-learning-front/    # Next.js 16 (App Router), React 19, MUI 7
+├── e-learning-front/    # Next.js 16 (App Router), React 19, MUI 9
 ├── e-learning-mobile/   # Flutter, parcours apprenant
 ├── scripts/backup.sh    # Sauvegarde / restauration de la base
 ├── docs/                # Site de documentation (HTML statique, GitHub Pages)

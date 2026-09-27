@@ -1,6 +1,7 @@
 import { create } from 'zustand';
 import axios from 'axios';
-import { apiService, setAuthErrorHandlers } from '../services/api';
+import { authApi } from '../features/auth/api/auth.api';
+import { setAuthErrorHandlers } from '../shared/api/http-client';
 import type { CurrentUser } from '../types';
 
 /** `unknown` tant que `GET /auth/me` n'a pas répondu (le cookie est illisible en JS). */
@@ -27,7 +28,7 @@ export const useAuthStore = create<AuthState>((set) => ({
 
   loadSession: () => {
     // Plusieurs composants peuvent demander la session au même moment.
-    pendingSession ??= apiService
+    pendingSession ??= authApi
       .getMe()
       .then((user) => set({ user, status: 'authenticated' }))
       .catch((error: unknown) => {
@@ -43,14 +44,14 @@ export const useAuthStore = create<AuthState>((set) => ({
   },
 
   login: async (email, password) => {
-    await apiService.login(email, password);
-    const user = await apiService.getMe();
+    await authApi.login(email, password);
+    const user = await authApi.getMe();
     set({ user, status: 'authenticated', accessDenied: false });
   },
 
   logout: async () => {
     try {
-      await apiService.logout();
+      await authApi.logout();
     } finally {
       set({ user: null, status: 'anonymous' });
     }

@@ -2,6 +2,7 @@ import type { Metadata } from "next";
 import { Inter } from "next/font/google";
 import "./globals.css";
 import ThemeProvider from "./theme-provider";
+import QueryProvider from "./query-provider";
 import SessionGate from "../components/SessionGate";
 
 const inter = Inter({
@@ -29,10 +30,12 @@ export default function RootLayout({
   children: React.ReactNode;
 }>) {
   return (
-    <html lang="en" className={inter.variable}>
+    <html lang="fr" className={inter.variable}>
       <body>
         <ThemeProvider>
-          <SessionGate>{children}</SessionGate>
+          <QueryProvider>
+            <SessionGate>{children}</SessionGate>
+          </QueryProvider>
         </ThemeProvider>
       </body>
     </html>

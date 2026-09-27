@@ -1,149 +1,81 @@
 'use client';
 
-import { useEffect, useMemo, useRef, useState } from 'react';
+import { useEffect, useMemo, useRef } from 'react';
 import { useParams, useRouter } from 'next/navigation';
 import {
   Container,
-  Typography,
   Box,
-  Paper,
-  IconButton,
   CircularProgress,
   Alert,
-  Button,
-  Collapse,
-  Tab,
-  Tabs,
-  useTheme,
 } from '@mui/material';
-import {
-  ArrowBack as ArrowBackIcon,
-  AutoAwesome as AutoAwesomeIcon,
-  Edit as EditIcon,
-  Save as SaveIcon,
-  Cancel as CancelIcon,
-  RecordVoiceOver as RecordVoiceOverIcon,
-  SkipPrevious as SkipPreviousIcon,
-  SkipNext as SkipNextIcon,
-} from '@mui/icons-material';
-import MDEditor from '@uiw/react-md-editor';
-import '@uiw/react-md-editor/markdown-editor.css';
-import VideoPlayer from '../../../components/VideoPlayer';
 import type { VideoPlayerRef } from '../../../components/VideoPlayer';
-import AudioPlayer from '../../../components/AudioPlayer';
-import NotesPanel from '../../../components/NotesPanel';
-import NotesList, { type NotesListRef } from '../../../components/NotesList';
-import DocumentsPanel from '../../../components/DocumentsPanel';
-import ProgressIndicator from '../../../components/ProgressIndicator';
-import MarkdownRenderer from '../../../components/MarkdownRenderer';
 import { usePlayerStore } from '../../../stores/player.store';
-import { useCatalogStore } from '../../../stores/catalog.store';
-import { apiService } from '../../../services/api';
-import type { Document, Formation, Video } from '../../../types';
+import PlayerMediaPanel, {
+  PlayerJobNotices,
+} from '../../../features/player/components/PlayerMediaPanel';
+import PlayerNavigation from '../../../features/player/components/PlayerNavigation';
+import PlayerTabs from '../../../features/player/components/PlayerTabs';
+import VideoSummaryPanel from '../../../features/player/components/VideoSummaryPanel';
+import { usePlayerCatalog } from '../../../features/player/hooks/usePlayerCatalog';
+import { usePlayerJobs } from '../../../features/player/hooks/usePlayerJobs';
+import { useVideoSummary } from '../../../features/player/hooks/useVideoSummary';
+import {
+  useChapterDocumentsQuery,
+  useVideoProgressQuery,
+} from '../../../features/player/queries/player.queries';
+import type { Video } from '../../../types';
 import AuthGuard from '../../../components/AuthGuard';
 import { useAuthStore } from '../../../stores/auth.store';
-import { flattenFormationVideos } from '../../../utils/formation';
-import { findActiveJob, jobProgressLabel } from '../../../utils/job-progress';
-import { POLLING_INTERVAL_MS } from '../../../constants';
-import { setVisibilityInterval } from '../../../utils/visibility-interval';
 
-function findVideoInCatalog(formations: Formation[], videoId: string) {
-  for (const formation of formations) {
-    for (const chapter of formation.chapters) {
-      const video = chapter.videos.find((vid) => vid.id === videoId);
-      if (video) {
-        return { video, formation, chapterId: chapter.id };
-      }
-    }
-  }
-  return { video: null, formation: null, chapterId: null };
+interface PlayerSessionProps {
+  videoId: string;
 }
 
-export default function Player() {
+function PlayerSession({ videoId }: PlayerSessionProps) {
   // Jobs IA et édition du résumé : routes admin côté API (403 pour un apprenant).
   const isAdmin = useAuthStore((state) => state.user?.is_admin === true);
-  const params = useParams();
-  const videoId = params.videoId as string;
   const router = useRouter();
   const videoPlayerRef = useRef<VideoPlayerRef>(null);
-  const notesListRef = useRef<NotesListRef>(null);
-
-  const [optimisticVideo, setOptimisticVideo] = useState<Video | null>(null);
-  const [summary, setSummary] = useState<string | null>(null);
-  const [summaryLoading, setSummaryLoading] = useState(false);
-  const [summaryError, setSummaryError] = useState<string | null>(null);
-  const [showSummary, setShowSummary] = useState(false);
-  const [isEditingSummary, setIsEditingSummary] = useState(false);
-  const [editSummaryContent, setEditSummaryContent] = useState<string>('');
-  const [savingSummary, setSavingSummary] = useState(false);
-  const [aiJobBusy, setAiJobBusy] = useState(false);
-  const [aiJobError, setAiJobError] = useState<string | null>(null);
-  const [bottomTab, setBottomTab] = useState(0);
-  const [fetchedDocuments, setFetchedDocuments] = useState<Document[]>([]);
-  const [documentsLoading, setDocumentsLoading] = useState(false);
-  const [documentsError, setDocumentsError] = useState<string | null>(null);
-  const [playerSessionId, setPlayerSessionId] = useState(videoId);
 
   const { setVideo: setPlayerVideo, setCurrentTime } = usePlayerStore();
-  const { formations, loading: catalogLoading, fetchFormations } = useCatalogStore();
-  const theme = useTheme();
-
-  const catalogMatch =
-    videoId && formations.length > 0 ? findVideoInCatalog(formations, videoId) : null;
-
-  const catalogVideo = catalogMatch?.video ?? null;
-  const parentFormation = catalogMatch?.formation ?? null;
-  const chapterId = catalogMatch?.chapterId ?? null;
-  const video =
-    optimisticVideo?.id === videoId ? optimisticVideo : catalogVideo;
-
-  const { prevVideo, nextVideo } = useMemo(() => {
-    if (!parentFormation || !videoId) {
-      return { prevVideo: null as Video | null, nextVideo: null as Video | null };
-    }
-    const flatVideos = flattenFormationVideos(parentFormation.chapters);
-    const currentIndex = flatVideos.findIndex((item) => item.id === videoId);
-    if (currentIndex === -1) {
-      return { prevVideo: null, nextVideo: null };
-    }
-    return {
-      prevVideo: currentIndex > 0 ? flatVideos[currentIndex - 1] : null,
-      nextVideo: currentIndex < flatVideos.length - 1 ? flatVideos[currentIndex + 1] : null,
-    };
-  }, [parentFormation, videoId]);
-
-  if (playerSessionId !== videoId) {
-    setPlayerSessionId(videoId);
-    setOptimisticVideo(null);
-    setSummary(null);
-    setShowSummary(false);
-    setSummaryError(null);
-    setIsEditingSummary(false);
-    setEditSummaryContent('');
-    setAiJobError(null);
-    setBottomTab(0);
-  }
-
-  if (
-    optimisticVideo &&
-    catalogVideo &&
-    optimisticVideo.id === catalogVideo.id &&
-    optimisticVideo.processing_status === catalogVideo.processing_status &&
-    optimisticVideo.transcription_status === catalogVideo.transcription_status &&
-    optimisticVideo.summary_status === catalogVideo.summary_status
-  ) {
-    setOptimisticVideo(null);
-  }
-
-  const missingIdError = videoId ? null : 'Identifiant vidéo manquant';
-  const notFoundError =
-    catalogMatch && !catalogMatch.video ? 'Vidéo introuvable' : null;
-  const error = missingIdError ?? notFoundError;
-  const loading = Boolean(videoId) && formations.length === 0;
+  const {
+    video,
+    parentFormation,
+    chapterId,
+    catalogDocuments,
+    prevVideo,
+    nextVideo,
+    loading,
+    error,
+  } = usePlayerCatalog(videoId);
+  const documentsQuery = useChapterDocumentsQuery(
+    chapterId ?? '',
+    catalogDocuments === undefined
+  );
+  const progressQuery = useVideoProgressQuery(videoId);
+  const summaryController = useVideoSummary(videoId, video?.summary_status);
+  const jobs = usePlayerJobs({
+    formationId: parentFormation?.id ?? null,
+    chapterId,
+    videoId,
+  });
+  const {
+    summary,
+    summaryLoading,
+    summaryError,
+    showSummary,
+    isEditingSummary,
+    editSummaryContent,
+    setEditSummaryContent,
+    savingSummary,
+  } = summaryController;
+  const aiJobBusy = jobs.busy;
+  const documentsLoading = documentsQuery.isLoading;
+  const documentsError =
+    documentsQuery.error instanceof Error ? documentsQuery.error.message : null;
 
   const transcriptionStatus = video?.transcription_status;
   const summaryStatus = video?.summary_status;
-  const currentVideoId = video?.id;
 
   const statusAiError =
     transcriptionStatus === 'failed'
@@ -151,198 +83,66 @@ export default function Player() {
       : summaryStatus === 'failed'
         ? 'Échec de la génération du résumé (vérifiez la connexion API LLM)'
         : null;
-  const displayedAiError = statusAiError ?? aiJobError;
-
-  const catalogDocuments = parentFormation?.chapters.find((c) => c.id === chapterId)?.documents;
-
-  useEffect(() => {
-    fetchFormations();
-  }, [fetchFormations]);
+  const displayedAiError = statusAiError ?? jobs.error;
 
   useEffect(() => {
     if (videoId) setPlayerVideo(videoId);
   }, [videoId, setPlayerVideo]);
 
-  useEffect(() => {
-    if (!currentVideoId) return;
-    const aiProcessing =
-      transcriptionStatus === 'processing' || summaryStatus === 'processing';
-    if (!aiProcessing) return;
-    return setVisibilityInterval(() => {
-      void fetchFormations(true, true);
-    }, POLLING_INTERVAL_MS);
-  }, [currentVideoId, transcriptionStatus, summaryStatus, fetchFormations]);
-
-  useEffect(() => {
-    if (!video || video.summary_status !== 'ready' || summary !== null) return;
-    let cancelled = false;
-    const loadReadySummary = async () => {
-      try {
-        const text = await apiService.getVideoSummary(videoId);
-        if (!cancelled) {
-          setSummary(text);
-          setSummaryError(null);
-        }
-      } catch {
-        // résumé pas encore lisible côté fichier
-      }
-    };
-    void loadReadySummary();
-    return () => {
-      cancelled = true;
-    };
-  }, [video, videoId, summary]);
-
-  useEffect(() => {
-    if (!chapterId || catalogDocuments) return;
-
-    let cancelled = false;
-    const loadDocuments = async () => {
-      setDocumentsLoading(true);
-      setDocumentsError(null);
-      try {
-        const docs = await apiService.getChapterDocuments(chapterId);
-        if (!cancelled) setFetchedDocuments(docs);
-      } catch (err) {
-        if (!cancelled) {
-          setFetchedDocuments([]);
-          setDocumentsError(
-            err instanceof Error ? err.message : 'Échec du chargement des documents'
-          );
-        }
-      } finally {
-        if (!cancelled) setDocumentsLoading(false);
-      }
-    };
-
-    void loadDocuments();
-    return () => {
-      cancelled = true;
-    };
-  }, [chapterId, catalogDocuments]);
-
   const visibleDocuments = useMemo(() => {
-    const docs = catalogDocuments ?? (chapterId ? fetchedDocuments : []);
+    const docs = catalogDocuments ?? documentsQuery.data ?? [];
     return docs.filter((doc) => doc.video_id === videoId);
-  }, [catalogDocuments, chapterId, fetchedDocuments, videoId]);
+  }, [catalogDocuments, documentsQuery.data, videoId]);
 
   useEffect(() => {
-    if (!videoId) return;
-
-    let cancelled = false;
-
-    const loadProgress = async () => {
-      try {
-        const lastPosition = await apiService.getProgress(videoId);
-        if (cancelled || lastPosition === null) return;
-        // seekTo file la position jusqu'à loadedmetadata (VideoPlayer / AudioPlayer)
-        videoPlayerRef.current?.seekTo(lastPosition);
-        setCurrentTime(lastPosition);
-      } catch (err) {
-        console.error('Failed to load progress:', err);
-      }
-    };
-
-    void loadProgress();
-    return () => {
-      cancelled = true;
-    };
-  }, [videoId, setCurrentTime]);
+    const lastPosition = progressQuery.data;
+    if (lastPosition === null || lastPosition === undefined) return;
+    // seekTo file la position jusqu'à loadedmetadata (VideoPlayer / AudioPlayer)
+    videoPlayerRef.current?.seekTo(lastPosition);
+    setCurrentTime(lastPosition);
+  }, [progressQuery.data, setCurrentTime]);
 
   const handleSeekTo = (time: number) => {
     videoPlayerRef.current?.seekTo(time);
   };
 
-  const handleNoteCreated = () => {
-    notesListRef.current?.refresh();
-  };
-
   const handleGetSummary = async () => {
-    if (!videoId) return;
-
-    if (summary !== null) {
-      setShowSummary(!showSummary);
-      return;
-    }
-
-    setSummaryLoading(true);
-    setSummaryError(null);
-    setShowSummary(true);
-
-    try {
-      const summaryText = await apiService.getVideoSummary(videoId);
-      setSummary(summaryText);
-    } catch (err) {
-      const errorMessage = err instanceof Error ? err.message : 'Échec du chargement du résumé';
-      setSummaryError(errorMessage);
-      setShowSummary(false);
-    } finally {
-      setSummaryLoading(false);
-    }
+    await summaryController.toggleSummary();
   };
 
   const handleEditSummary = () => {
-    if (summary) {
-      setIsEditingSummary(true);
-      setEditSummaryContent(summary);
-    }
+    summaryController.startEditing();
   };
 
   const handleSaveSummary = async () => {
-    if (!videoId || !editSummaryContent.trim()) {
-      alert('Le résumé ne peut pas être vide');
-      return;
-    }
-
-    setSavingSummary(true);
     try {
-      const updatedSummary = await apiService.updateVideoSummary(videoId, editSummaryContent.trim());
-      setSummary(updatedSummary);
-      setIsEditingSummary(false);
-      setEditSummaryContent('');
+      await summaryController.saveSummary();
     } catch (err) {
       const errorMessage = err instanceof Error ? err.message : 'Échec de la mise à jour du résumé';
       alert(errorMessage);
-    } finally {
-      setSavingSummary(false);
     }
   };
 
   const handleCancelEditSummary = () => {
-    setIsEditingSummary(false);
-    setEditSummaryContent('');
+    summaryController.cancelEditing();
   };
 
   const handleStartTranscription = async () => {
     if (!videoId) return;
-    setAiJobBusy(true);
-    setAiJobError(null);
     try {
-      const updated = await apiService.startTranscription(videoId);
-      setOptimisticVideo(updated);
-      void fetchFormations(true, true);
-    } catch (err) {
-      setAiJobError(
-        err instanceof Error ? err.message : 'Échec du lancement de la transcription'
-      );
-    } finally {
-      setAiJobBusy(false);
+      await jobs.startTranscription();
+    } catch {
+      // L'erreur de mutation est exposée par le hook.
     }
   };
 
   const handleGenerateSummary = async () => {
     if (!videoId) return;
-    setAiJobBusy(true);
-    setAiJobError(null);
     try {
-      const updated = await apiService.generateVideoSummary(videoId);
-      setOptimisticVideo(updated);
-      setShowSummary(true);
-      void fetchFormations(true, true);
-    } catch (err) {
-      setAiJobError(err instanceof Error ? err.message : 'Échec de la génération du résumé');
-    } finally {
-      setAiJobBusy(false);
+      await jobs.generateSummary();
+      summaryController.openSummary();
+    } catch {
+      // L'erreur de mutation est exposée par le hook.
     }
   };
 
@@ -358,7 +158,7 @@ export default function Player() {
     router.push(`/player/${target.id}`);
   };
 
-  if (loading || (catalogLoading && !video)) {
+  if (loading) {
     return (
       <AuthGuard>
         <Container maxWidth="lg" sx={{ py: 4 }}>
@@ -380,340 +180,60 @@ export default function Player() {
     );
   }
 
-  const conversionJob = findActiveJob(video, 'media_conversion');
-  const transcriptionJob = findActiveJob(video, 'transcription');
-  const summaryJob = findActiveJob(video, 'summary');
-
   return (
     <AuthGuard>
       <Container maxWidth="lg" sx={{ py: 4 }}>
-        <Box
-          sx={{
-            display: 'flex',
-            alignItems: { xs: 'flex-start', sm: 'center' },
-            flexDirection: { xs: 'column', sm: 'row' },
-            gap: { xs: 2, sm: 0 },
-            mb: 3,
-          }}
-        >
-          <Box sx={{ display: 'flex', alignItems: 'center', flexGrow: 1, minWidth: 0 }}>
-            <IconButton onClick={handleGoBack} sx={{ mr: 1 }} aria-label="Retour">
-              <ArrowBackIcon />
-            </IconButton>
-            <Box sx={{ minWidth: 0 }}>
-              {parentFormation && (
-                <Typography
-                  variant="caption"
-                  color="text.secondary"
-                  noWrap
-                  sx={{ display: 'block' }}
-                >
-                  {parentFormation.name}
-                </Typography>
-              )}
-              <Typography variant="h5" component="h1" noWrap title={video.title}>
-                {video.title}
-              </Typography>
-            </Box>
-          </Box>
+        <PlayerNavigation
+          formation={parentFormation}
+          video={video}
+          previousVideo={prevVideo}
+          nextVideo={nextVideo}
+          onBack={handleGoBack}
+          onNavigate={navigateToVideo}
+        />
 
-          <Box sx={{ display: 'flex', gap: 1, flexShrink: 0, alignSelf: { xs: 'stretch', sm: 'auto' } }}>
-            <Button
-              variant="outlined"
-              startIcon={<SkipPreviousIcon />}
-              disabled={!prevVideo}
-              onClick={() => prevVideo && navigateToVideo(prevVideo)}
-              sx={{ display: { xs: 'none', sm: 'flex' } }}
-            >
-              Précédent
-            </Button>
-            <IconButton
-              color="primary"
-              disabled={!prevVideo}
-              onClick={() => prevVideo && navigateToVideo(prevVideo)}
-              sx={{ display: { xs: 'flex', sm: 'none' } }}
-              aria-label="Vidéo précédente"
-            >
-              <SkipPreviousIcon />
-            </IconButton>
+        <PlayerMediaPanel
+          videoId={videoId}
+          video={video}
+          playerRef={videoPlayerRef}
+          isAdmin={isAdmin}
+          jobBusy={aiJobBusy}
+          summaryLoading={summaryLoading}
+          onStartTranscription={() => void handleStartTranscription()}
+          onGenerateSummary={() => void handleGenerateSummary()}
+          onToggleSummary={() => void handleGetSummary()}
+        />
+        <PlayerJobNotices video={video} isAdmin={isAdmin} error={displayedAiError} />
+        <VideoSummaryPanel
+          summary={summary}
+          loading={summaryLoading}
+          error={summaryError}
+          visible={showSummary}
+          editing={isEditingSummary}
+          draft={editSummaryContent}
+          saving={savingSummary}
+          canEdit={isAdmin}
+          onDraftChange={setEditSummaryContent}
+          onEdit={handleEditSummary}
+          onSave={() => void handleSaveSummary()}
+          onCancel={handleCancelEditSummary}
+        />
 
-            <Button
-              variant="contained"
-              endIcon={<SkipNextIcon />}
-              disabled={!nextVideo}
-              onClick={() => nextVideo && navigateToVideo(nextVideo)}
-              sx={{ display: { xs: 'none', sm: 'flex' } }}
-            >
-              Suivant
-            </Button>
-            <IconButton
-              color="primary"
-              disabled={!nextVideo}
-              onClick={() => nextVideo && navigateToVideo(nextVideo)}
-              sx={{ display: { xs: 'flex', sm: 'none' } }}
-              aria-label="Vidéo suivante"
-            >
-              <SkipNextIcon />
-            </IconButton>
-          </Box>
-        </Box>
-
-        {(prevVideo || nextVideo) && (
-          <Box
-            sx={{
-              display: 'flex',
-              justifyContent: 'space-between',
-              gap: 2,
-              mb: 2,
-              flexDirection: { xs: 'column', sm: 'row' },
-            }}
-          >
-            {prevVideo ? (
-              <Typography
-                variant="caption"
-                color="text.secondary"
-                sx={{ cursor: 'pointer', '&:hover': { color: 'primary.main' } }}
-                onClick={() => navigateToVideo(prevVideo)}
-              >
-                ← {prevVideo.title}
-              </Typography>
-            ) : (
-              <span />
-            )}
-            {nextVideo && (
-              <Typography
-                variant="caption"
-                color="text.secondary"
-                sx={{
-                  cursor: 'pointer',
-                  textAlign: { xs: 'left', sm: 'right' },
-                  '&:hover': { color: 'primary.main' },
-                }}
-                onClick={() => navigateToVideo(nextVideo)}
-              >
-                {nextVideo.title} →
-              </Typography>
-            )}
-          </Box>
-        )}
-
-        <Paper sx={{ p: 2, mb: 3 }}>
-          {video.processing_status === 'processing' ? (
-            <Alert severity="info">
-              {jobProgressLabel(conversionJob, 'Conversion du média en cours…')}
-              {conversionJob?.message ? ` — ${conversionJob.message}` : ''}
-            </Alert>
-          ) : video.processing_status === 'failed' ? (
-            <Alert severity="error">Échec de la conversion du média.</Alert>
-          ) : video.kind === 'audio' ? (
-            <AudioPlayer ref={videoPlayerRef} videoId={videoId} />
-          ) : (
-            <VideoPlayer ref={videoPlayerRef} videoId={videoId} />
-          )}
-          <Box sx={{ mt: 2 }}>
-            <ProgressIndicator
-              duration={video.duration}
-              rightElement={
-                <Box sx={{ display: 'flex', alignItems: 'center', gap: 1, flexWrap: 'wrap' }}>
-                  {isAdmin && video.transcription_status !== 'ready' && (
-                    <Button
-                      variant="outlined"
-                      size="small"
-                      title={transcriptionJob?.message || undefined}
-                      startIcon={
-                        video.transcription_status === 'processing' || aiJobBusy ? (
-                          <CircularProgress size={14} color="inherit" />
-                        ) : (
-                          <RecordVoiceOverIcon fontSize="small" />
-                        )
-                      }
-                      onClick={() => void handleStartTranscription()}
-                      disabled={
-                        aiJobBusy ||
-                        video.processing_status !== 'ready' ||
-                        video.transcription_status === 'processing'
-                      }
-                      sx={{ minWidth: 'auto', px: 1.5 }}
-                    >
-                      {video.transcription_status === 'processing'
-                        ? jobProgressLabel(transcriptionJob, 'Transcription…')
-                        : 'Transcrire'}
-                    </Button>
-                  )}
-                  {isAdmin && video.summary_status !== 'ready' && (
-                    <Button
-                      variant="outlined"
-                      size="small"
-                      title={summaryJob?.message || undefined}
-                      startIcon={
-                        video.summary_status === 'processing' || aiJobBusy ? (
-                          <CircularProgress size={14} color="inherit" />
-                        ) : (
-                          <AutoAwesomeIcon fontSize="small" />
-                        )
-                      }
-                      onClick={() => void handleGenerateSummary()}
-                      disabled={
-                        aiJobBusy ||
-                        video.processing_status !== 'ready' ||
-                        video.transcription_status !== 'ready' ||
-                        video.summary_status === 'processing'
-                      }
-                      sx={{ minWidth: 'auto', px: 1.5 }}
-                    >
-                      {video.summary_status === 'processing'
-                        ? jobProgressLabel(summaryJob, 'Génération…')
-                        : 'Générer'}
-                    </Button>
-                  )}
-                  {video.summary_status === 'ready' && (
-                    <Button
-                      variant="outlined"
-                      onClick={handleGetSummary}
-                      disabled={summaryLoading || video.processing_status !== 'ready'}
-                      size="small"
-                      sx={{ minWidth: 'auto', px: 1.5 }}
-                    >
-                      {summaryLoading ? 'Chargement…' : 'Résumé'}
-                    </Button>
-                  )}
-                  {isAdmin && video.summary_status === 'ready' && (
-                    <Button
-                      variant="text"
-                      size="small"
-                      startIcon={<AutoAwesomeIcon fontSize="small" />}
-                      onClick={() => void handleGenerateSummary()}
-                      disabled={aiJobBusy || video.processing_status !== 'ready'}
-                      sx={{ minWidth: 'auto', px: 1 }}
-                    >
-                      Régénérer
-                    </Button>
-                  )}
-                </Box>
-              }
-            />
-          </Box>
-        </Paper>
-        {(aiJobError ||
-          video.transcription_status === 'failed' ||
-          video.summary_status === 'failed' ||
-          (isAdmin &&
-            video.transcription_status !== 'ready' &&
-            video.transcription_status !== 'processing' &&
-            video.summary_status !== 'ready')) && (
-          <Box sx={{ mb: 3, display: 'flex', flexDirection: 'column', gap: 1 }}>
-            {displayedAiError && <Alert severity="error">{displayedAiError}</Alert>}
-            {video.transcription_status === 'failed' && (
-              <Alert severity="error">
-                {isAdmin
-                  ? 'Échec de la transcription. Vous pouvez relancer.'
-                  : 'Échec de la transcription.'}
-              </Alert>
-            )}
-            {video.summary_status === 'failed' && (
-              <Alert severity="error">Échec de la génération du résumé.</Alert>
-            )}
-            {isAdmin &&
-              video.transcription_status !== 'ready' &&
-              video.transcription_status !== 'failed' &&
-              video.transcription_status !== 'processing' &&
-              video.summary_status !== 'ready' && (
-                <Alert severity="info">
-                  Une transcription est nécessaire avant de générer le résumé.
-                </Alert>
-              )}
-          </Box>
-        )}
-        {summaryError && (
-          <Box sx={{ mb: 3 }}>
-            <Alert severity="error">{summaryError}</Alert>
-          </Box>
-        )}
-        <Collapse in={showSummary && !summaryLoading && !summaryError}>
-          <Box sx={{ mb: 3 }}>
-            {summary && (
-              <Paper sx={{ p: 2, backgroundColor: 'background.default' }}>
-                <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', mb: 2 }}>
-                  <Typography variant="h6">Résumé</Typography>
-                  <Box>
-                    {isEditingSummary ? (
-                      <>
-                        <IconButton
-                          size="small"
-                          aria-label="Enregistrer"
-                          onClick={handleSaveSummary}
-                          disabled={savingSummary}
-                          color="primary"
-                        >
-                          <SaveIcon />
-                        </IconButton>
-                        <IconButton
-                          size="small"
-                          aria-label="Annuler"
-                          onClick={handleCancelEditSummary}
-                          disabled={savingSummary}
-                        >
-                          <CancelIcon />
-                        </IconButton>
-                      </>
-                    ) : isAdmin ? (
-                      <IconButton size="small" aria-label="Modifier" onClick={handleEditSummary}>
-                        <EditIcon />
-                      </IconButton>
-                    ) : null}
-                  </Box>
-                </Box>
-                <Collapse in={isEditingSummary}>
-                  <Box sx={{ mb: 2 }}>
-                    <MDEditor
-                      value={editSummaryContent}
-                      onChange={(value) => setEditSummaryContent(value || '')}
-                      preview="edit"
-                      hideToolbar={false}
-                      visibleDragbar={false}
-                      data-color-mode={theme.palette.mode}
-                      height={400}
-                    />
-                  </Box>
-                </Collapse>
-                {!isEditingSummary && summary !== null && (
-                  <MarkdownRenderer source={summary} />
-                )}
-              </Paper>
-            )}
-          </Box>
-        </Collapse>
-
-        <Box sx={{ mb: 3 }}>
-          <Tabs
-            value={bottomTab}
-            onChange={(_, value: number) => setBottomTab(value)}
-            sx={{ borderBottom: 1, borderColor: 'divider', mb: 2 }}
-          >
-            <Tab label="Notes" />
-            <Tab label={`Documents${visibleDocuments.length ? ` (${visibleDocuments.length})` : ''}`} />
-          </Tabs>
-
-          {bottomTab === 0 && (
-            <Box sx={{ display: 'grid', gridTemplateColumns: { xs: '1fr', md: '1fr 1fr' }, gap: 3 }}>
-              <Box>
-                <NotesPanel videoId={videoId} onNoteCreated={handleNoteCreated} />
-              </Box>
-              <Box>
-                <NotesList ref={notesListRef} videoId={videoId} onSeekTo={handleSeekTo} />
-              </Box>
-            </Box>
-          )}
-
-          {bottomTab === 1 && (
-            <DocumentsPanel
-              documents={visibleDocuments}
-              loading={documentsLoading}
-              error={documentsError}
-            />
-          )}
-        </Box>
+        <PlayerTabs
+          videoId={videoId}
+          documents={visibleDocuments}
+          documentsLoading={documentsLoading}
+          documentsError={documentsError}
+          onSeekTo={handleSeekTo}
+        />
       </Container>
     </AuthGuard>
   );
+}
+
+export default function Player() {
+  const params = useParams();
+  const videoId = params.videoId as string;
+
+  return <PlayerSession key={videoId} videoId={videoId} />;
 }

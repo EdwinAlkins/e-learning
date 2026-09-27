@@ -4,7 +4,7 @@ import { forwardRef, useImperativeHandle, useRef, useEffect, useMemo, useCallbac
 import videojs from 'video.js';
 import 'video.js/dist/video-js.css';
 import { usePlayerStore } from '../stores/player.store';
-import { API_BASE_URL } from '../services/api';
+import { API_BASE_URL } from '../shared/api/http-client';
 
 type Player = ReturnType<typeof videojs>;
 

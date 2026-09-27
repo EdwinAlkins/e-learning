@@ -24,7 +24,7 @@ import {
   OpenInNew as OpenInNewIcon,
 } from '@mui/icons-material';
 import type { Chapter } from '../../../types';
-import { apiService } from '../../../services/api';
+import { studioApi } from '../../../features/studio/api/studio.api';
 import {
   calculateChapterTotalDuration,
   formatDurationDetailed,
@@ -183,7 +183,7 @@ export default function StudioChapterAccordion({
                           size="small"
                           aria-label="Ouvrir le document"
                           component="a"
-                          href={apiService.documentFileUrl(document.id)}
+                          href={studioApi.documentFileUrl(document.id)}
                           target="_blank"
                           rel="noopener noreferrer"
                         >

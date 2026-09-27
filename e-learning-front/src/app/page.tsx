@@ -1,6 +1,6 @@
 'use client';
 
-import { useEffect, useMemo, useState } from 'react';
+import { useMemo } from 'react';
 import { useRouter } from 'next/navigation';
 import {
   Container,
@@ -14,9 +14,8 @@ import {
   CardActionArea,
   LinearProgress,
 } from '@mui/material';
-import { useCatalogStore } from '../stores/catalog.store';
-import { apiService } from '../services/api';
-import type { FormationProgress } from '../types';
+import { useFormationsQuery } from '../features/catalog/queries/formation.queries';
+import { useAllFormationProgressQuery } from '../features/formation/queries/progress.queries';
 import AuthGuard from '../components/AuthGuard';
 import {
   calculateFormationTotalDuration,
@@ -24,52 +23,14 @@ import {
 } from '../utils/formation';
 
 export default function Dashboard() {
-  const { formations, loading, error, fetchFormations } = useCatalogStore();
+  const formationsQuery = useFormationsQuery();
+  const formations = useMemo(() => formationsQuery.data ?? [], [formationsQuery.data]);
+  const loading = formationsQuery.isLoading;
+  const error =
+    formationsQuery.error instanceof Error ? formationsQuery.error.message : null;
   const router = useRouter();
-  const [progressData, setProgressData] = useState<Record<string, FormationProgress>>({});
-  const [progressLoading, setProgressLoading] = useState<Record<string, boolean>>({});
-
-  const formationIdsKey = useMemo(
-    () =>
-      (Array.isArray(formations) ? formations : [])
-        .map((f) => f.id)
-        .sort()
-        .join(','),
-    [formations]
-  );
-
-  useEffect(() => {
-    void fetchFormations();
-  }, [fetchFormations]);
-
-  useEffect(() => {
-    if (!formationIdsKey) return;
-
-    const formationIds = formationIdsKey.split(',');
-    let cancelled = false;
-
-    const loadProgress = async () => {
-      setProgressLoading(Object.fromEntries(formationIds.map((id) => [id, true])));
-
-      try {
-        const progressById = await apiService.getFormationsProgress();
-        if (cancelled) return;
-        setProgressData(progressById);
-      } catch (err) {
-        console.error('Failed to load formations progress', err);
-        if (!cancelled) setProgressData({});
-      } finally {
-        if (!cancelled) {
-          setProgressLoading(Object.fromEntries(formationIds.map((id) => [id, false])));
-        }
-      }
-    };
-
-    void loadProgress();
-    return () => {
-      cancelled = true;
-    };
-  }, [formationIdsKey]);
+  const progressQuery = useAllFormationProgressQuery(formations.length > 0);
+  const progressData = progressQuery.data ?? {};
 
   const handleFormationClick = (formationId: string) => {
     router.push(`/formation/${encodeURIComponent(formationId)}`);
@@ -117,7 +78,7 @@ export default function Dashboard() {
           >
             {safeFormations.map((formation) => {
               const formationProgress = progressData[formation.id];
-              const isLoadingProgress = progressLoading[formation.id];
+              const isLoadingProgress = progressQuery.isLoading;
               const totalDurationSeconds = calculateFormationTotalDuration(formation);
               const progressPercentage = formationProgress?.progress_percentage ?? 0;
               const doneDurationSeconds = totalDurationSeconds * (progressPercentage / 100);

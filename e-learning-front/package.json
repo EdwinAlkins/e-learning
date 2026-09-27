@@ -6,7 +6,14 @@
     "dev": "next dev",
     "build": "next build",
     "start": "next start",
-    "lint": "eslint"
+    "lint": "eslint",
+    "typecheck": "tsc --noEmit",
+    "test": "vitest run",
+    "test:watch": "vitest",
+    "test:coverage": "vitest run --coverage",
+    "test:e2e": "playwright test",
+    "test:e2e:ui": "playwright test --ui",
+    "check": "npm run lint && npm run typecheck && npm test"
   },
   "dependencies": {
     "@emotion/react": "^11.14.0",
@@ -14,6 +21,7 @@
     "@hello-pangea/dnd": "^18.0.1",
     "@mui/icons-material": "^9.4.0",
     "@mui/material": "^9.4.0",
+    "@tanstack/react-query": "^5.104.0",
     "@uiw/react-md-editor": "^4.1.0",
     "axios": "^1.20.0",
     "next": "^16.3.5",
@@ -21,15 +29,25 @@
     "react-dom": "^19.3.0",
     "react-player": "^3.4.0",
     "video.js": "^8.24.1",
+    "zod": "^4.6.5",
     "zustand": "^5.0.15"
   },
   "devDependencies": {
+    "@playwright/test": "^1.63.0",
+    "@testing-library/jest-dom": "^7.0.1",
+    "@testing-library/react": "^16.3.3",
+    "@testing-library/user-event": "^14.6.7",
     "@types/node": "^25.6.0",
     "@types/react": "^19.3.0",
     "@types/react-dom": "^19.3.0",
     "@types/video.js": "^7.3.58",
+    "@vitejs/plugin-react": "^6.1.1",
+    "@vitest/coverage-v8": "^5.0.2",
     "eslint": "^9.39.5",
     "eslint-config-next": "16.3.5",
-    "typescript": "~6.0.3"
+    "jsdom": "^30.1.1",
+    "msw": "^2.15.0",
+    "typescript": "~6.0.3",
+    "vitest": "^5.0.2"
   }
 }

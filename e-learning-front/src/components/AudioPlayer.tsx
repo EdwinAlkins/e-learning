@@ -3,7 +3,7 @@
 import { forwardRef, useEffect, useImperativeHandle, useRef } from 'react';
 import { Box, Paper, Typography } from '@mui/material';
 import { usePlayerStore } from '../stores/player.store';
-import { API_BASE_URL } from '../services/api';
+import { API_BASE_URL } from '../shared/api/http-client';
 import type { VideoPlayerRef } from './VideoPlayer';
 
 interface AudioPlayerProps {

@@ -12,7 +12,7 @@ import {
   LinearProgress,
   Typography,
 } from '@mui/material';
-import { API_BASE_URL } from '../../services/api';
+import { API_BASE_URL } from '../../shared/api/http-client';
 import { useOpenReset } from '../../hooks/useOpenReset';
 
 interface VideoUploadDialogProps {

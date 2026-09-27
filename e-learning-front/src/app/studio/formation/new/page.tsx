@@ -14,11 +14,11 @@ import {
 } from '@mui/material';
 import { ArrowBack as ArrowBackIcon } from '@mui/icons-material';
 import AuthGuard from '../../../../components/AuthGuard';
-import { useStudioStore } from '../../../../stores/studio.store';
+import { useStudioMutations } from '../../../../features/studio/hooks/useStudioMutations';
 
 export default function NewFormationPage() {
   const router = useRouter();
-  const { createFormation } = useStudioStore();
+  const { createFormation } = useStudioMutations();
   const [name, setName] = useState('');
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);

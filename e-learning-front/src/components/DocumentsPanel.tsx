@@ -19,7 +19,7 @@ import {
   PictureAsPdf as PictureAsPdfIcon,
 } from '@mui/icons-material';
 import type { Document } from '../types';
-import { apiService } from '../services/api';
+import { playerApi } from '../features/player/api/player.api';
 
 interface DocumentsPanelProps {
   readonly documents: Document[];
@@ -94,7 +94,7 @@ export default function DocumentsPanel({
                     size={compact ? 'small' : 'medium'}
                     aria-label="Ouvrir"
                     component="a"
-                    href={apiService.documentFileUrl(document.id)}
+                    href={playerApi.documentFileUrl(document.id)}
                     target="_blank"
                     rel="noopener noreferrer"
                     onClick={(event) => event.stopPropagation()}
@@ -106,7 +106,7 @@ export default function DocumentsPanel({
                     size={compact ? 'small' : 'medium'}
                     aria-label="Télécharger"
                     component="a"
-                    href={apiService.documentFileUrl(document.id, true)}
+                    href={playerApi.documentFileUrl(document.id, true)}
                     download={document.filename || true}
                     onClick={(event) => event.stopPropagation()}
                   >

@@ -1,4 +1,10 @@
-import type { Chapter, Document, Video } from '../../../types';
+import type { Chapter, Document, Video } from '../../types';
+
+export type ChapterSubmitData = {
+  name: string;
+  /** Position 1-based dans la formation (édition uniquement). */
+  order?: number;
+};
 
 export type DeleteTarget =
   | { type: 'chapter'; chapter: Chapter }

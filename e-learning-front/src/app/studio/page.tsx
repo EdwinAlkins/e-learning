@@ -1,6 +1,6 @@
 'use client';
 
-import { useEffect, useState } from 'react';
+import { useState } from 'react';
 import { useRouter } from 'next/navigation';
 import {
   Container,
@@ -24,7 +24,8 @@ import {
 } from '@mui/icons-material';
 import AuthGuard from '../../components/AuthGuard';
 import ConfirmDeleteDialog from '../../components/studio/ConfirmDeleteDialog';
-import { useStudioStore } from '../../stores/studio.store';
+import { useFormationsQuery } from '../../features/catalog/queries/formation.queries';
+import { useStudioMutations } from '../../features/studio/hooks/useStudioMutations';
 import {
   calculateFormationTotalDuration,
   formatDurationCompact,
@@ -33,13 +34,14 @@ import type { Formation } from '../../types';
 
 export default function StudioDashboard() {
   const router = useRouter();
-  const { formations, loading, error, fetchFormations, deleteFormation } = useStudioStore();
+  const formationsQuery = useFormationsQuery();
+  const { deleteFormation } = useStudioMutations();
+  const formations = formationsQuery.data ?? [];
+  const loading = formationsQuery.isLoading;
+  const error =
+    formationsQuery.error instanceof Error ? formationsQuery.error.message : null;
   const [deleteTarget, setDeleteTarget] = useState<Formation | null>(null);
   const [deleting, setDeleting] = useState(false);
-
-  useEffect(() => {
-    fetchFormations();
-  }, [fetchFormations]);
 
   const handleDelete = async () => {
     if (!deleteTarget) return;

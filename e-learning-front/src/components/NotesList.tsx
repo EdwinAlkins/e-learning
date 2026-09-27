@@ -1,6 +1,6 @@
 'use client';
 
-import { useState, useEffect, useImperativeHandle, forwardRef, useCallback } from 'react';
+import { useState } from 'react';
 import {
   List,
   ListItem,
@@ -22,7 +22,10 @@ import {
 import MDEditor from '@uiw/react-md-editor';
 import '@uiw/react-md-editor/markdown-editor.css';
 import type { Note } from '../types';
-import { apiService } from '../services/api';
+import {
+  useNoteMutations,
+  useVideoNotesQuery,
+} from '../features/player/queries/player.queries';
 import { formatTimecode } from '../utils/time';
 import { SNACKBAR_DURATION_MS } from '../constants';
 import ConfirmDeleteDialog from './studio/ConfirmDeleteDialog';
@@ -33,55 +36,24 @@ interface NotesListProps {
   readonly onSeekTo: (time: number) => void;
 }
 
-export interface NotesListRef {
-  refresh: () => void;
-}
-
-const NotesList = forwardRef<NotesListRef, NotesListProps>(({ videoId, onSeekTo }, ref) => {
-  const [notes, setNotes] = useState<Note[]>([]);
-  const [loading, setLoading] = useState(false);
+export default function NotesList({ videoId, onSeekTo }: NotesListProps) {
+  const notesQuery = useVideoNotesQuery(videoId);
+  const { updateNote, deleteNote } = useNoteMutations(videoId);
+  const notes = notesQuery.data ?? [];
   const [editingNoteId, setEditingNoteId] = useState<string | null>(null);
   const [editContent, setEditContent] = useState<string>('');
-  const [saving, setSaving] = useState(false);
   const [noteToDelete, setNoteToDelete] = useState<Note | null>(null);
-  const [deleting, setDeleting] = useState(false);
   const [errorMessage, setErrorMessage] = useState<string | null>(null);
   const theme = useTheme();
 
-  const loadNotes = useCallback(async () => {
-    setLoading(true);
-    try {
-      const fetchedNotes = await apiService.getNotes(videoId);
-      const sortedNotes = [...fetchedNotes].sort((a, b) => a.timecode - b.timecode);
-      setNotes(sortedNotes);
-    } catch (error) {
-      console.error('Failed to load notes:', error);
-      setErrorMessage('Échec du chargement des notes');
-    } finally {
-      setLoading(false);
-    }
-  }, [videoId]);
-
-  useImperativeHandle(ref, () => ({
-    refresh: loadNotes,
-  }));
-
-  useEffect(() => {
-    void loadNotes();
-  }, [loadNotes]);
-
   const handleConfirmDelete = async () => {
     if (!noteToDelete) return;
-    setDeleting(true);
     try {
-      await apiService.deleteNote(noteToDelete.id);
+      await deleteNote.mutateAsync(noteToDelete.id);
       setNoteToDelete(null);
-      await loadNotes();
     } catch (error) {
       console.error('Failed to delete note:', error);
       setErrorMessage('Échec de la suppression. Réessayez.');
-    } finally {
-      setDeleting(false);
     }
   };
 
@@ -96,17 +68,13 @@ const NotesList = forwardRef<NotesListRef, NotesListProps>(({ videoId, onSeekTo 
       return;
     }
 
-    setSaving(true);
     try {
-      await apiService.updateNote(noteId, editContent.trim());
+      await updateNote.mutateAsync({ noteId, content: editContent.trim() });
       setEditingNoteId(null);
       setEditContent('');
-      await loadNotes();
     } catch (error) {
       console.error('Failed to update note:', error);
       setErrorMessage('Échec de la mise à jour. Réessayez.');
-    } finally {
-      setSaving(false);
     }
   };
 
@@ -121,10 +89,18 @@ const NotesList = forwardRef<NotesListRef, NotesListProps>(({ videoId, onSeekTo 
     }
   };
 
-  if (loading) {
+  if (notesQuery.isLoading) {
     return (
       <Paper sx={{ p: 2 }}>
         <Typography>Chargement des notes…</Typography>
+      </Paper>
+    );
+  }
+
+  if (notesQuery.error) {
+    return (
+      <Paper sx={{ p: 2 }}>
+        <Alert severity="error">Échec du chargement des notes.</Alert>
       </Paper>
     );
   }
@@ -219,7 +195,7 @@ const NotesList = forwardRef<NotesListRef, NotesListProps>(({ videoId, onSeekTo 
                             e.stopPropagation();
                             void handleSaveNote(note.id);
                           }}
-                          disabled={saving}
+                          disabled={updateNote.isPending}
                           color="primary"
                         >
                           <SaveIcon />
@@ -231,7 +207,7 @@ const NotesList = forwardRef<NotesListRef, NotesListProps>(({ videoId, onSeekTo 
                             e.stopPropagation();
                             handleCancelEdit();
                           }}
-                          disabled={saving}
+                          disabled={updateNote.isPending}
                         >
                           <CancelIcon />
                         </IconButton>
@@ -290,7 +266,7 @@ const NotesList = forwardRef<NotesListRef, NotesListProps>(({ videoId, onSeekTo 
         message="Êtes-vous sûr de vouloir supprimer cette note ?"
         onClose={() => setNoteToDelete(null)}
         onConfirm={() => void handleConfirmDelete()}
-        loading={deleting}
+        loading={deleteNote.isPending}
       />
 
       <Snackbar
@@ -305,8 +281,4 @@ const NotesList = forwardRef<NotesListRef, NotesListProps>(({ videoId, onSeekTo 
       </Snackbar>
     </>
   );
-});
-
-NotesList.displayName = 'NotesList';
-
-export default NotesList;
+}

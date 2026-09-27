@@ -72,7 +72,7 @@ export default function FormationBuilderPage() {
   return (
     <AuthGuard>
       <Container maxWidth="lg" sx={{ py: 4 }}>
-        <FormationBuilderProvider formationId={formationId}>
+        <FormationBuilderProvider key={formationId} formationId={formationId}>
           <FormationBuilderContent />
         </FormationBuilderProvider>
       </Container>

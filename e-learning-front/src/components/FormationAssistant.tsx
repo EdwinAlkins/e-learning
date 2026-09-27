@@ -21,7 +21,8 @@ import {
   Refresh as RefreshIcon,
   Send as SendIcon,
 } from '@mui/icons-material';
-import { apiService } from '../services/api';
+import { formationApi } from '../features/formation/api/formation.api';
+import { playerApi } from '../features/player/api/player.api';
 import { useAuthStore } from '../stores/auth.store';
 import type { RagCitation } from '../types';
 import MarkdownRenderer from './MarkdownRenderer';
@@ -60,7 +61,7 @@ export default function FormationAssistant({
     setMessages((prev) => [...prev, { role: 'user', content: trimmed }]);
     setLoading(true);
     try {
-      const result = await apiService.askFormation(formationId, trimmed);
+      const result = await formationApi.ask(formationId, trimmed);
       setMessages((prev) => [
         ...prev,
         {
@@ -80,7 +81,7 @@ export default function FormationAssistant({
     setIndexing(true);
     setError(null);
     try {
-      await apiService.indexFormation(formationId);
+      await formationApi.index(formationId);
       setMessages((prev) => [
         ...prev,
         {
@@ -189,7 +190,7 @@ export default function FormationAssistant({
                     const openCitation = () => {
                       if (citation.document_id) {
                         window.open(
-                          apiService.documentFileUrl(citation.document_id),
+                          playerApi.documentFileUrl(citation.document_id),
                           '_blank',
                           'noopener,noreferrer'
                         );

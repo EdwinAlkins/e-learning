@@ -14,20 +14,19 @@ import { Add as AddIcon } from '@mui/icons-material';
 import MDEditor from '@uiw/react-md-editor';
 import '@uiw/react-md-editor/markdown-editor.css';
 import { usePlayerStore } from '../stores/player.store';
-import { apiService } from '../services/api';
+import { useNoteMutations } from '../features/player/queries/player.queries';
 import { formatTime } from '../utils/time';
 import { SNACKBAR_DURATION_MS } from '../constants';
 
 interface NotesPanelProps {
   readonly videoId: string;
-  readonly onNoteCreated: () => void;
 }
 
-export default function NotesPanel({ videoId, onNoteCreated }: NotesPanelProps) {
+export default function NotesPanel({ videoId }: NotesPanelProps) {
   const [content, setContent] = useState('');
-  const [loading, setLoading] = useState(false);
   const [errorMessage, setErrorMessage] = useState<string | null>(null);
   const { currentTime } = usePlayerStore();
+  const { createNote } = useNoteMutations(videoId);
   const theme = useTheme();
 
   const handleCreateNote = async () => {
@@ -35,16 +34,12 @@ export default function NotesPanel({ videoId, onNoteCreated }: NotesPanelProps) 
       return;
     }
 
-    setLoading(true);
     try {
-      await apiService.createNote(videoId, currentTime, content.trim());
+      await createNote.mutateAsync({ timecode: currentTime, content: content.trim() });
       setContent('');
-      onNoteCreated();
     } catch (error) {
       console.error('Failed to create note:', error);
       setErrorMessage('Échec de la création de la note. Réessayez.');
-    } finally {
-      setLoading(false);
     }
   };
 
@@ -72,7 +67,7 @@ export default function NotesPanel({ videoId, onNoteCreated }: NotesPanelProps) 
           variant="contained"
           startIcon={<AddIcon />}
           onClick={() => void handleCreateNote()}
-          disabled={loading || !content.trim()}
+          disabled={createNote.isPending || !content.trim()}
           sx={{ minWidth: 180 }}
         >
           Lier au temps actuel

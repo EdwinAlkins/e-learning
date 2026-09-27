@@ -1,6 +1,6 @@
 'use client';
 
-import { useEffect, useState } from 'react';
+import { useState } from 'react';
 import { useRouter } from 'next/navigation';
 import {
   Alert,
@@ -31,7 +31,11 @@ import {
 import AuthGuard from '../../../components/AuthGuard';
 import ConfirmDeleteDialog from '../../../components/studio/ConfirmDeleteDialog';
 import UserDialog from '../../../components/studio/UserDialog';
-import { apiErrorMessage, apiService } from '../../../services/api';
+import {
+  useUserMutations,
+  useUsersQuery,
+} from '../../../features/users/queries/user.queries';
+import { apiErrorMessage } from '../../../shared/api/errors';
 import { useAuthStore } from '../../../stores/auth.store';
 import { SNACKBAR_DURATION_MS } from '../../../constants';
 import type { AdminUser, CreateUserPayload, UpdateUserPayload } from '../../../types';
@@ -41,46 +45,22 @@ const PAGE_SIZE = 25;
 export default function StudioUsers() {
   const router = useRouter();
   const me = useAuthStore((state) => state.user);
-  const [users, setUsers] = useState<AdminUser[]>([]);
-  const [total, setTotal] = useState(0);
   const [page, setPage] = useState(0);
-  const [loading, setLoading] = useState(true);
-  const [error, setError] = useState<string | null>(null);
+  const usersQuery = useUsersQuery(page, PAGE_SIZE);
+  const { createUser, updateUser, deleteUser } = useUserMutations();
+  const users = usersQuery.data?.items ?? [];
+  const total = usersQuery.data?.total ?? 0;
+  const loading = usersQuery.isLoading;
+  const [actionError, setActionError] = useState<string | null>(null);
+  const error =
+    actionError ??
+    (usersQuery.error
+      ? apiErrorMessage(usersQuery.error, 'Chargement des comptes impossible.')
+      : null);
   const [dialogOpen, setDialogOpen] = useState(false);
   const [editTarget, setEditTarget] = useState<AdminUser | null>(null);
   const [deleteTarget, setDeleteTarget] = useState<AdminUser | null>(null);
-  const [deleting, setDeleting] = useState(false);
   const [feedback, setFeedback] = useState<string | null>(null);
-
-  /** Incrémenté pour recharger la page courante après une création / suppression. */
-  const [reloadKey, setReloadKey] = useState(0);
-
-  useEffect(() => {
-    let cancelled = false;
-    apiService
-      .listUsers(page * PAGE_SIZE, PAGE_SIZE)
-      .then((result) => {
-        if (cancelled) return;
-        setUsers(result.items);
-        setTotal(result.total);
-        setError(null);
-      })
-      .catch((err: unknown) => {
-        if (!cancelled) setError(apiErrorMessage(err, 'Chargement des comptes impossible.'));
-      })
-      .finally(() => {
-        if (!cancelled) setLoading(false);
-      });
-    return () => {
-      cancelled = true;
-    };
-  }, [page, reloadKey]);
-
-  const reload = (nextPage = page) => {
-    setLoading(true);
-    setPage(nextPage);
-    setReloadKey((key) => key + 1);
-  };
 
   const openCreate = () => {
     setEditTarget(null);
@@ -94,19 +74,17 @@ export default function StudioUsers() {
 
   const handleCreate = async (payload: CreateUserPayload) => {
     try {
-      await apiService.createUser(payload);
+      await createUser.mutateAsync(payload);
     } catch (err) {
       throw new Error(apiErrorMessage(err, 'Création impossible.'));
     }
     setDialogOpen(false);
     setFeedback('Compte créé');
-    reload();
   };
 
   const handleUpdate = async (userId: string, payload: UpdateUserPayload) => {
     try {
-      const updated = await apiService.updateUser(userId, payload);
-      setUsers((current) => current.map((u) => (u.id === updated.id ? updated : u)));
+      await updateUser.mutateAsync({ userId, payload });
     } catch (err) {
       throw new Error(apiErrorMessage(err, 'Modification impossible.'));
     }
@@ -116,18 +94,15 @@ export default function StudioUsers() {
 
   const handleDelete = async () => {
     if (!deleteTarget) return;
-    setDeleting(true);
     try {
-      await apiService.deleteUser(deleteTarget.id);
+      await deleteUser.mutateAsync(deleteTarget.id);
       setDeleteTarget(null);
       setFeedback('Compte supprimé');
       const lastPage = Math.max(0, Math.ceil((total - 1) / PAGE_SIZE) - 1);
-      reload(Math.min(page, lastPage));
+      setPage(Math.min(page, lastPage));
     } catch (err) {
-      setError(apiErrorMessage(err, 'Suppression impossible.'));
+      setActionError(apiErrorMessage(err, 'Suppression impossible.'));
       setDeleteTarget(null);
-    } finally {
-      setDeleting(false);
     }
   };
 
@@ -147,7 +122,7 @@ export default function StudioUsers() {
         </Box>
 
         {error && (
-          <Alert severity="error" sx={{ mb: 2 }} onClose={() => setError(null)}>
+          <Alert severity="error" sx={{ mb: 2 }} onClose={() => setActionError(null)}>
             {error}
           </Alert>
         )}
@@ -228,7 +203,7 @@ export default function StudioUsers() {
             component="div"
             count={total}
             page={page}
-            onPageChange={(_, nextPage) => reload(nextPage)}
+            onPageChange={(_, nextPage) => setPage(nextPage)}
             rowsPerPage={PAGE_SIZE}
             rowsPerPageOptions={[PAGE_SIZE]}
             labelDisplayedRows={({ from, to, count }) => `${from}–${to} sur ${count}`}
@@ -250,7 +225,7 @@ export default function StudioUsers() {
           message={`Supprimer « ${deleteTarget?.email} » ? Ses notes et sa progression seront aussi supprimées. Cette action est irréversible.`}
           onClose={() => setDeleteTarget(null)}
           onConfirm={handleDelete}
-          loading={deleting}
+          loading={deleteUser.isPending}
         />
 
         <Snackbar

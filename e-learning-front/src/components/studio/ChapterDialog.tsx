@@ -10,12 +10,7 @@ import {
   TextField,
 } from '@mui/material';
 import { useOpenReset } from '../../hooks/useOpenReset';
-
-export type ChapterSubmitData = {
-  name: string;
-  /** Position 1-based dans la formation (édition uniquement). */
-  order?: number;
-};
+import type { ChapterSubmitData } from '../../features/studio/builder.types';
 
 interface ChapterDialogProps {
   open: boolean;
