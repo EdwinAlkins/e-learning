@@ -10,7 +10,7 @@ from uuid import uuid4
 import pytest
 from httpx import ASGITransport, AsyncClient
 from pydantic import SecretStr
-from testcontainers.postgres import PostgresContainer
+from testcontainers.community.postgres import PostgresContainer
 
 from e_learning.application.user.dto import CreateUserCommand
 from e_learning.application.user.use_cases.create_user import CreateUser
